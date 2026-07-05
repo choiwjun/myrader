@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+
+<html class="light" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>보이나 - 갭 분석</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Be+Vietnam+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary": "#005438",
+                        "primary-container": "#4f46e5",
+                        "tertiary-container": "#006f4b",
+                        "surface-container-highest": "#e2e8f0",
+                        "on-secondary-fixed": "#341100",
+                        "on-secondary": "#ffffff",
+                        "outline": "#64748b",
+                        "primary-fixed-dim": "#c7d2fe",
+                        "tertiary-fixed": "#34d399",
+                        "on-primary-container": "#e0e7ff",
+                        "surface-bright": "#f8fafc",
+                        "on-secondary-fixed-variant": "#92400e",
+                        "surface-container-low": "#eef2ff",
+                        "on-surface": "#0f172a",
+                        "on-tertiary-fixed-variant": "#005236",
+                        "surface-tint": "#1353d8",
+                        "on-tertiary": "#ffffff",
+                        "surface-container": "#eef2ff",
+                        "on-error": "#ffffff",
+                        "primary-fixed": "#e0e7ff",
+                        "outline-variant": "#cbd5e1",
+                        "on-primary-fixed-variant": "#4338ca",
+                        "inverse-surface": "#2a313b",
+                        "secondary": "#b45309",
+                        "inverse-primary": "#c7d2fe",
+                        "on-primary-fixed": "#1e1b4b",
+                        "surface": "#f8fafc",
+                        "secondary-fixed-dim": "#fde68a",
+                        "on-error-container": "#991b1b",
+                        "surface-container-high": "#e2e8f0",
+                        "error-container": "#fee2e2",
+                        "surface-variant": "#e2e8f0",
+                        "on-tertiary-container": "#10b981",
+                        "secondary-container": "#f59e0b",
+                        "primary": "#4338ca",
+                        "secondary-fixed": "#fef3c7",
+                        "background": "#f8fafc",
+                        "inverse-on-surface": "#eef2ff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed": "#002113",
+                        "on-surface-variant": "#434654",
+                        "on-background": "#0f172a",
+                        "tertiary-fixed-dim": "#4edea3",
+                        "on-primary": "#ffffff",
+                        "error": "#dc2626",
+                        "surface-dim": "#e2e8f0",
+                        "on-secondary-container": "#5c2400"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "md": "16px",
+                        "base": "8px",
+                        "3xl": "64px",
+                        "container-margin": "24px",
+                        "xl": "32px",
+                        "2xl": "48px",
+                        "sm": "8px",
+                        "lg": "24px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "display-lg-mobile": ["Plus Jakarta Sans"],
+                        "headline-xl": ["Plus Jakarta Sans"],
+                        "label-sm": ["Be Vietnam Pro"],
+                        "body-lg": ["Be Vietnam Pro"],
+                        "headline-xl-mobile": ["Plus Jakarta Sans"],
+                        "label-xs": ["Be Vietnam Pro"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "body-md": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "display-lg-mobile": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-xl": ["32px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                        "label-sm": ["14px", {"lineHeight": "1.4", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                        "body-lg": ["18px", {"lineHeight": "1.8", "fontWeight": "400"}],
+                        "headline-xl-mobile": ["24px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                        "label-xs": ["12px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "headline-md": ["20px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                        "display-lg": ["48px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Be Vietnam Pro', sans-serif; -webkit-font-smoothing: antialiased; }
+        .glass-effect { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+        .shadow-soft { box-shadow: 0px 4px 6px rgba(0,0,0,0.02), 0px 10px 15px rgba(0,0,0,0.03); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-[#F9FAFB] text-on-surface">
+<!-- TopNavBar -->
+<header class="sticky top-0 z-50 bg-surface-container-lowest border-b border-outline-variant">
+<div class="flex justify-between items-center w-full px-lg max-w-[1280px] mx-auto h-[64px]">
+<div class="font-headline-md text-headline-md font-bold text-primary">보이나</div>
+<nav class="hidden md:flex items-center gap-xl h-full">
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors pb-1" href="#">가게 찾기</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors pb-1" href="#">내 상태</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors pb-1" href="#">경쟁 비교</a>
+<a class="font-body-md text-body-md text-primary font-bold border-b-2 border-primary pb-1" href="#">갭</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors pb-1" href="#">행동</a>
+</nav>
+<div class="flex items-center gap-md">
+<button class="material-symbols-outlined text-on-surface-variant">notifications</button>
+<button class="material-symbols-outlined text-on-surface-variant">settings</button>
+<div class="w-8 h-8 rounded-full bg-surface-container overflow-hidden">
+<img alt="User profile" data-alt="A clean, minimalist profile portrait of a modern professional in soft light. The photography is crisp with a bright white background, matching a high-end corporate aesthetic with neutral skin tones and a focused, friendly expression. The lighting is balanced and professional." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZ0_Dfxkgx4CQkJ5EFlMiLiDRofske_05hbeKC-14xE1D5aWTWkCqU31EbJ-oSqK4yE3ajUBg5KzGiDKyrhAv4GBxY3kwQrigAm_8Ybe_VgydGbA3gXj5KpbS6H1RBV-wvQ7C19bB0-0ikkSJVr4zeIUO0nv81vsiHuPI89IGnZcIYQmaThDTxMGvvFv-Gx2ONVQASb6Z6EEorNkAalhZvsver4xDG0GfJO_9ajc42Xf6QcdgfA0j1DVTxWE0p_1Rp24lCAIdODn0"/>
+</div>
+</div>
+</div>
+</header>
+<main class="max-w-[1200px] mx-auto px-lg py-3xl">
+<!-- Hero Header -->
+<div class="mb-3xl text-center md:text-left">
+<h1 class="font-headline-xl text-headline-xl mb-base text-on-surface">
+                옆집은 갖췄고 우리는 아직인 것들이에요.
+            </h1>
+<p class="font-body-md text-body-md text-outline">
+<span class="material-symbols-outlined align-middle text-[18px] mr-1">info</span>
+                따라한다고 바로 효과가 나타나지 않을 수 있어요.
+            </p>
+</div>
+<!-- Free Top 3 Gap Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-lg mb-2xl">
+<!-- Card 1 -->
+<div class="bg-surface-container-lowest border border-outline-variant p-lg rounded-xl shadow-soft hover:translate-y-[-4px] transition-transform duration-300">
+<div class="flex justify-between items-start mb-md">
+<span class="bg-surface-container text-primary font-label-xs text-label-xs px-2 py-1 rounded">직접</span>
+</div>
+<h3 class="font-headline-md text-headline-md mb-lg h-14">영업시간이 안 적혀 있어요</h3>
+<div class="space-y-sm">
+<div class="flex items-center justify-between p-sm bg-surface-container-low rounded-lg">
+<span class="font-label-sm text-label-sm text-on-surface-variant">옆집</span>
+<span class="text-tertiary-container font-bold flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
+                            갖췄어요
+                        </span>
+</div>
+<div class="flex items-center justify-between p-sm bg-surface-variant rounded-lg">
+<span class="font-label-sm text-label-sm text-on-surface-variant">우리</span>
+<span class="text-outline font-medium flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">cancel</span>
+                            아직이에요
+                        </span>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container-lowest border border-outline-variant p-lg rounded-xl shadow-soft hover:translate-y-[-4px] transition-transform duration-300">
+<div class="flex justify-between items-start mb-md">
+<span class="bg-surface-container text-primary font-label-xs text-label-xs px-2 py-1 rounded">복붙</span>
+</div>
+<h3 class="font-headline-md text-headline-md mb-lg h-14">자주 묻는 질문 안내가 없어요</h3>
+<div class="space-y-sm">
+<div class="flex items-center justify-between p-sm bg-surface-container-low rounded-lg">
+<span class="font-label-sm text-label-sm text-on-surface-variant">옆집</span>
+<span class="text-tertiary-container font-bold flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
+                            갖췄어요
+                        </span>
+</div>
+<div class="flex items-center justify-between p-sm bg-surface-variant rounded-lg">
+<span class="font-label-sm text-label-sm text-on-surface-variant">우리</span>
+<span class="text-outline font-medium flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">cancel</span>
+                            아직이에요
+                        </span>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container-lowest border border-outline-variant p-lg rounded-xl shadow-soft hover:translate-y-[-4px] transition-transform duration-300">
+<div class="flex justify-between items-start mb-md">
+<span class="bg-surface-container text-primary font-label-xs text-label-xs px-2 py-1 rounded">업체</span>
+</div>
+<h3 class="font-headline-md text-headline-md mb-lg h-14">후기 모음 안내가 없어요</h3>
+<div class="space-y-sm">
+<div class="flex items-center justify-between p-sm bg-surface-container-low rounded-lg">
+<span class="font-label-sm text-label-sm text-on-surface-variant">옆집</span>
+<span class="text-tertiary-container font-bold flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
+                            갖췄어요
+                        </span>
+</div>
+<div class="flex items-center justify-between p-sm bg-surface-variant rounded-lg">
+<span class="font-label-sm text-label-sm text-on-surface-variant">우리</span>
+<span class="text-outline font-medium flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">cancel</span>
+                            아직이에요
+                        </span>
+</div>
+</div>
+</div>
+</div>
+<!-- Paywall Area -->
+<div class="relative mt-3xl overflow-hidden rounded-3xl p-xl border border-outline-variant bg-surface-container-low/30">
+<div class="text-center mb-xl">
+<h2 class="font-headline-xl text-headline-xl text-on-surface mb-sm">옆집은 이미 이걸 다 갖췄어요</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">남은 12개의 비어있는 갭을 발견하고 채워보세요.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-md opacity-40 blur-[2px] pointer-events-none select-none">
+<!-- Blurred Mock Cards -->
+<div class="bg-surface-container-lowest border border-outline-variant p-md rounded-xl h-48 flex flex-col justify-center items-center">
+<div class="w-12 h-12 rounded-full bg-surface-container mb-4"></div>
+<div class="w-3/4 h-4 bg-surface-container rounded"></div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-md rounded-xl h-48 flex flex-col justify-center items-center">
+<div class="w-12 h-12 rounded-full bg-surface-container mb-4"></div>
+<div class="w-3/4 h-4 bg-surface-container rounded"></div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-md rounded-xl h-48 flex flex-col justify-center items-center">
+<div class="w-12 h-12 rounded-full bg-surface-container mb-4"></div>
+<div class="w-3/4 h-4 bg-surface-container rounded"></div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-md rounded-xl h-48 flex flex-col justify-center items-center">
+<div class="w-12 h-12 rounded-full bg-surface-container mb-4"></div>
+<div class="w-3/4 h-4 bg-surface-container rounded"></div>
+</div>
+</div>
+<!-- Paywall Overlay -->
+<div class="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-t from-surface-container-low via-surface-container-low/60 to-transparent">
+<button class="bg-primary hover:bg-primary-container text-white px-xl py-md rounded-xl font-headline-md text-headline-md shadow-lg transform transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-sm mt-2xl">
+<span class="material-symbols-outlined">lock_open</span>
+                    옆집의 모든 비결 잠금 해제
+                </button>
+</div>
+</div>
+</main>
+<!-- Bottom Sticky CTA -->
+<div class="fixed bottom-0 left-0 w-full p-lg z-40 flex justify-center">
+<div class="max-w-[1200px] w-full glass-effect bg-surface-container-lowest/80 border border-outline-variant rounded-full px-xl py-sm flex justify-between items-center shadow-soft">
+<p class="font-body-md text-body-md text-on-surface hidden md:block">
+                발견한 갭을 해결하기 위한 실천 단계로 이동합니다.
+            </p>
+<button class="bg-primary text-white font-label-sm text-label-sm px-lg py-md rounded-full flex items-center gap-xs hover:opacity-90 transition-opacity ml-auto md:ml-0">
+                그래서 뭘 하면 되나요?
+                <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Footer -->
+<footer class="bg-surface-container-low dark:bg-surface-dim border-t border-outline-variant mt-3xl mb-24">
+<div class="flex flex-col md:flex-row justify-between items-center w-full px-lg max-w-[1280px] mx-auto py-3xl gap-lg">
+<div class="flex flex-col items-center md:items-start gap-xs">
+<div class="font-label-sm text-label-sm font-semibold text-on-surface-variant">보이나</div>
+<p class="font-label-sm text-label-sm text-on-surface-variant opacity-60">© 2024 Boina. All rights reserved.</p>
+</div>
+<div class="flex gap-lg">
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:underline" href="#">이용약관</a>
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:underline" href="#">개인정보처리방침</a>
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:underline" href="#">고객센터</a>
+</div>
+</div>
+</footer>
+<script>
+        // Micro-interactions and subtle effects
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('mousedown', () => {
+                button.style.opacity = '0.8';
+                button.style.transform = 'scale(0.98)';
+            });
+            button.addEventListener('mouseup', () => {
+                button.style.opacity = '1';
+                button.style.transform = 'scale(1)';
+            });
+            button.addEventListener('mouseleave', () => {
+                button.style.opacity = '1';
+                button.style.transform = 'scale(1)';
+            });
+        });
+
+        // Simple visibility observer for cards
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.shadow-soft').forEach(card => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            card.style.transition = 'all 0.6s cubic-bezier(0.16, 1, 0.3, 1)';
+            observer.observe(card);
+        });
+    </script>
+</body></html>

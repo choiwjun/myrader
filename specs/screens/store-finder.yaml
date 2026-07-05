@@ -1,0 +1,108 @@
+# Find 화면 (store-finder) — REQ-001
+# 첫 방문 또는 가게 변경 시 가게를 찾고 진단을 시작한다. 완료 후 /home으로 이동한다.
+
+version: "3.0"
+
+screen:
+  id: FIND
+  name: 가게 찾기
+  route: /find
+  layout: mobile_single_column
+  auth: false
+  role: secondary_entry
+  purpose: 이름 한 칸과 지역으로 내 가게를 식별하고 첫 진단을 시작한다.
+
+data_requirements:
+  - resource: placeCandidate
+    needs: [placeUrl, name, address, category]
+    filters:
+      query: "?name"
+      region: "?region"
+
+  - resource: business
+    needs: [id, name, category, region, placeUrl, websiteUrl]
+
+  - resource: diagnosis
+    needs: [id, businessId, status]
+
+components:
+  - id: store_search_form
+    type: form
+    position: main
+    function: 가게 이름 한 칸과 지역을 입력받아 네이버 플레이스 후보를 찾는다.
+    data_source:
+      resource: placeCandidate
+    events:
+      - on: submit
+        do: 이름+지역으로 후보 검색, 후보 목록 표시
+
+  - id: candidate_list
+    type: list
+    position: main
+    function: 검색된 가게 후보와 주소를 보여주고 사장님이 내 가게를 고르게 한다.
+    data_source:
+      resource: placeCandidate
+    events:
+      - on: click:candidate
+        do: 선택한 후보를 내 가게로 확정, placeUrl 저장
+
+  - id: website_url_input
+    type: form
+    position: main
+    function: 홈페이지 주소 선택 입력. 없어도 진단 가능하다고 안내한다.
+
+  - id: start_diagnosis_button
+    component: M-02 To-do Card
+    position: footer
+    function: 진단 시작 큰 버튼. 누르면 백그라운드 진단을 시작한다.
+    data_source:
+      resource: diagnosis
+    events:
+      - on: click:start
+        do: 진단 job queued→running, progress_indicator 표시
+
+  - id: progress_indicator
+    type: detail
+    position: overlay
+    function: 준비 중 → 살펴보는 중 → 다 봤어요. 응원 톤으로 진행 상태를 보여준다.
+    data_source:
+      resource: diagnosis
+    events:
+      - on: status:done
+        do: /home 으로 자동 이동
+      - on: status:failed
+        do: 재시도 안내
+
+connections:
+  navigations:
+    - from: start_diagnosis_button
+      to: /home
+    - from: progress_indicator.done
+      to: /home
+  shared_components:
+    - app_header
+  external:
+    - naver_place_search
+    - diagnosis_engine
+
+tests:
+  - name: 가게 검색
+    when: 이름과 지역을 적고 검색
+    then:
+      - 네이버 플레이스 후보 목록이 표시됨
+      - 주소가 함께 보여 동명 가게를 구분할 수 있음
+
+  - name: 홈페이지 없이 진단
+    when: 홈페이지 칸을 비우고 진단 시작
+    then:
+      - 진단이 정상 시작됨
+
+  - name: 진단 완료 후 홈 이동
+    when: 진단이 완료됨
+    then:
+      - /home으로 이동
+      - 홈 카드 ①~⑤가 보임
+
+notes:
+  - /find는 primary revisit screen이 아니다. 재방문은 /home에서 시작한다.
+  - 가게 변경도 /find를 재사용한다.

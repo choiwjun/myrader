@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node", "vitest/globals"],
+    "paths": {
+      "@boina/contracts": ["./packages/contracts/src/index.ts"],
+      "@boina/contracts/*": ["./packages/contracts/src/*"],
+      "@boina/engine": ["./packages/engine/src/index.ts"],
+      "@boina/db": ["./packages/db/src/index.ts"],
+      "@boina/db/schema": ["./packages/db/src/schema/index.ts"],
+      "@boina/db/client": ["./packages/db/src/client.ts"],
+      "@boina/jobs": ["./packages/jobs/src/index.ts"],
+      "@boina/jobs/queue": ["./packages/jobs/src/queue/index.ts"],
+      "@boina/jobs/gating": ["./packages/jobs/src/gating/index.ts"],
+      "@radar/keyword-pipeline": ["./packages/keyword-pipeline/src/index.ts"]
+    }
+  },
+  "include": ["tests/**/*.ts", "vitest.config.ts"],
+  "exclude": ["node_modules", "dist", ".next", "apps", "packages"]
+}

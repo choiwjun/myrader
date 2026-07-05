@@ -1,0 +1,17 @@
+<!--
+  malformed-html-003 — 잘못된 attribute quote (단일/이중 혼합, quote 없음).
+-->
+<html>
+  <head>
+    <title>Attribute quote 혼합</title>
+    <meta name='description' content="single name, double content">
+    <meta name=robots content=index,follow>
+    <link rel='canonical href="/about">
+    <link rel="next" href='/next'>
+  </head>
+  <body>
+    <h1 class="title' id=main>제목</h1>
+    <a href=/menu class="link">메뉴</a>
+    <img src=/logo.png alt='로고">
+  </body>
+</html>

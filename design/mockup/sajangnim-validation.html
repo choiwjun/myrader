@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>검증용 목업 — 사장님 이해도 테스트 (AI 우선)</title>
+<style>
+  :root{
+    --green:#1db954; --yellow:#f5a623; --red:#e5484d; --ink:#1a1a1a;
+    --muted:#6b7280; --line:#ececef; --bg:#f4f5f7; --card:#fff; --brand:#2f6bff;
+    --ai:#7c3aed; --ai-bg:#f5f0ff;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0; background:var(--bg);
+    font-family:-apple-system,"Apple SD Gothic Neo","Pretendard","Malgun Gothic",sans-serif;
+    color:var(--ink); line-height:1.5}
+  .wrap{max-width:430px; margin:0 auto; min-height:100vh; background:var(--bg); position:relative}
+  .steps{position:sticky; top:0; z-index:5; background:var(--bg); padding:14px 18px 8px; display:flex; gap:6px}
+  .pill{flex:1; height:6px; border-radius:99px; background:#dfe1e6}
+  .pill.on{background:var(--brand)}
+  .screen{display:none; padding:6px 18px 120px; animation:fade .25s ease}
+  .screen.active{display:block}
+  @keyframes fade{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
+  .store{font-size:15px; color:var(--muted); margin:8px 0 2px; font-weight:600}
+  h1{font-size:25px; font-weight:800; letter-spacing:-.4px; margin:6px 0 16px; line-height:1.32}
+  h1 .hi{color:var(--ai)}
+  .lead{font-size:14.5px; color:var(--muted); font-weight:600; margin:-8px 0 14px}
+  /* HERO (AI) */
+  .hero{background:var(--ai-bg); border:2px solid #e3d6ff; border-radius:22px; padding:22px; margin-bottom:18px}
+  .hero .kicker{font-size:13.5px; font-weight:800; color:var(--ai); letter-spacing:.3px}
+  .hero .head{display:flex; align-items:center; gap:12px; margin:12px 0 6px}
+  .hero .bigdot{width:22px;height:22px;border-radius:50%;flex:none}
+  .hero h2{font-size:22px; font-weight:800; margin:0; line-height:1.32}
+  .hero p{font-size:15.5px; color:#3a3550; margin:8px 0 0; line-height:1.55}
+  .hero .fwd{margin-top:14px; background:#fff; border-radius:13px; padding:13px 15px; font-size:14.5px; font-weight:700; color:var(--ai)}
+  /* 보조 채널 */
+  .subttl{font-size:13.5px; font-weight:800; color:var(--muted); margin:18px 2px 8px; letter-spacing:.2px}
+  .ch{display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line);
+    border-radius:14px; padding:13px 15px; margin-bottom:9px}
+  .dot{width:14px;height:14px;border-radius:50%;flex:none}
+  .dot.g{background:var(--green)} .dot.y{background:var(--yellow)} .dot.r{background:var(--red)}
+  .ch .nm{font-size:16px; font-weight:800}
+  .ch .ds{font-size:13.5px; color:#52565d; font-weight:500; margin-top:2px}
+  .cheer{font-size:15.5px; font-weight:700; color:var(--green); margin:14px 2px 0}
+  /* 비교 */
+  .vs{display:flex; gap:10px; margin-bottom:6px}
+  .vs .col{flex:1; border-radius:16px; padding:15px 12px; text-align:center}
+  .vs .ri{background:#eefaf1; border:1px solid #c9ecd4}
+  .vs .me{background:#fff5f5; border:1px solid #f6d4d4}
+  .vs .name{font-size:14.5px; font-weight:800; margin-bottom:4px}
+  .vs .who{font-size:12px; color:#6b7280; font-weight:600; margin-bottom:9px}
+  .vs .ai{font-size:13.5px; font-weight:800; padding:7px 0; border-radius:9px; margin-bottom:6px}
+  .vs .ai.y{background:#ece2ff; color:var(--ai)} .vs .ai.n{background:#ffe2e2; color:var(--red)}
+  .vs .line{font-size:13px; font-weight:700; margin:4px 0}
+  .vs .ok{color:var(--green)} .vs .no{color:#b0454a}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:18px; margin-bottom:14px}
+  .why b{font-size:16.5px}
+  .why ul{margin:10px 0 0; padding-left:18px; font-size:15px; color:#3d4147}
+  .why li{margin:6px 0}
+  .why .tag{display:inline-block;font-size:11.5px;font-weight:800;color:var(--ai);background:var(--ai-bg);padding:2px 8px;border-radius:7px;margin-left:4px}
+  /* 행동 */
+  .today{background:var(--brand); color:#fff; border-radius:20px; padding:20px; margin-bottom:16px}
+  .today .tag{font-size:14px; font-weight:800; opacity:.92}
+  .today .big{font-size:21px; font-weight:800; margin:8px 0 4px; line-height:1.4}
+  .today .sub{font-size:14.5px; opacity:.95}
+  .today .go{display:block; margin-top:14px; background:#fff; color:var(--brand); font-weight:800; font-size:16px; padding:13px; border-radius:14px; text-decoration:none; text-align:center}
+  .act{display:flex; gap:12px; padding:15px; border-radius:16px; background:var(--card); border:1px solid var(--line); margin-bottom:11px; align-items:flex-start}
+  .act .ico{font-size:22px; flex:none}
+  .act .t{font-size:16.5px; font-weight:800; margin:0}
+  .act .d{font-size:14.5px; color:#4a4e55; margin:4px 0 0}
+  .act .copy{margin-top:9px; display:inline-block; background:#eef2ff; color:var(--brand); font-weight:800; font-size:14px; padding:8px 14px; border-radius:10px}
+  .honest{font-size:15px; color:#3d4147; background:var(--ai-bg); border-radius:14px; padding:15px; margin-top:6px; line-height:1.6}
+  .honest b{color:var(--ink)}
+  .nav{position:fixed; left:0; right:0; bottom:0; max-width:430px; margin:0 auto; display:flex; gap:10px;
+    padding:14px 18px calc(14px + env(safe-area-inset-bottom)); background:linear-gradient(180deg,rgba(244,245,247,0),var(--bg) 30%)}
+  .btn{flex:1; border:0; border-radius:15px; font-size:17px; font-weight:800; padding:16px; cursor:pointer}
+  .btn.prev{flex:0 0 96px; background:#e7e9ee; color:#4a4e55}
+  .btn.next{background:var(--brand); color:#fff}
+  .btn:disabled{opacity:.4}
+  .hint{position:fixed;bottom:80px;left:0;right:0;max-width:430px;margin:0 auto;font-size:12.5px;color:#9aa0a8;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="steps">
+    <div class="pill on"></div><div class="pill"></div><div class="pill"></div>
+  </div>
+
+  <!-- 1) 내 상태 — AI 노출이 HERO -->
+  <section class="screen active">
+    <div class="store">행복미용실 · 마포구</div>
+    <h1>요즘 손님은 <span class="hi">AI한테</span><br>물어봐요</h1>
+    <div class="lead">“이 동네 미용실 어디 잘해?” — 챗GPT·AI 검색</div>
+
+    <div class="hero">
+      <div class="kicker">AI 검색</div>
+      <div class="head">
+        <span class="bigdot" style="background:var(--red)"></span>
+        <h2>AI는 아직<br>우리 가게를 몰라요</h2>
+      </div>
+      <p>손님이 AI한테 동네 미용실을 물어보면, 추천 목록에 <b>우리 가게는 안 나와요.</b></p>
+      <div class="fwd">😌 괜찮아요 — 아직 대부분 가게가 그래요.<br>지금 준비하는 가게가 AI 시대에 <b>먼저 잡혀요.</b></div>
+    </div>
+
+    <div class="subttl">AI가 널 찾게 하는 채널 (연료)</div>
+    <div class="ch"><span class="dot y"></span><div><div class="nm">네이버</div><div class="ds">검색하면 나오긴 해요. 근데 한참 아래(8번째).</div></div></div>
+    <div class="ch"><span class="dot y"></span><div><div class="nm">구글</div><div class="ds">정보가 거의 없어요. 구글로 찾는 손님도 늘어요.</div></div></div>
+    <div class="ch"><span class="dot r"></span><div><div class="nm">SNS (인스타·블로그)</div><div class="ds">언급이 거의 없어요. AI가 참고할 게 없어요.</div></div></div>
+
+    <p class="cheer">😊 어디가 비었는지, 경쟁사랑 비교해서 보여드릴게요.</p>
+  </section>
+
+  <!-- 2) 라이벌 비교 -->
+  <section class="screen">
+    <div class="store">행복미용실 · 마포구</div>
+    <h1>옆 가게는<br><span class="hi">AI에 한 발 앞서</span> 있어요</h1>
+
+    <div class="card">
+      <div class="vs">
+        <div class="col ri">
+          <div class="name">제니헤어</div><div class="who">옆 골목</div>
+          <div class="ai y">AI가 가끔 추천 ✓</div>
+          <div class="line ok">네이버 1위</div>
+          <div class="line ok">리뷰 320개</div>
+        </div>
+        <div class="col me">
+          <div class="name">우리 가게</div><div class="who">행복미용실</div>
+          <div class="ai n">AI 추천 안 됨</div>
+          <div class="line no">네이버 8위</div>
+          <div class="line no">리뷰 12개</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card why">
+      <b>제니헤어는 왜 AI가 알까요?</b> <span class="tag">= 따라하면 돼요</span>
+      <ul>
+        <li><b>리뷰 320개</b> — AI는 평판 많은 가게를 믿고 추천해요</li>
+        <li><b>가게 소개·사진</b>을 꽉 채웠어요 — AI가 읽을 게 많아요</li>
+        <li>동네 <b>블로그·SNS에 여러 번 언급</b>돼요</li>
+      </ul>
+    </div>
+    <p class="cheer">😊 다행히, 이건 대부분 <b>돈 안 들이고</b> 따라잡을 수 있어요.</p>
+  </section>
+
+  <!-- 3) 행동 -->
+  <section class="screen">
+    <div class="store">행복미용실 · 마포구</div>
+    <h1>AI가 널 찾게 하려면,<br>오늘 이거 하나</h1>
+
+    <div class="today">
+      <div class="tag">오늘은 이거 딱 하나만!</div>
+      <div class="big">네이버에 ‘가게 소개’ 채우기</div>
+      <div class="sub">5분 · 무료 · 사장님이 직접 (AI가 읽을 재료가 생겨요)</div>
+      <a class="go" href="#">➡️ 네이버 플레이스 바로 가기</a>
+    </div>
+
+    <div class="act"><span class="ico">🟢</span><div><p class="t">지금 직접 (5분·무료)</p><p class="d">가게 소개·사진·영업시간 채우기, 대표 메뉴 적기</p></div></div>
+    <div class="act"><span class="ico">🟡</span><div><p class="t">복붙만 하면 돼요</p><p class="d">손님께 리뷰 부탁하는 문구, 우리가 써놨어요</p><span class="copy">📋 복사하기</span></div></div>
+    <div class="act"><span class="ico">🔴</span><div><p class="t">이건 업체에 맡기세요</p><p class="d">홈페이지 손보는 일 — “이렇게 보내세요” 메일까지 만들어드려요</p></div></div>
+    <div class="act"><span class="ico">⏳</span><div><p class="t">꾸준히 (AI 추천의 진짜 열쇠)</p><p class="d">손님 리뷰 차곡차곡 모으기 — AI가 가장 믿는 신호예요</p></div></div>
+
+    <p class="honest">💡 <b>솔직히</b> — AI에 잘 뜨는 건 비싼 기술이 아니에요.
+      <b>리뷰·가게 정보</b>처럼 대부분 <b>사장님이 직접·무료로</b> 할 수 있는 것들이 AI를 움직여요.</p>
+  </section>
+
+  <div class="nav">
+    <button class="btn prev" onclick="go(-1)" disabled>이전</button>
+    <button class="btn next" onclick="go(1)">다음 →</button>
+  </div>
+  <div class="hint">검증용 목업 · 실제 데이터 아님</div>
+</div>
+
+<script>
+  let i=0;
+  const screens=[...document.querySelectorAll('.screen')];
+  const pills=[...document.querySelectorAll('.pill')];
+  const prev=document.querySelector('.prev'), next=document.querySelector('.next');
+  function render(){
+    screens.forEach((s,k)=>s.classList.toggle('active',k===i));
+    pills.forEach((p,k)=>p.classList.toggle('on',k<=i));
+    prev.disabled=i===0;
+    next.textContent=i===screens.length-1?'처음으로':'다음 →';
+    window.scrollTo({top:0});
+  }
+  function go(d){ if(i===screens.length-1&&d===1){i=0;render();return;} i=Math.max(0,Math.min(screens.length-1,i+d)); render(); }
+</script>
+</body>
+</html>

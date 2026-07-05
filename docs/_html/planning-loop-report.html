@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>베이스라인 승인 리포트(loop)</title>
+<style>
+:root{--bg:#0f1115;--panel:#161922;--fg:#e6e9ef;--muted:#9aa3b2;--accent:#6ea8fe;--accent2:#7ee3c7;--border:#262b36;--code:#1b1f29;--th:#1d2230}
+@media(prefers-color-scheme:light){:root{--bg:#f7f8fa;--panel:#fff;--fg:#1b2330;--muted:#5b6573;--accent:#2f6fed;--accent2:#0e9f6e;--border:#e3e7ee;--code:#f0f2f6;--th:#eef1f6}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo","Segoe UI",Roboto,sans-serif;line-height:1.7;font-size:16px}
+.layout{display:grid;grid-template-columns:280px 1fr;min-height:100vh}
+nav.toc{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;background:var(--panel);border-right:1px solid var(--border);padding:24px 18px}
+nav.toc .brand{font-weight:800;font-size:15px;letter-spacing:.02em;color:var(--accent);margin-bottom:4px}
+nav.toc .sub{font-size:12px;color:var(--muted);margin-bottom:18px}
+nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 8px;border-radius:6px;font-size:13.5px;border-left:2px solid transparent}
+nav.toc a:hover{color:var(--fg);background:rgba(110,168,254,.08)}
+nav.toc a.lvl2{padding-left:18px}
+nav.toc a.lvl3{padding-left:30px;font-size:12.5px}
+nav.toc a.doc{font-weight:700;color:var(--fg);margin-top:14px}
+main{padding:48px 56px;max-width:920px;margin:0 auto;width:100%;overflow-x:hidden}
+main h1{font-size:30px;font-weight:800;margin:.2em 0 .6em;line-height:1.25}
+main h2{font-size:22px;font-weight:750;margin:1.8em 0 .5em;padding-bottom:.3em;border-bottom:1px solid var(--border)}
+main h3{font-size:18px;font-weight:700;margin:1.4em 0 .4em}
+main h4{font-size:15.5px;font-weight:700;color:var(--muted);margin:1.2em 0 .3em}
+main p{margin:.7em 0}
+a{color:var(--accent)}
+code{background:var(--code);padding:.12em .4em;border-radius:5px;font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:.88em}
+pre.code{background:var(--code);border:1px solid var(--border);border-radius:10px;padding:16px 18px;overflow:auto;font-size:13px;line-height:1.55}
+pre.code code{background:none;padding:0}
+blockquote{margin:1em 0;padding:.6em 1.1em;border-left:3px solid var(--accent);background:rgba(110,168,254,.07);border-radius:0 8px 8px 0;color:var(--fg)}
+ul,ol{padding-left:1.4em;margin:.6em 0}
+li{margin:.25em 0}
+li.task{list-style:none;margin-left:-1.2em}
+li.task input{margin-right:.5em}
+hr{border:none;border-top:1px solid var(--border);margin:2em 0}
+.table-wrap{overflow-x:auto;margin:1em 0;border:1px solid var(--border);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:9px 13px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+th{background:var(--th);font-weight:700;white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(110,168,254,.05)}
+img{max-width:100%;border-radius:8px}
+.doc-section{padding-top:8px}
+.doc-section+.doc-section{margin-top:24px;border-top:2px dashed var(--border);padding-top:32px}
+.meta-foot{margin-top:64px;padding-top:20px;border-top:1px solid var(--border);color:var(--muted);font-size:12.5px}
+.idx-card{display:block;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin:10px 0;text-decoration:none;color:var(--fg);transition:.15s}
+.idx-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.idx-card .t{font-weight:700;font-size:15px}
+.idx-card .p{color:var(--muted);font-size:13px;margin-top:3px}
+.idx-group{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:24px 0 6px}
+@media(max-width:860px){.layout{grid-template-columns:1fr}nav.toc{position:static;height:auto;border-right:none;border-bottom:1px solid var(--border)}main{padding:28px 20px}}
+</style>
+</head><body>
+<div class="layout">
+<nav class="toc"><div class="brand">베이스라인 승인 리포트(loop)</div><div class="sub">4개 문서 · 2026-06-13</div><a class="lvl1 doc" href="#00-loop-charter-루프-차터">00 — Loop Charter (루프 차터)</a><a class="lvl2" href="#1-상위-원칙-supervisor-principles">1. 상위 원칙 (Supervisor Principles)</a><a class="lvl2" href="#2-루프-단계-loop-010">2. 루프 단계 (LOOP 0~10)</a><a class="lvl2" href="#3-이번-루프-결과-요약">3. 이번 루프 결과 (요약)</a><a class="lvl2" href="#4-이-프로젝트의-완료-정의-definition-of-done">4. 이 프로젝트의 &quot;완료 정의&quot; (Definition of Done)</a><a class="lvl2" href="#5-충돌-시-우선순위">5. 충돌 시 우선순위</a><a class="lvl2" href="#6-연결-문서">6. 연결 문서</a><a class="lvl1 doc" href="#08-derived-gates-프로젝트별-파생-게이트">08 — Derived Gates (프로젝트별 파생 게이트)</a><a class="lvl2" href="#requirement-gate-map-req-001-req-007">Requirement Gate Map (REQ-001 ~ REQ-007)</a><a class="lvl2" href="#횡단-게이트-cross-cutting-gates-전-화면-적용">횡단 게이트 (Cross-Cutting Gates) — 전 화면 적용</a><a class="lvl2" href="#integration-rule-통합-규칙">Integration Rule (통합 규칙)</a><a class="lvl1 doc" href="#final-planning-approval-최종-기획-승인">Final Planning Approval — 최종 기획 승인</a><a class="lvl2" href="#1-판정-조건부-green">1. 판정 — 조건부 Green</a><a class="lvl2" href="#2-권장-우선-phase-착수-가능-범위">2. 권장 우선 Phase (착수 가능 범위)</a><a class="lvl2" href="#3-풀-green-4조건">3. 풀 Green 4조건</a><a class="lvl2" href="#4-잔존-리스크">4. 잔존 리스크</a><a class="lvl2" href="#5-승인-메타">5. 승인 메타</a><a class="lvl1 doc" href="#planning-loop-supervisor-검증-리포트">Planning Loop Supervisor — 검증 리포트</a><a class="lvl2" href="#0-검증-대상-베이스라인-입력">0. 검증 대상 베이스라인 (입력)</a><a class="lvl2" href="#1-loop-010-요약">1. LOOP 0~10 요약</a><a class="lvl2" href="#2-13항목-점수표-점수-근거-수정-액션">2. 13항목 점수표 (점수 · 근거 · 수정 액션)</a><a class="lvl2" href="#3-갭-open-question-사장님-검증">3. 갭 (= Open Question · 사장님 검증)</a><a class="lvl2" href="#4-patch-미수행-사유-명시">4. Patch 미수행 사유 (명시)</a><a class="lvl2" href="#5-산출물-다음-단계">5. 산출물 &amp; 다음 단계</a></nav>
+<main><section class="doc-section" id="00-loop-charter-루프-차터">
+<h1 id="00-loop-charter-루프-차터">00 — Loop Charter (루프 차터)</h1>
+<blockquote>이 문서는 <code>/planning-loop-supervisor</code>가 운영하는 <strong>상위 검증 루프</strong>의 헌장이다. 감독관(Supervisor)은 <strong>생산자가 아니라 감독관</strong>이다 — 기획 문서를 만들지 않고, 만들어진 문서를 다시 읽어 검증하고 게이트를 파생한다.</blockquote>
+<ul><li><strong>Project</strong>: 소상공인 셀프 SEO/AEO/GEO 진단 + 경쟁사 비교 + 행동 안내 (네이버+구글, 한눈에)</li><li><strong>Engine</strong>: x-sag 분석 엔진 재사용 (새 git 레포의 새 제품)</li><li><strong>Scope</strong>: REQ-001 ~ REQ-007 · 화면 S1~S7 · 32태스크 · 10도메인 리소스</li><li><strong>Iteration</strong>: 1 · 일자: 2026-06-13</li></ul>
+<hr>
+<h2 id="1-상위-원칙-supervisor-principles">1. 상위 원칙 (Supervisor Principles)</h2>
+<ol><li><strong>감독관은 생산하지 않는다.</strong> 베이스라인(<code>01~07</code>, <code>specs/</code>)을 재생성하지 않고, 검증·갭리뷰·게이트 파생만 수행한다.</li><li><strong>증거 기반 판정.</strong> 실행하지 않은 체크를 통과로 주장하지 않는다 (Confirmed / Assumption / Unknown / Blocked 라벨).</li><li><strong>하드페일 우선.</strong> 치명 결함·추적 단절·발명(근거 없는 사실 주입)은 점수와 무관하게 즉시 Red.</li><li><strong>핵심 항목 게이팅.</strong> 핵심 7항목(Product Clarity, Requirement Completeness, Technical Feasibility, Traceability, Consistency, Task Executability, Implementation Readiness)은 <strong>≥4/5</strong>가 Green 조건. 하나라도 미달이면 최대 <strong>조건부(Yellow)</strong>.</li><li><strong>Patch-Only.</strong> 문서 결함은 해당 섹션만 Gap Review로 패치한다. 단, <strong>문서 결함이 아닌 결정·검증 미수행</strong>은 patch가 아니라 <strong>upstream gap</strong>으로 기록한다.</li><li><strong>발명 금지.</strong> OPEN(OQ) 항목을 임의로 확정하지 않는다. 미결정은 <code>[OPEN]</code>으로 보존한다.</li><li><strong>게이트 파생.</strong> 검증 후 설계 산출물에서 프로젝트별 세부 게이트(<code>08-derived-gates.md</code>)를 파생한다.</li></ol>
+<h2 id="2-루프-단계-loop-010">2. 루프 단계 (LOOP 0~10)</h2>
+<div class="table-wrap"><table><thead><tr><th>LOOP</th><th>내용</th></tr></thead><tbody><tr><td>0</td><td>베이스라인 로드 (9문서 + specs)</td></tr><tr><td>1</td><td>하드페일 스캔</td></tr><tr><td>2~8</td><td>13항목 채점 (2개씩, LOOP 8 = Implementation Readiness 핵심)</td></tr><tr><td>9</td><td>파생 게이트 생성 (<code>08-derived-gates.md</code>)</td></tr><tr><td>10</td><td>최종 planning approval (<code>final-planning-approval.md</code>)</td></tr></tbody></table></div>
+<p>각 게이트 판정은 <strong>Green / Yellow / Red / Blocked</strong>. 스킵은 기록된 사유가 있어야 한다.</p>
+<h2 id="3-이번-루프-결과-요약">3. 이번 루프 결과 (요약)</h2>
+<ul><li><strong>하드페일</strong>: 0건</li><li><strong>점수</strong>: 54/65 — 핵심 7항목 중 6개 ≥4, <strong>Implementation Readiness 3/5 미달</strong></li><li><strong>판정</strong>: 조건부 승인(Yellow) → 최종 <strong>조건부 Green</strong> (착수 가능하나 조건부)</li><li><strong>Patch</strong>: 미수행 — 미달이 OQ 결정·사장님 검증이라 문서 재생성으로 해소 불가 → upstream gap으로 이관</li><li><strong>파생 게이트</strong>: REQ-001~007 각 5종 + 횡단 2종(G-HONESTY, G-사장님이해)</li></ul>
+<h2 id="4-이-프로젝트의-완료-정의-definition-of-done">4. 이 프로젝트의 &quot;완료 정의&quot; (Definition of Done)</h2>
+<blockquote>⚠️ <strong>이 프로젝트의 완료는 <code>00-loop.md</code>(본 차터)와 <code>08-derived-gates.md</code>를 함께 충족할 때만 성립한다.</strong></blockquote>
+<p>구현완료 = 다음을 <strong>모두</strong> 만족:</p>
+<ol><li>본 차터의 상위 원칙(증거 기반·발명 금지·patch-only)을 위반하지 않음.</li><li><code>08-derived-gates.md</code>의 각 REQ Hard/Metric/Domain/Evidence 게이트 <strong>증거 통과</strong>.</li><li>횡단 게이트 <strong>G-HONESTY</strong>(점수·인과·전문용어 0) Green.</li><li>횡단 게이트 <strong>G-사장님이해</strong>(AC-7, 비IT 사장님 2~3명 5분 이해도) Green.</li><li><strong>풀 Green 4조건</strong>: ① OQ-5·OQ-6 결정 ② OQ-3 페이월/가격 결정 ③ 사장님 이해도 검증(AC-7) ④ 구글 실 SERP는 v1.5(OQ-4)로 분리.</li></ol>
+<p>위 중 미충족이 있으면 <strong>조건부 Green(착수 가능)</strong>까지만 인정되고, <strong>출시·v1 구현완료로 승격 불가</strong>다.</p>
+<h2 id="5-충돌-시-우선순위">5. 충돌 시 우선순위</h2>
+<p>사용자 결정 &gt; 게이트 판정 &gt; 승인된 베이스라인 &gt; <code>08-derived-gates.md</code> &gt; 스킬 내부 규칙 &gt; 에이전트 구현 디테일.</p>
+<h2 id="6-연결-문서">6. 연결 문서</h2>
+<ul><li><code>docs/planning/loop/loop-state.json</code> — 기계 판독 루프 상태</li><li><code>docs/planning/loop/planning-loop-report.md</code> — 13항목 점수표·갭·patch 미수행 사유</li><li><code>docs/planning/loop/08-derived-gates.md</code> — 파생 게이트 (완료 정의의 절반)</li><li><code>docs/planning/loop/final-planning-approval.md</code> — 최종 착수 승인</li></ul>
+</section>
+<section class="doc-section" id="08-derived-gates-프로젝트별-파생-게이트">
+<h1 id="08-derived-gates-프로젝트별-파생-게이트">08 — Derived Gates (프로젝트별 파생 게이트)</h1>
+<ul><li><strong>Project</strong>: 소상공인 셀프 SEO/AEO/GEO 진단 + 경쟁사 비교 + 행동 안내 (네이버+구글, 한눈에)</li><li><strong>Generated From</strong>: <code>docs/planning/01-prd.md</code>(REQ-001~007, AC-1~8) · <code>02-trd.md</code> · <code>03-user-flow.md</code> · <code>04-database-design.md</code> · <code>05-design-system.md</code> · <code>06-screens.md</code>(S1~S7) · <code>06-tasks.md</code>(32태스크) · <code>specs/</code> · <code>DECISION_LOG.md</code></li><li><strong>Generated By</strong>: <code>/planning-loop-supervisor</code> LOOP 9 · iteration 1 · 2026-06-13</li><li><strong>Engine</strong>: x-sag 분석 엔진 재사용 (core-engine · contracts · naver-presence · llm-provider · snippet)</li></ul>
+<blockquote>게이트 종류: <strong>Hard</strong>(통과 필수, 미통과 시 구현완료 불가) · <strong>Metric</strong>(정량 기준) · <strong>Rubric</strong>(정성 채점) · <strong>Domain</strong>(도메인 규율·예외처리) · <strong>Evidence</strong>(증거 아티팩트). <code>upstream-gap</code> 플래그가 붙은 게이트는 OQ 결정·외부 배선·사장님 검증이 선행되어야 풀 Green이 된다.</blockquote>
+<hr>
+<h2 id="requirement-gate-map-req-001-req-007">Requirement Gate Map (REQ-001 ~ REQ-007)</h2>
+<h3 id="req-001-가게-찾기-입력-화면-s1">REQ-001 — 가게 찾기 / 입력 (화면 S1)</h3>
+<div class="table-wrap"><table><thead><tr><th>종류</th><th>게이트 정의</th><th style="text-align:center">upstream-gap</th></tr></thead><tbody><tr><td><strong>Hard</strong></td><td>가게 이름 입력 → 네이버 플레이스 후보 표시 → 선택 시 <code>business</code> 1건 + <code>diagnosis(status=queued)</code> 1건 생성</td><td style="text-align:center">—</td></tr><tr><td><strong>Metric</strong></td><td>후보 검색 응답 <strong>p95 &lt; 2s</strong> · 단위 테스트 <strong>≥ 1</strong> 통과</td><td style="text-align:center">—</td></tr><tr><td><strong>Rubric</strong></td><td>입력 칸이 &quot;이름 한 칸&quot; 원칙을 지킨다(필수 입력 1개, URL은 선택)</td><td style="text-align:center">—</td></tr><tr><td><strong>Domain</strong></td><td>후보 없음(동명·미등록) 시 <strong>수동 입력 폴백</strong> 동작</td><td style="text-align:center">—</td></tr><tr><td><strong>Evidence</strong></td><td>S1 동작 영상/스크린샷 + 후보검색 테스트 결과 + business/diagnosis 생성 레코드</td><td style="text-align:center">—</td></tr></tbody></table></div>
+<h3 id="req-002-내-상태-진단-화면-s2">REQ-002 — 내 상태 진단 (화면 S2)</h3>
+<div class="table-wrap"><table><thead><tr><th>종류</th><th>게이트 정의</th><th style="text-align:center">upstream-gap</th></tr></thead><tbody><tr><td><strong>Hard</strong></td><td><code>diagnosis.status=done</code> 시 <code>channelStatus</code>(naver/ai <strong>최소</strong>) 신호등 렌더, <strong>점수 미노출</strong></td><td style="text-align:center">—</td></tr><tr><td><strong>Metric</strong></td><td>네이버 노출 측정 성공률 측정 가능 · AI 인용 <strong>게이팅 동작</strong>(무분별 호출 차단)</td><td style="text-align:center">—</td></tr><tr><td><strong>Rubric</strong></td><td>신호등 + 한 줄 요약이 비IT 사장님이 이해 가능한 언어</td><td style="text-align:center">—</td></tr><tr><td><strong>Domain</strong></td><td>네이버 자격증명 없으면 <strong>graceful 생략</strong>(에러 아님)</td><td style="text-align:center">—</td></tr><tr><td><strong>Domain (upstream-gap)</strong></td><td><strong>구글 실 SERP</strong>(OQ-4)는 <strong>v1.5</strong> — v1 신호등에서 구글 채널은 조건부/생략</td><td style="text-align:center">✅ OQ-4</td></tr><tr><td><strong>Evidence</strong></td><td>신호등 스크린샷 + 네이버 측정 로그 + AI 게이팅 로그</td><td style="text-align:center">—</td></tr></tbody></table></div>
+<h3 id="req-003-경쟁사-비교-화면-s3">REQ-003 — 경쟁사 비교 (화면 S3)</h3>
+<div class="table-wrap"><table><thead><tr><th>종류</th><th>게이트 정의</th><th style="text-align:center">upstream-gap</th></tr></thead><tbody><tr><td><strong>Hard</strong></td><td><code>competitor.beatsMe = true</code> 인 경쟁사에 대해 <strong>손실 카드</strong> 렌더 (<strong>실 SERP / grounded 결과만</strong>, 추측 경쟁사명 금지)</td><td style="text-align:center">—</td></tr><tr><td><strong>Metric</strong></td><td>손실 카드가 1건 이상 grounded 소스에 1:1 대응</td><td style="text-align:center">—</td></tr><tr><td><strong>Rubric</strong></td><td>손실 프레이밍 카피가 정직성 규율 내(인과 단정 0)</td><td style="text-align:center">—</td></tr><tr><td><strong>Domain</strong></td><td>경쟁사 신뢰 추출 실패 시 <strong>카드 생략</strong>(추측 표시 금지)</td><td style="text-align:center">—</td></tr><tr><td><strong>Evidence</strong></td><td>비교 카드 스크린샷 + 각 카드의 소스(SERP/grounded) 로그</td><td style="text-align:center">—</td></tr></tbody></table></div>
+<h3 id="req-004-라이벌-역공학-갭-화면-s4">REQ-004 — 라이벌 역공학 / 갭 (화면 S4)</h3>
+<div class="table-wrap"><table><thead><tr><th>종류</th><th>게이트 정의</th><th style="text-align:center">upstream-gap</th></tr></thead><tbody><tr><td><strong>Hard (upstream-gap)</strong></td><td><code>competitorUrls</code>/자동발견 → <strong>GapAnalyzer</strong> → <code>gapItem</code> 매트릭스(보유 vs 갭) 렌더. <strong>x-sag GapAnalyzer 배선 필요(x-sag에선 미배선)</strong> + OQ-6</td><td style="text-align:center">✅ P2-R4 배선 / OQ-6</td></tr><tr><td><strong>Metric</strong></td><td>동일 입력 → 동일 갭 산출(<strong>결정론</strong>)</td><td style="text-align:center">—</td></tr><tr><td><strong>Domain</strong></td><td>갭 항목을 <strong>사장님 언어로 번역</strong>, 인과 단정 0</td><td style="text-align:center">—</td></tr><tr><td><strong>Rubric</strong></td><td>&quot;걔는 갖췄고 당신은 없음&quot; 매트릭스가 한 줄씩 이해 가능</td><td style="text-align:center">—</td></tr><tr><td><strong>Evidence</strong></td><td>갭 매트릭스 스크린샷 + GapAnalyzer <strong>배선 테스트</strong> 결과</td><td style="text-align:center">—</td></tr></tbody></table></div>
+<h3 id="req-005-행동-안내-화면-s5">REQ-005 — 행동 안내 (화면 S5)</h3>
+<div class="table-wrap"><table><thead><tr><th>종류</th><th>게이트 정의</th><th style="text-align:center">upstream-gap</th></tr></thead><tbody><tr><td><strong>Hard</strong></td><td>모든 발견을 <strong>4분류(🟢🟡🔴⏳)</strong> + <strong>&quot;오늘 딱 하나&quot; 1개</strong> + 직접건 <strong>딥링크</strong> 제시</td><td style="text-align:center">—</td></tr><tr><td><strong>Metric</strong></td><td>&quot;오늘 딱 하나&quot;가 정확히 1개 선정 · 4분류 누락 0</td><td style="text-align:center">—</td></tr><tr><td><strong>Domain</strong></td><td><strong>정직성</strong> — 진짜 레버(리뷰·플레이스)는 🟢/⏳로 분류, 허위 즉효 약속 금지</td><td style="text-align:center">—</td></tr><tr><td><strong>Rubric</strong></td><td>우선순위가 사장님이 바로 실행 가능한 순서</td><td style="text-align:center">—</td></tr><tr><td><strong>Evidence</strong></td><td>행동 카드 스크린샷 + 4분류 분류 검증 + 딥링크 동작</td><td style="text-align:center">—</td></tr></tbody></table></div>
+<h3 id="req-006-쉬운-것-생성-화면-s6">REQ-006 — 쉬운 것 생성 (화면 S6)</h3>
+<div class="table-wrap"><table><thead><tr><th>종류</th><th>게이트 정의</th><th style="text-align:center">upstream-gap</th></tr></thead><tbody><tr><td><strong>Hard</strong></td><td>snippet(FAQ/스키마) · 소개글 · 리뷰 문구 · 처방전(이메일 초안) 생성 + <strong>큰 복사 버튼</strong> 동작</td><td style="text-align:center">—</td></tr><tr><td><strong>Hard (upstream-gap)</strong></td><td>무료/유료 <strong>페이월 경계</strong> 적용 — <strong>가격(OQ-3) 미결정</strong></td><td style="text-align:center">✅ OQ-3</td></tr><tr><td><strong>Domain</strong></td><td>생성 카피에 <strong>인과 단정 금지</strong> · <strong>AI 생성 라벨</strong> 표기</td><td style="text-align:center">—</td></tr><tr><td><strong>Rubric</strong></td><td>생성물이 복붙 가능한 완성형(편집 없이 사용 가능 수준)</td><td style="text-align:center">—</td></tr><tr><td><strong>Evidence</strong></td><td>생성물 4종 스크린샷 + 복사 버튼 동작 로그</td><td style="text-align:center">—</td></tr></tbody></table></div>
+<h3 id="req-007-재진단-추이">REQ-007 — 재진단 / 추이</h3>
+<div class="table-wrap"><table><thead><tr><th>종류</th><th>게이트 정의</th><th style="text-align:center">upstream-gap</th></tr></thead><tbody><tr><td><strong>전체 (upstream-gap)</strong></td><td><strong>v1.5 — 모든 게이트 v1 보류 명시.</strong> v1 구현완료 판정에서 제외</td><td style="text-align:center">✅ v1.5 분리</td></tr></tbody></table></div>
+<hr>
+<h2 id="횡단-게이트-cross-cutting-gates-전-화면-적용">횡단 게이트 (Cross-Cutting Gates) — 전 화면 적용</h2>
+<h3 id="g-honesty-정직성-가드-hard-전-화면">G-HONESTY — 정직성 가드 (Hard · 전 화면)</h3>
+<div class="table-wrap"><table><thead><tr><th>종류</th><th>게이트 정의</th></tr></thead><tbody><tr><td><strong>Hard</strong></td><td>(1) <strong>점수 비노출</strong> — 모든 화면에서 수치 점수 0건. (2) <strong>인과 카피 0</strong> — &quot;이거 고치면 1위&quot; 류 단정 0건. (3) <strong>전문용어 노출 0</strong> — 비IT 사장님이 모르는 용어 0건.</td></tr><tr><td><strong>Evidence</strong></td><td>전 화면 카피 스캔 결과 + 카피 가드(05·07) 테스트 통과 로그</td></tr><tr><td>근거</td><td>01-prd AC-2/AC-8, 05-design-system 정직성 규율, 02-trd §5 &quot;점수≠AI 실인용&quot; 리스크</td></tr></tbody></table></div>
+<h3 id="g-사장님이해-사장님-이해도-게이트-ac-7-풀-green-조건">G-사장님이해 — 사장님 이해도 게이트 (AC-7 · 풀 Green 조건)</h3>
+<div class="table-wrap"><table><thead><tr><th>종류</th><th>게이트 정의</th></tr></thead><tbody><tr><td><strong>Hard (upstream-gap)</strong></td><td><strong>비IT 사장님 2~3명</strong>이 화면을 보고 <strong>5분 내</strong>에 &quot;내 상태 / 경쟁 / 할 일&quot;을 <strong>스스로 설명</strong>할 수 있다.</td></tr><tr><td>현재 상태</td><td><strong>미수행 (0/2-3)</strong> — upstream-gap. <strong>풀 Green의 필수 조건.</strong></td></tr><tr><td><strong>Evidence</strong></td><td>사장님 이해도 테스트 세션 기록(2~3명) + 5분 내 자기 설명 성공 여부</td></tr><tr><td>근거</td><td>01-prd AC-7(게이트), 05-design-system &quot;사장님 이해도 테스트&quot; 게이트(최우선)</td></tr></tbody></table></div>
+<hr>
+<h2 id="integration-rule-통합-규칙">Integration Rule (통합 규칙)</h2>
+<ol><li><strong>구현완료 ≠ 코드 머지.</strong> 각 REQ의 <strong>구현완료 = 위 Hard/Metric/Domain/Evidence 게이트 증거 통과 전에는 불가</strong>.</li><li><strong>upstream-gap 게이트</strong>(OQ-3·OQ-4·OQ-6·P2-R4 배선·G-사장님이해·REQ-007)는 선행 결정/배선/검증 없이는 <strong>풀 Green 불가</strong> — 조건부 Green까지만 허용.</li><li><strong>G-HONESTY · G-사장님이해</strong>는 개별 REQ Green과 <strong>무관하게 항상 적용</strong>되는 횡단 게이트다. 둘 중 하나라도 Red면 제품 전체가 출시 불가.</li><li><strong>v1.5 항목</strong>(REQ-007, 구글 실 SERP/OQ-4)은 v1 구현완료 판정 대상에서 <strong>제외</strong>한다.</li><li>본 게이트는 베이스라인 <code>06-tasks.md</code>의 V태스크/AC와 <strong>충돌 시 더 엄격한 쪽</strong>을 따른다 (충돌 우선순위: 사용자 결정 &gt; 게이트 판정 &gt; 베이스라인 &gt; 08-derived-gates).</li></ol>
+</section>
+<section class="doc-section" id="final-planning-approval-최종-기획-승인">
+<h1 id="final-planning-approval-최종-기획-승인">Final Planning Approval — 최종 기획 승인</h1>
+<blockquote>제품: 소상공인 셀프 SEO/AEO/GEO 진단 + 경쟁사 비교 + 행동 안내 (네이버+구글, 한눈에) 엔진: x-sag 분석 엔진 재사용 · 요구사항: REQ-001 ~ REQ-007 판정 주체: <code>/planning-loop-supervisor</code> LOOP 10 · iteration 1 · 2026-06-13</blockquote>
+<hr>
+<h2 id="1-판정-조건부-green">1. 판정 — 조건부 Green</h2>
+<blockquote><strong>조건부 Green — &quot;착수 가능하나 조건부&quot;.</strong></blockquote>
+<ul><li>하드페일 <strong>0건</strong>, 점수 <strong>54/65</strong>, 핵심 7항목 중 <strong>6개 ≥4</strong> (Implementation Readiness만 3/5).</li><li>베이스라인 문서 9종 + <code>specs/</code>는 일관성·추적성(REQ→flow→screen→resource→task, ICV 0누락) 통과.</li><li>미달의 원인은 <strong>문서 결함이 아니라 결정·검증 미수행</strong>(OQ-5·OQ-6·OQ-3 + 사장님 검증 0) → patch 불가, <strong>upstream gap</strong>으로 기록.</li><li>따라서 <strong>풀 Green이 아닌 조건부 Green</strong> — 개발 착수는 허용하되 아래 조건을 풀 Green 전제로 둔다.</li></ul>
+<h2 id="2-권장-우선-phase-착수-가능-범위">2. 권장 우선 Phase (착수 가능 범위)</h2>
+<div class="table-wrap"><table><thead><tr><th>Phase</th><th>내용</th><th style="text-align:center">착수</th><th>선행/제약</th></tr></thead><tbody><tr><td><strong>P0 셋업</strong></td><td>모노레포 골격 + 엔진 통합 자리 + DB + 잡 골격</td><td style="text-align:center">✅</td><td><strong>P0-R0(엔진통합 OQ-6) 결정 선행</strong>, <strong>P0-T3(잡 OQ-5) 결정 선행</strong></td></tr><tr><td><strong>P1 공통</strong></td><td>인증/계정 + 진단 잡 인프라 + 공통 리소스</td><td style="text-align:center">✅</td><td>P0 완료 후</td></tr><tr><td><strong>P2 프론트 화면 (S1~S7)</strong></td><td>화면 구현</td><td style="text-align:center">✅</td><td><strong>P2-R4(GapAnalyzer 배선)은 upstream-gap</strong></td></tr></tbody></table></div>
+<ul><li>P0·P1·P2 착수 가능. 단 <strong>P0-R0(OQ-6)·P0-T3(OQ-5) 결정이 P0 진입과 함께 선행</strong>되어야 하고, <strong>P2-R4(REQ-004 GapAnalyzer 배선)</strong>은 x-sag에서 미배선 상태라 upstream-gap이다.</li></ul>
+<h2 id="3-풀-green-4조건">3. 풀 Green 4조건</h2>
+<p>조건부 Green → 풀 Green 승격은 다음을 <strong>모두</strong> 충족할 때:</p>
+<ol><li><strong>OQ-5 · OQ-6 결정</strong> — 백그라운드 잡 인프라 선택(OQ-5) + 엔진 재사용 방식 import vs 추출/복사(OQ-6) 확정·명문화(07 §2).</li><li><strong>OQ-3 페이월 / 가격 결정</strong> — 무료/유료 경계 및 가격 액수(사장님 검증 후) 확정.</li><li><strong>사장님 이해도 검증 (AC-7)</strong> — 비IT 사장님 2~3명이 5분 내 &quot;내 상태 / 경쟁 / 할 일&quot; 자기 설명 성공 (현재 0/2-3 미수행).</li><li><strong>구글 실 SERP는 v1.5 (OQ-4)</strong> — v1 게이트에서 분리, 구글 채널은 조건부/생략으로 처리.</li></ol>
+<h2 id="4-잔존-리스크">4. 잔존 리스크</h2>
+<div class="table-wrap"><table><thead><tr><th>리스크</th><th>설명</th><th>비고</th></tr></thead><tbody><tr><td><strong>사장님 미검증 (전체 베팅)</strong></td><td>비IT 사장님이 제품을 이해 못 하면 제품 전제 붕괴 — 최대 베팅 리스크</td><td>AC-7 / G-사장님이해 게이트로 해소 (미수행)</td></tr><tr><td><strong>7화면 복잡도</strong></td><td>S1~S7은 비IT 사장님에게 다소 많을 수 있음 (Scope Control 주의)</td><td>사장님 검증 시 동선 단순화 여지 확인</td></tr><tr><td><strong>페이월 전환률 미검증</strong></td><td>무료→유료(일회성 실행 팩) 전환률 미검증, 가격 액수 미확정(OQ-3)</td><td>가격 확정 후 전환 측정</td></tr></tbody></table></div>
+<h2 id="5-승인-메타">5. 승인 메타</h2>
+<ul><li><strong>gate_pass</strong>: false (조건부)</li><li><strong>gate<em>status</strong>: conditional</em>yellow → final: <strong>conditional_green</strong></li><li><strong>gates_derived</strong>: true (<code>08-derived-gates.md</code>)</li><li><strong>iteration</strong>: 1 (추가 patch 루프 미수행 — 사유: 미달이 OQ 결정·사장님 검증이라 문서 재생성으로 해소 불가)</li><li><strong>완료 정의</strong>: <code>00-loop.md</code> + <code>08-derived-gates.md</code>를 함께 충족해야 v1 구현완료로 승격 (조건부 Green은 착수 허용까지).</li></ul>
+<hr>
+<h3 id="한-줄-결론">한 줄 결론</h3>
+<p><strong>조건부 Green — P0/P1/P2(S1~S7) 착수 가능. 단 OQ-5·OQ-6·OQ-3 결정과 사장님 이해도 검증(AC-7) 완료 전에는 풀 Green·v1 구현완료로 승격 불가.</strong></p>
+</section>
+<section class="doc-section" id="planning-loop-supervisor-검증-리포트">
+<h1 id="planning-loop-supervisor-검증-리포트">Planning Loop Supervisor — 검증 리포트</h1>
+<blockquote>제품: 소상공인 셀프 SEO/AEO/GEO 진단 + 경쟁사 비교 + 행동 안내 (네이버+구글, 한눈에) 엔진: x-sag(github.com/choiwjun/x-sag) 분석 엔진 <strong>재사용</strong>. 새 git 레포의 새 제품. 감독관 역할: 생산자가 아니라 <strong>감독관</strong>. 설계 문서를 다시 읽어 일관성·추적성·갭·품질·개발가능성을 검증하고 게이트를 파생한다. 판정 일자: 2026-06-13 · iteration: 1 · 요구사항: REQ-001 ~ REQ-007</blockquote>
+<hr>
+<h2 id="0-검증-대상-베이스라인-입력">0. 검증 대상 베이스라인 (입력)</h2>
+<div class="table-wrap"><table><thead><tr><th>문서</th><th>경로</th><th>비고</th></tr></thead><tbody><tr><td>PRD</td><td><code>docs/planning/01-prd.md</code></td><td>REQ-001~007, OQ-1~6, AC-1~8</td></tr><tr><td>TRD</td><td><code>docs/planning/02-trd.md</code></td><td>Next.js 풀스택 + x-sag 엔진 import, 백그라운드 잡</td></tr><tr><td>User Flow</td><td><code>docs/planning/03-user-flow.md</code></td><td>3-스텝 (가게찾기→내상태→경쟁→역공학→행동)</td></tr><tr><td>DB Design</td><td><code>docs/planning/04-database-design.md</code></td><td>10리소스 개념모델, x-sag contracts 차용</td></tr><tr><td>Design System</td><td><code>docs/planning/05-design-system.md</code></td><td>비IT UX 규율, 신호등, 정직성 카피 가드</td></tr><tr><td>Screens</td><td><code>docs/planning/06-screens.md</code></td><td>S1~S7 + 상태</td></tr><tr><td>Tasks</td><td><code>docs/planning/06-tasks.md</code></td><td>32태스크 (P{N}-R/S{M}), ICV 0누락 통과</td></tr><tr><td>Coding Convention</td><td><code>docs/planning/07-coding-convention.md</code></td><td>UUID·엔진 통합 규칙</td></tr><tr><td>결정 레저</td><td><code>docs/planning/DECISION_LOG.md</code></td><td>OQ-2·OQ-3 확정, OQ-1·4·5·6 OPEN</td></tr><tr><td>스펙</td><td><code>specs/</code> (domain 10리소스 + screens 7 + shared)</td><td>커버리지 0누락</td></tr></tbody></table></div>
+<hr>
+<h2 id="1-loop-010-요약">1. LOOP 0~10 요약</h2>
+<div class="table-wrap"><table><thead><tr><th>LOOP</th><th>단계</th><th>결과</th></tr></thead><tbody><tr><td>LOOP 0</td><td>베이스라인 로드 (9문서 + specs)</td><td>정본 확인 — REQ→flow→screen→resource→task 체인 존재</td></tr><tr><td>LOOP 1</td><td>하드페일 스캔 (치명 결함·추적 단절·발명)</td><td><strong>하드페일 0건</strong></td></tr><tr><td>LOOP 2</td><td>Product Clarity / Requirement Completeness</td><td>5 / 4</td></tr><tr><td>LOOP 3</td><td>Technical Feasibility / User Flow Coverage</td><td>5 / 4</td></tr><tr><td>LOOP 4</td><td>Data Model Fit / UI·Screen Completeness</td><td>4 / 4</td></tr><tr><td>LOOP 5</td><td>Design System Applicability / Task Executability</td><td>4 / 4</td></tr><tr><td>LOOP 6</td><td>Testability / Traceability</td><td>3 / 5</td></tr><tr><td>LOOP 7</td><td>Consistency / Scope Control</td><td>4 / 4</td></tr><tr><td>LOOP 8</td><td>Implementation Readiness (핵심)</td><td><strong>3 ⚠️ — 1개 미달</strong></td></tr><tr><td>LOOP 9</td><td>파생 게이트 생성 (REQ-001~007 각 5종 + 횡단 2종)</td><td><code>08-derived-gates.md</code> 산출</td></tr><tr><td>LOOP 10</td><td>최종 planning approval</td><td><strong>조건부 Green</strong> → <code>final-planning-approval.md</code></td></tr></tbody></table></div>
+<p>판정: <strong>조건부 승인(Yellow)</strong> — 핵심 7개 중 6개 ≥4, Implementation Readiness만 3/5 미달. 하드페일 없음. <code>gate_pass=false</code>(조건부) / <code>gates_derived=true</code> / <code>iteration=1</code>.</p>
+<hr>
+<h2 id="2-13항목-점수표-점수-근거-수정-액션">2. 13항목 점수표 (점수 · 근거 · 수정 액션)</h2>
+<div class="table-wrap"><table><thead><tr><th>#</th><th>항목</th><th style="text-align:center">점수</th><th>근거 (1줄)</th><th>수정 액션</th></tr></thead><tbody><tr><td>1</td><td>Product Clarity</td><td style="text-align:center"><strong>5/5</strong></td><td>북극성·사장님 단일 질문·타깃(비IT 40~60대 P1) 명확</td><td>없음</td></tr><tr><td>2</td><td>Requirement Completeness</td><td style="text-align:center"><strong>4/5</strong></td><td>REQ-001~007 + 예외 정의됨, 단 무료/유료 <strong>가격 OPEN(OQ-3)</strong></td><td>OQ-3 가격 결정 (사장님 검증 후)</td></tr><tr><td>3</td><td>Technical Feasibility</td><td style="text-align:center"><strong>5/5</strong></td><td>x-sag 엔진 이미 존재·재사용, 신규 구현 리스크 최소</td><td>없음</td></tr><tr><td>4</td><td>User Flow Coverage</td><td style="text-align:center"><strong>4/5</strong></td><td>3-step + 예외 커버, 단 페이월 전환 일부 OPEN</td><td>OQ-3 결정 후 페이월 전환 플로우 보강</td></tr><tr><td>5</td><td>Data Model Fit</td><td style="text-align:center"><strong>4/5</strong></td><td>10리소스↔화면 0누락, 엔진 contracts 스키마 차용</td><td>OQ-6 결정 후 contracts 매핑 고정</td></tr><tr><td>6</td><td>UI / Screen Completeness</td><td style="text-align:center"><strong>4/5</strong></td><td>S1~S7 + 상태 정의, 빈상태/페이월 일부 OPEN</td><td>빈상태·페이월 화면 보강 (OQ-3 후)</td></tr><tr><td>7</td><td>Design System Applicability</td><td style="text-align:center"><strong>4/5</strong></td><td>비IT UX 규율 구체, 비주얼 토큰은 구현 시 확정</td><td>구현 단계 비주얼 토큰 확정</td></tr><tr><td>8</td><td>Task Executability</td><td style="text-align:center"><strong>4/5</strong></td><td>32태스크 TDD·담당·의존 명시, 엔진통합 방식 <strong>OQ-6</strong></td><td>OQ-6 결정 후 P0-R0 통합 방식 명문화</td></tr><tr><td>9</td><td>Testability</td><td style="text-align:center"><strong>3/5</strong></td><td>대부분 testable, <strong>AC-7 사장님 이해도·정직성 카피는 정성</strong> → 게이트 보완</td><td>G-사장님이해/G-HONESTY 게이트로 정성 검증 보완</td></tr><tr><td>10</td><td>Traceability</td><td style="text-align:center"><strong>5/5</strong></td><td>REQ→flow→screen→resource→task + ICV 0누락</td><td>없음</td></tr><tr><td>11</td><td>Consistency</td><td style="text-align:center"><strong>4/5</strong></td><td>문서 간 충돌 없음, OPEN 항목 일관 표기</td><td>없음 (OPEN 해소 시 동기 갱신)</td></tr><tr><td>12</td><td>Scope Control</td><td style="text-align:center"><strong>4/5</strong></td><td>대행 제외·v1.5 분리·페이월 명확, <strong>7화면은 비IT엔 다소 많음</strong> 주의</td><td>7화면 복잡도 모니터링 (사장님 검증 시)</td></tr><tr><td>13</td><td>Implementation Readiness</td><td style="text-align:center"><strong>3/5 ⚠️</strong></td><td>핵심 미달: <strong>OQ-6 엔진통합·OQ-5 잡인프라·OQ-3 가격 미결정 + 사장님 검증 0</strong></td><td>OQ-5·OQ-6·OQ-3 결정 + AC-7 사장님 검증 수행</td></tr></tbody></table></div>
+<p><strong>합계: 54 / 65</strong> · 핵심 7항목 중 6개 ≥4 (미달 1: Implementation Readiness).</p>
+<hr>
+<h2 id="3-갭-open-question-사장님-검증">3. 갭 (= Open Question · 사장님 검증)</h2>
+<p>문서 결함이 아니라 <strong>결정·검증 미수행</strong>으로 인한 갭이다. 따라서 patch(문서 재생성)가 아니라 <strong>upstream gap</strong>으로 기록한다.</p>
+<div class="table-wrap"><table><thead><tr><th>갭</th><th>출처</th><th>영향</th><th>해소 경로</th></tr></thead><tbody><tr><td><strong>OQ-6</strong> 엔진 재사용 방식 (import vs 추출/복사)</td><td>02-trd §4, 06-tasks P0-R0</td><td>Task Executability·Data Model Fit</td><td>P0-R0에서 결정 → 07 §2 명문화</td></tr><tr><td><strong>OQ-5</strong> 백그라운드 잡 인프라</td><td>02-trd §3, 06-tasks P0-T3</td><td>Implementation Readiness</td><td>P0-T3에서 결정 (추상화 뒤 더미로 시작)</td></tr><tr><td><strong>OQ-3</strong> 무료/유료 가격 액수</td><td>01-prd §7, DECISION_LOG</td><td>Requirement Completeness·페이월</td><td>사장님 검증 후 가격 확정</td></tr><tr><td><strong>OQ-4</strong> 구글 실 SERP 키·비용</td><td>02-trd §2, REQ-002</td><td>User Flow (구글 노출)</td><td><strong>v1.5로 분리</strong> — v1 게이트 보류</td></tr><tr><td><strong>REQ-004 GapAnalyzer 배선</strong> (x-sag에선 미배선)</td><td>04-db gap_row, 06-tasks P2-R4</td><td>REQ-004 구현</td><td>P2-R4에서 GapAnalyzer 배선 (upstream-gap)</td></tr><tr><td><strong>REQ-007 재진단/추이</strong></td><td>01-prd, 06-screens S7</td><td>—</td><td><strong>v1.5로 분리</strong> — v1 게이트 보류</td></tr><tr><td><strong>사장님 검증 0/2-3 (AC-7)</strong></td><td>01-prd AC-7, 05-design 게이트</td><td>Testability·Implementation Readiness</td><td>비IT 사장님 2~3명 5분 이해도 테스트 (최우선·미수행)</td></tr></tbody></table></div>
+<hr>
+<h2 id="4-patch-미수행-사유-명시">4. Patch 미수행 사유 (명시)</h2>
+<ul><li><strong>iteration = 1</strong> 에서 종료. 추가 patch 루프를 돌리지 않았다.</li><li><strong>사유</strong>: 미달 항목(Implementation Readiness 3/5)의 원인이 <strong>문서 결함이 아니라 ① OQ 결정(OQ-5·OQ-6·OQ-3) 미수행 ② 사장님 검증(AC-7) 미수행</strong>이다.</li><li>이 두 가지는 <strong>문서를 재생성한다고 해소되지 않는다</strong> (결정·실험·사용자 테스트가 필요). 따라서 Gap Review 기반 섹션 패치가 적용 불가하며, <strong>upstream gap 조건</strong>으로 기록하고 게이트 증거 통과 조건으로 이관했다.</li><li>베이스라인 문서 자체는 <strong>patch-only 정책상 보존</strong>되며 재생성하지 않는다 (충돌 시 우선순위: 사용자 결정 &gt; 게이트 판정 &gt; 승인된 베이스라인).</li></ul>
+<hr>
+<h2 id="5-산출물-다음-단계">5. 산출물 &amp; 다음 단계</h2>
+<div class="table-wrap"><table><thead><tr><th>산출물</th><th>경로</th></tr></thead><tbody><tr><td>루프 상태</td><td><code>docs/planning/loop/loop-state.json</code></td></tr><tr><td>본 리포트</td><td><code>docs/planning/loop/planning-loop-report.md</code></td></tr><tr><td>파생 게이트</td><td><code>docs/planning/loop/08-derived-gates.md</code></td></tr><tr><td>루프 차터</td><td><code>docs/planning/loop/00-loop.md</code></td></tr><tr><td>최종 승인</td><td><code>docs/planning/loop/final-planning-approval.md</code></td></tr></tbody></table></div>
+<p><strong>다음 단계</strong>: 조건부 Green이므로 P0 셋업 + P1 공통 + P2 프론트 화면(S1~S7) 착수 가능. 단 P0-R0(OQ-6)·P0-T3(OQ-5) 결정 선행, P2-R4(GapAnalyzer 배선)은 upstream-gap. 풀 Green은 §08-derived-gates의 4조건 충족 시.</p>
+</section>
+<div class="meta-foot">통합 리포트 · 원본 4개 md · 자동 생성 2026-06-13</div>
+</main>
+</div>
+
+</body></html>

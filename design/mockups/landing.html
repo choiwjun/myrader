@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+
+<html class="light" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Boina - 내 가게 AI 검색 진단</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Be+Vietnam+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        
+        :root {
+            --font-pretendard: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        }
+
+        body {
+            font-family: var(--font-pretendard);
+            -webkit-font-smoothing: antialiased;
+            background-color: #f8fafc;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(241, 245, 249, 1);
+        }
+
+        .pulse-green {
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+            animation: pulse-green 2s infinite;
+        }
+
+        @keyframes pulse-green {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        .mesh-gradient {
+            background-color: #f8fafc;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.05) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.03) 0px, transparent 50%);
+        }
+
+        .floating-interaction {
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .floating-interaction:hover {
+            transform: translateY(-4px);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "error-container": "#fee2e2",
+                        "on-surface": "#0f172a",
+                        "on-error": "#ffffff",
+                        "on-surface-variant": "#434654",
+                        "outline-variant": "#cbd5e1",
+                        "on-secondary-fixed": "#341100",
+                        "on-primary-fixed-variant": "#4338ca",
+                        "secondary": "#b45309",
+                        "surface-container-high": "#e2e8f0",
+                        "primary-container": "#4f46e5",
+                        "surface": "#f8fafc",
+                        "on-secondary-fixed-variant": "#92400e",
+                        "primary": "#4338ca",
+                        "on-tertiary-container": "#10b981",
+                        "on-secondary": "#ffffff",
+                        "primary-fixed-dim": "#c7d2fe",
+                        "surface-bright": "#f8fafc",
+                        "surface-container-highest": "#e2e8f0",
+                        "on-error-container": "#991b1b",
+                        "tertiary": "#005438",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-dim": "#e2e8f0",
+                        "surface-variant": "#e2e8f0",
+                        "on-primary-fixed": "#1e1b4b",
+                        "error": "#dc2626",
+                        "inverse-primary": "#c7d2fe",
+                        "primary-fixed": "#e0e7ff",
+                        "surface-tint": "#1353d8",
+                        "on-primary-container": "#e0e7ff",
+                        "secondary-fixed": "#fef3c7",
+                        "outline": "#64748b",
+                        "secondary-fixed-dim": "#fde68a",
+                        "tertiary-fixed-dim": "#4edea3",
+                        "tertiary-fixed": "#34d399",
+                        "on-tertiary-fixed": "#002113",
+                        "surface-container-low": "#eef2ff",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#005236",
+                        "on-background": "#0f172a",
+                        "on-secondary-container": "#5c2400",
+                        "inverse-surface": "#2a313b",
+                        "background": "#f8fafc",
+                        "on-tertiary": "#ffffff",
+                        "secondary-container": "#f59e0b",
+                        "inverse-on-surface": "#eef2ff",
+                        "tertiary-container": "#006f4b",
+                        "surface-container": "#eef2ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "base": "8px",
+                        "md": "16px",
+                        "container-margin": "24px",
+                        "xl": "32px",
+                        "gutter": "16px",
+                        "2xl": "48px",
+                        "lg": "24px",
+                        "3xl": "64px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "display-lg-mobile": ["Plus Jakarta Sans"],
+                        "body-md": ["Be Vietnam Pro"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "headline-xl": ["Plus Jakarta Sans"],
+                        "body-lg": ["Be Vietnam Pro"],
+                        "label-sm": ["Be Vietnam Pro"],
+                        "headline-xl-mobile": ["Plus Jakarta Sans"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "label-xs": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "display-lg-mobile": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "headline-md": ["20px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                        "headline-xl": ["32px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                        "body-lg": ["18px", {"lineHeight": "1.8", "fontWeight": "400"}],
+                        "label-sm": ["14px", {"lineHeight": "1.4", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                        "headline-xl-mobile": ["24px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                        "display-lg": ["48px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "label-xs": ["12px", {"lineHeight": "1.2", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="mesh-gradient">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md shadow-sm">
+<div class="max-w-[1200px] mx-auto flex justify-between items-center px-lg py-md">
+<div class="font-display-lg text-[24px] tracking-tighter text-on-surface font-extrabold">Boina</div>
+<nav class="hidden md:flex gap-xl items-center">
+<a class="text-primary font-semibold border-b-2 border-primary py-1 font-label-sm text-label-sm" href="#">Home</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-label-sm text-label-sm" href="#">About</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-label-sm text-label-sm" href="#">Product</a>
+</nav>
+<div class="flex items-center gap-md">
+<button class="text-on-surface hover:opacity-80 transition-opacity font-label-sm text-label-sm">Login</button>
+</div>
+</div>
+</header>
+<main class="pt-32">
+<!-- Hero Section -->
+<section class="max-w-[1200px] mx-auto px-lg mb-3xl">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-3xl items-center">
+<!-- Left Content -->
+<div class="space-y-xl">
+<h1 class="text-[44px] md:text-display-lg font-bold leading-tight text-on-surface tracking-tight">
+                        요즘 손님은 검색하고, AI한테 물어보고 가게를 골라요.
+                    </h1>
+<p class="text-body-lg text-on-surface-variant max-w-lg">
+                        그때 내 가게는 어떻게 보일까요? 1분이면 무료로 확인해요.
+                    </p>
+<div class="flex flex-col sm:flex-row gap-md p-xs bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant max-w-xl">
+<input class="flex-grow bg-transparent border-none focus:ring-0 px-lg py-md text-on-surface font-body-md placeholder:text-outline" placeholder="우리 가게 이름을 검색해보세요" type="text"/>
+<button class="bg-primary text-white px-xl py-md rounded-lg font-semibold hover:opacity-90 active:scale-95 transition-all">
+                            내 가게 무료로 살펴보기
+                        </button>
+</div>
+<div class="flex flex-wrap gap-lg pt-md">
+<div class="flex items-center gap-xs text-on-surface-variant font-label-sm">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+<span>무료 진단</span>
+</div>
+<div class="flex items-center gap-xs text-on-surface-variant font-label-sm">
+<span class="material-symbols-outlined text-[18px]">credit_card_off</span>
+<span>카드 불필요</span>
+</div>
+<div class="flex items-center gap-xs text-on-surface-variant font-label-sm">
+<span class="material-symbols-outlined text-[18px]">handshake</span>
+<span>대행사 아님</span>
+</div>
+<div class="flex items-center gap-xs text-on-surface-variant font-label-sm">
+<span class="material-symbols-outlined text-[18px]">timer</span>
+<span>1분 소요</span>
+</div>
+</div>
+</div>
+<!-- Right Card -->
+<div class="relative">
+<div class="absolute -inset-10 bg-primary/5 rounded-full blur-[100px]"></div>
+<div class="glass-card rounded-3xl p-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.08)] relative overflow-hidden">
+<div class="flex justify-between items-center mb-xl">
+<div>
+<h3 class="font-headline-md text-on-surface">종합 노출 상태</h3>
+<p class="text-label-sm text-on-surface-variant">지난 24시간 기준 업데이트</p>
+</div>
+<div class="px-md py-xs bg-tertiary-fixed text-on-tertiary-fixed rounded-full text-label-xs font-bold uppercase tracking-wider">Live</div>
+</div>
+<div class="space-y-lg mb-2xl">
+<!-- Channel Row -->
+<div class="flex items-center justify-between p-lg bg-surface-container rounded-xl">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-lg bg-white flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-primary">search</span>
+</div>
+<span class="font-semibold text-on-surface">Naver</span>
+</div>
+<div class="flex items-center gap-base">
+<div class="w-3 h-3 rounded-full bg-tertiary-fixed-dim pulse-green"></div>
+<span class="text-label-sm font-medium text-tertiary">정상</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-lg bg-surface-container rounded-xl">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-lg bg-white flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[#EA4335]">language</span>
+</div>
+<span class="font-semibold text-on-surface">Google Maps</span>
+</div>
+<div class="flex items-center gap-base">
+<div class="w-3 h-3 rounded-full bg-secondary-container"></div>
+<span class="text-label-sm font-medium text-secondary">개선 필요</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-lg bg-surface-container rounded-xl">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-lg bg-white flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-tertiary">smart_toy</span>
+</div>
+<span class="font-semibold text-on-surface">AI 답변 엔진</span>
+</div>
+<div class="flex items-center gap-base">
+<div class="w-3 h-3 rounded-full bg-outline-variant"></div>
+<span class="text-label-sm font-medium text-on-surface-variant">데이터 부족</span>
+</div>
+</div>
+</div>
+<div class="border-t border-outline-variant pt-xl">
+<div class="flex justify-between items-end mb-md">
+<span class="text-label-sm text-on-surface font-semibold">내 가게 vs 주변 평균</span>
+<span class="text-label-xs text-on-surface-variant">Top 10% 진입까지 +12%</span>
+</div>
+<div class="h-4 bg-surface-container rounded-full overflow-hidden flex">
+<div class="h-full bg-primary rounded-full" style="width: 65%"></div>
+<div class="h-full bg-outline-variant/30" style="width: 35%"></div>
+</div>
+<div class="flex justify-between mt-sm">
+<span class="text-[10px] text-on-surface-variant font-medium">현재: 65점</span>
+<span class="text-[10px] text-on-surface-variant font-medium">목표: 85점</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- How It Works Section -->
+<section class="max-w-[1200px] mx-auto px-lg py-3xl">
+<div class="text-center mb-3xl">
+<h2 class="text-headline-xl font-bold text-on-surface mb-md">준비는 Boina가 다 해둘게요</h2>
+<p class="text-body-md text-on-surface-variant">사장님은 딱 1분만 시간 내주세요.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-lg relative">
+<!-- Connectors -->
+<div class="hidden lg:block absolute top-1/2 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-outline-variant to-transparent -translate-y-1/2 -z-10"></div>
+<div class="floating-interaction bg-white p-2xl rounded-2xl border border-outline-variant shadow-sm text-center">
+<div class="w-12 h-12 bg-primary-fixed rounded-xl flex items-center justify-center mx-auto mb-xl">
+<span class="material-symbols-outlined text-primary">storefront</span>
+</div>
+<span class="text-label-xs text-primary font-bold mb-xs block">STEP 1</span>
+<h3 class="font-semibold text-on-surface mb-sm">가게 찾기</h3>
+<p class="text-label-sm text-on-surface-variant">내 가게의 이름을 검색해 정보를 불러옵니다.</p>
+</div>
+<div class="floating-interaction bg-white p-2xl rounded-2xl border border-outline-variant shadow-sm text-center">
+<div class="w-12 h-12 bg-primary-fixed rounded-xl flex items-center justify-center mx-auto mb-xl">
+<span class="material-symbols-outlined text-primary">visibility</span>
+</div>
+<span class="text-label-xs text-primary font-bold mb-xs block">STEP 2</span>
+<h3 class="font-semibold text-on-surface mb-sm">노출 현황 확인</h3>
+<p class="text-label-sm text-on-surface-variant">검색과 AI 엔진에서 어떻게 보이는지 진단합니다.</p>
+</div>
+<div class="floating-interaction bg-white p-2xl rounded-2xl border border-outline-variant shadow-sm text-center">
+<div class="w-12 h-12 bg-primary-fixed rounded-xl flex items-center justify-center mx-auto mb-xl">
+<span class="material-symbols-outlined text-primary">compare_arrows</span>
+</div>
+<span class="text-label-xs text-primary font-bold mb-xs block">STEP 3</span>
+<h3 class="font-semibold text-on-surface mb-sm">이웃과 비교</h3>
+<p class="text-label-sm text-on-surface-variant">주변 인기 가게들과의 경쟁력을 수치로 봅니다.</p>
+</div>
+<div class="floating-interaction bg-white p-2xl rounded-2xl border border-outline-variant shadow-sm text-center">
+<div class="w-12 h-12 bg-primary-fixed rounded-xl flex items-center justify-center mx-auto mb-xl">
+<span class="material-symbols-outlined text-primary">bolt</span>
+</div>
+<span class="text-label-xs text-primary font-bold mb-xs block">STEP 4</span>
+<h3 class="font-semibold text-on-surface mb-sm">오늘의 한 조치</h3>
+<p class="text-label-sm text-on-surface-variant">지금 바로 매출로 이어지는 액션을 알려드려요.</p>
+</div>
+</div>
+</section>
+<!-- Trust/Beta Section -->
+<section class="max-w-[1200px] mx-auto px-lg mb-3xl">
+<div class="bg-surface-container-low rounded-3xl p-3xl text-center border border-outline-variant/50">
+<div class="inline-flex items-center gap-xs px-md py-xs bg-primary-container text-on-primary-container rounded-full text-label-xs font-bold mb-xl">
+<span class="material-symbols-outlined text-[14px]">info</span>
+                    BETA SERVICE
+                </div>
+<h2 class="text-headline-xl font-bold text-on-surface mb-xl">
+                    아직 대부분 가게가 준비 안 돼 있어요 — <br class="hidden md:block"/> 지금 보면 먼저 잡습니다.
+                </h2>
+<div class="flex flex-col items-center gap-md">
+<p class="text-body-md text-on-surface-variant max-w-2xl">
+                        지금은 베타로 운영 중이에요. 써보고 불편한 점은 편하게 알려주세요. <br/>
+                        더 정확한 데이터로 사장님의 비즈니스를 돕겠습니다.
+                    </p>
+<div class="flex gap-md mt-lg">
+<div class="flex -space-x-md">
+<div class="w-10 h-10 rounded-full border-2 border-white bg-surface-dim"></div>
+<div class="w-10 h-10 rounded-full border-2 border-white bg-surface-variant"></div>
+<div class="w-10 h-10 rounded-full border-2 border-white bg-primary-fixed"></div>
+</div>
+<span class="text-label-sm text-on-surface-variant self-center">현재 1,200+명의 사장님이 함께하고 있습니다.</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Final CTA Section -->
+<section class="py-3xl text-center bg-white border-y border-outline-variant">
+<div class="max-w-[800px] mx-auto px-lg">
+<h2 class="text-headline-xl font-bold text-on-surface mb-lg">우리 가게는 얼마나 잘 노출되고 있나요?</h2>
+<p class="text-body-md text-on-surface-variant mb-2xl">회원가입 없이 1분 만에 결과 리포트를 받아보세요.</p>
+<button class="bg-primary text-white text-body-lg font-bold px-3xl py-xl rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
+                    지금 바로 무료 진단 시작하기
+                </button>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full py-3xl bg-surface-container-low border-t border-outline-variant mt-3xl">
+<div class="max-w-[1200px] mx-auto px-lg">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-xl mb-2xl">
+<div class="space-y-md">
+<div class="font-headline-md text-on-surface font-extrabold">Boina</div>
+<div class="space-y-xs">
+<p class="text-label-sm text-on-surface-variant">Business Number: 000-00-00000</p>
+<p class="text-label-sm text-on-surface-variant">CEO: Placeholder Name</p>
+<p class="text-label-sm text-on-surface-variant">Address: 123 Tech Avenue</p>
+</div>
+</div>
+<div class="flex flex-col md:items-end justify-end gap-md">
+<div class="flex gap-xl">
+<a class="text-on-surface-variant hover:text-primary transition-colors font-label-sm" href="#">Terms of Use</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-label-sm" href="#">Privacy Policy</a>
+</div>
+<p class="text-label-sm text-on-surface-variant">© 2026 Boina. All rights reserved.</p>
+</div>
+</div>
+</div>
+</footer>
+<script>
+        // Simple entrance animations
+        document.addEventListener('DOMContentLoaded', () => {
+            const sections = document.querySelectorAll('section');
+            const observerOptions = {
+                threshold: 0.1
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('opacity-100', 'translate-y-0');
+                        entry.target.classList.remove('opacity-0', 'translate-y-8');
+                    }
+                });
+            }, observerOptions);
+
+            sections.forEach(section => {
+                section.classList.add('transition-all', 'duration-700', 'opacity-0', 'translate-y-8');
+                observer.observe(section);
+            });
+        });
+    </script>
+</body></html>

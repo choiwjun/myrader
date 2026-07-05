@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+
+<html lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Be+Vietnam+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        :root {
+            --font-main: 'Be Vietnam Pro', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            --font-display: 'Plus Jakarta Sans', 'Pretendard', sans-serif;
+        }
+        body {
+            font-family: var(--font-main);
+            -webkit-font-smoothing: antialiased;
+        }
+        .font-display { font-family: var(--font-display); }
+        
+        @keyframes pulse-soft {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.05); }
+        }
+        .animate-pulse-soft {
+            animation: pulse-soft 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(241, 245, 249, 1);
+        }
+
+        .traffic-light-shadow {
+            box-shadow: 0 0 40px rgba(253, 118, 26, 0.15);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary-fixed-dim": "#c7d2fe",
+                        "surface": "#f8fafc",
+                        "on-tertiary": "#ffffff",
+                        "background": "#f8fafc",
+                        "on-tertiary-fixed": "#002113",
+                        "tertiary": "#005438",
+                        "surface-dim": "#e2e8f0",
+                        "inverse-on-surface": "#eef2ff",
+                        "surface-container-high": "#e2e8f0",
+                        "on-tertiary-container": "#10b981",
+                        "on-primary-fixed": "#1e1b4b",
+                        "on-surface": "#0f172a",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-fixed": "#fef3c7",
+                        "on-secondary": "#ffffff",
+                        "surface-container-low": "#eef2ff",
+                        "on-error-container": "#991b1b",
+                        "outline": "#64748b",
+                        "on-background": "#0f172a",
+                        "inverse-primary": "#c7d2fe",
+                        "on-primary-fixed-variant": "#4338ca",
+                        "tertiary-fixed": "#34d399",
+                        "surface-variant": "#e2e8f0",
+                        "error-container": "#fee2e2",
+                        "tertiary-container": "#006f4b",
+                        "secondary": "#b45309",
+                        "on-primary-container": "#e0e7ff",
+                        "on-surface-variant": "#434654",
+                        "error": "#dc2626",
+                        "secondary-fixed-dim": "#fde68a",
+                        "on-secondary-fixed-variant": "#92400e",
+                        "primary-container": "#4f46e5",
+                        "on-secondary-fixed": "#341100",
+                        "outline-variant": "#cbd5e1",
+                        "primary": "#4338ca",
+                        "on-secondary-container": "#5c2400",
+                        "surface-container": "#eef2ff",
+                        "tertiary-fixed-dim": "#4edea3",
+                        "secondary-container": "#f59e0b",
+                        "surface-container-highest": "#e2e8f0",
+                        "surface-bright": "#f8fafc",
+                        "primary-fixed": "#e0e7ff",
+                        "on-tertiary-fixed-variant": "#005236",
+                        "surface-tint": "#1353d8",
+                        "on-primary": "#ffffff",
+                        "inverse-surface": "#2a313b",
+                        "on-error": "#ffffff"
+                    },
+                    spacing: {
+                        "md": "16px", "lg": "24px", "xs": "4px", "container-margin": "24px", "3xl": "64px", "xl": "32px", "sm": "8px", "gutter": "16px", "base": "8px", "2xl": "48px"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background min-h-screen">
+<!-- TopNavBar -->
+<nav class="docked full-width top-0 sticky z-50 bg-surface/80 backdrop-blur-md border-b border-outline-variant/30 shadow-sm">
+<div class="flex justify-between items-center w-full px-container-margin py-4 max-w-7xl mx-auto">
+<div class="font-headline-xl text-[32px] font-bold text-primary">보이나</div>
+<div class="hidden md:flex items-center gap-xl">
+<div class="flex gap-lg">
+<span class="text-on-surface-variant font-medium font-label-sm text-[14px]">가게 찾기</span>
+<span class="text-primary font-bold border-b-2 border-primary pb-1 transition-all font-label-sm text-[14px]">내 상태</span>
+<span class="text-on-surface-variant font-medium font-label-sm text-[14px]">경쟁 비교</span>
+<span class="text-on-surface-variant font-medium font-label-sm text-[14px]">갭</span>
+<span class="text-on-surface-variant font-medium font-label-sm text-[14px]">행동</span>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<button class="p-2 hover:bg-surface-container rounded-full transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="notifications">notifications</span>
+</button>
+<button class="p-2 hover:bg-surface-container rounded-full transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="settings">settings</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-surface-container-high overflow-hidden ml-sm border border-outline-variant/30">
+<img alt="User profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpLfwV9GCGAmxE61xW6H0WgmBJ36R29Vux_MkLpCElBmQwGNUyqyOC-wkmBQc4upfHT-qkLMs3eixJQaSiblube5L8NIq-jAD_TispUesBNRhN7AhnvcOGCJu-JIunvKlH_7nrOYYHvMHXh9piBQSymcPJNzzg3tiztvM4DEImdXOutczszpGOBVa5-TiVHFWO0loZReKJUFDAsw9ye7WpfcA9HdwcA0dROZkzHtw73E6ruyY-ux3BX3lxCKdU8F6vMb-jNSA1L3I"/>
+</div>
+</div>
+</div>
+</nav>
+<main class="max-w-7xl mx-auto px-container-margin py-xl md:py-3xl flex flex-col items-center">
+<!-- AI HERO Section -->
+<section class="w-full max-w-4xl flex flex-col items-center text-center mb-3xl">
+<!-- Animated Traffic Signal Visual -->
+<div class="relative w-48 h-48 md:w-64 md:h-64 mb-lg flex items-center justify-center">
+<div class="absolute inset-0 bg-secondary-container/10 rounded-full animate-pulse-soft"></div>
+<div class="relative w-32 h-32 md:w-44 md:h-44 bg-white rounded-full flex items-center justify-center traffic-light-shadow border border-outline-variant/20">
+<div class="flex flex-col gap-sm">
+<!-- Red (Off) -->
+<div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-surface-variant/30 border border-outline-variant/10"></div>
+<!-- Yellow (Active/Pulsing) -->
+<div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-secondary-container shadow-[0_0_20px_rgba(253,118,26,0.6)] animate-pulse border border-secondary"></div>
+<!-- Green (Off) -->
+<div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-surface-variant/30 border border-outline-variant/10"></div>
+</div>
+</div>
+<!-- Floating Decorative Particles (JS added later) -->
+<div class="absolute inset-0 pointer-events-none" id="particles-container"></div>
+</div>
+<h1 class="font-display font-bold text-[32px] md:text-[48px] leading-tight text-on-surface mb-md">
+                아직 AI가 우리 가게를 익히는 중이에요
+            </h1>
+<p class="text-on-surface-variant text-[18px] md:text-[20px] max-w-2xl leading-relaxed">
+                괜찮아요 — 아직 대부분 가게가 그래요.<br class="hidden md:block"/>
+                지금 준비하는 가게가 AI 시대에 먼저 잡혀요.
+            </p>
+</section>
+<!-- Cards Section -->
+<section class="w-full max-w-5xl">
+<div class="flex items-center justify-between mb-lg">
+<h2 class="font-display font-bold text-[24px] text-on-surface flex items-center gap-sm">
+                    내 가게를 찾게 하는 채널
+                    <span class="text-primary font-label-xs bg-primary-fixed px-2 py-0.5 rounded-full">연료</span>
+</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-lg mb-xl">
+<!-- Naver Card -->
+<div class="glass-card rounded-xl p-lg flex flex-col gap-md transition-transform hover:-translate-y-1 hover:shadow-lg">
+<div class="flex items-center justify-between">
+<span class="font-bold text-on-surface-variant font-label-sm">Naver</span>
+<div class="flex items-center gap-xs">
+<div class="w-2 h-2 rounded-full bg-secondary-container animate-pulse"></div>
+<span class="text-secondary font-label-xs">확인 중</span>
+</div>
+</div>
+<p class="text-on-surface text-[16px] font-medium">검색 결과에 우리 가게 이름이 점차 보이고 있어요.</p>
+<div class="mt-auto pt-sm border-t border-outline-variant/10">
+<span class="material-symbols-outlined text-[20px] text-outline" data-icon="insights">insights</span>
+</div>
+</div>
+<!-- Google Card -->
+<div class="glass-card rounded-xl p-lg flex flex-col gap-md transition-transform hover:-translate-y-1 hover:shadow-lg">
+<div class="flex items-center justify-between">
+<span class="font-bold text-on-surface-variant font-label-sm">Google (맛보기)</span>
+<div class="flex items-center gap-xs">
+<div class="w-2 h-2 rounded-full bg-surface-variant"></div>
+<span class="text-outline font-label-xs">신호 대기</span>
+</div>
+</div>
+<p class="text-on-surface text-[16px] font-medium">전 세계 고객들이 보는 지도를 준비하고 있습니다.</p>
+<div class="mt-auto pt-sm border-t border-outline-variant/10">
+<span class="material-symbols-outlined text-[20px] text-outline" data-icon="language">language</span>
+</div>
+</div>
+<!-- AI Answer Card -->
+<div class="glass-card rounded-xl p-lg flex flex-col gap-md border-2 border-primary/10 transition-transform hover:-translate-y-1 hover:shadow-lg">
+<div class="flex items-center justify-between">
+<span class="font-bold text-primary font-label-sm">AI Answer</span>
+<div class="flex items-center gap-xs">
+<div class="w-2 h-2 rounded-full bg-secondary-container animate-pulse"></div>
+<span class="text-secondary font-label-xs">학습 시작</span>
+</div>
+</div>
+<p class="text-on-surface text-[16px] font-medium">AI가 우리 가게의 특징을 읽기 시작한 단계예요.</p>
+<div class="mt-auto pt-sm border-t border-outline-variant/10">
+<span class="material-symbols-outlined text-[20px] text-primary" data-icon="smart_toy">smart_toy</span>
+</div>
+</div>
+</div>
+<p class="text-center text-on-surface-variant/60 text-[14px] font-label-xs mb-3xl">
+                * 실제로 AI가 추천할 때만 초록불이 켜져요.
+            </p>
+</section>
+<!-- CTA Section -->
+<section class="w-full max-w-xl flex flex-col items-center gap-lg">
+<button class="w-full py-2xl px-3xl bg-primary text-white rounded-xl font-bold text-[20px] shadow-xl hover:bg-primary/90 transition-all active:scale-[0.98] flex items-center justify-center gap-md group">
+                옆집과 비교해 볼까요?
+                <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform" data-icon="arrow_forward">arrow_forward</span>
+</button>
+<p class="text-on-surface-variant font-label-sm text-[14px]">
+                다음 단계에서 우리 가게의 경쟁력을 확인해보세요.
+            </p>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full px-container-margin py-xl bg-surface-container-low border-t border-outline-variant/20 mt-3xl">
+<div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-lg">
+<div class="font-headline-md text-[20px] font-bold text-on-surface">보이나</div>
+<div class="flex gap-lg">
+<a class="text-on-surface-variant/70 hover:text-primary font-label-xs text-[12px] underline-offset-4 hover:underline" href="#">이용약관</a>
+<a class="text-on-surface-variant/70 hover:text-primary font-label-xs text-[12px] underline-offset-4 hover:underline" href="#">개인정보처리방침</a>
+<a class="text-on-surface-variant/70 hover:text-primary font-label-xs text-[12px] underline-offset-4 hover:underline" href="#">고객센터</a>
+</div>
+<p class="text-on-surface-variant/70 font-label-xs text-[12px]">© 2024 Boina. All rights reserved.</p>
+</div>
+</footer>
+<script>
+        // Micro-interaction: Particle generation for the hero section
+        const container = document.getElementById('particles-container');
+        if (container) {
+            for (let i = 0; i < 8; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'absolute w-1.5 h-1.5 bg-secondary-container/40 rounded-full';
+                const x = Math.random() * 100;
+                const y = Math.random() * 100;
+                const delay = Math.random() * 5;
+                const duration = 5 + Math.random() * 10;
+                
+                particle.style.left = `${x}%`;
+                particle.style.top = `${y}%`;
+                particle.style.animation = `float ${duration}s ease-in-out ${delay}s infinite alternate`;
+                
+                container.appendChild(particle);
+            }
+        }
+
+        // Keyframe style for the floating particles
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes float {
+                from { transform: translateY(0) translateX(0); opacity: 0; }
+                to { transform: translateY(-30px) translateX(15px); opacity: 0.6; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body></html>

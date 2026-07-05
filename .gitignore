@@ -1,1 +1,56 @@
+# ── dependencies ───────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+.pnpm-store/
+
+# ── env / secrets (절대 커밋 금지) ──────────────
+.env
+.env.*
+!.env.example
+
+# ── build output ───────────────────────────────
+dist/
+build/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# ── test / coverage ────────────────────────────
+coverage/
+test-results/
+.vitest/
+
+# ── Labs / harness 런타임 상태 ──────────────────
+.claude/
+.stargate/
 .omo/
+.cmux-harness/
+.harness/
+
+# ── logs ───────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+
+# ── OS / editor ────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+
+# ── misc ───────────────────────────────────────
+*.zip
+.tmp/
+
+# ── Labs 배포 전용물 (boina 제품 레포에서 제외 · 로컬 보존) ──
+/install.ps1
+/install.sh
+/uninstall.sh
+/INSTALL.md
+/CHANGELOG.md
+/WORKFLOW.md
+/pipeline-map/

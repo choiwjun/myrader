@@ -1,0 +1,18 @@
+<!--
+  malformed-html-001 — 닫히지 않은 태그가 다수 포함된 HTML.
+  parser 가 throw 하지 않고 graceful 하게 처리되는지 검증한다.
+-->
+<html>
+  <head>
+    <title>닫히지 않은 태그 페이지
+    <meta name="description" content="description 의 닫는 quote 가 없음
+  </head>
+  <body>
+    <h1>제목입니다
+    <p>본문에 닫는 태그가 없습니다.
+    <div>
+      <span>또 다른 nested 닫히지 않은 영역
+    <a href="/menu">메뉴 보기
+    <img src="/logo.png" alt="로고
+  </body>
+</html>

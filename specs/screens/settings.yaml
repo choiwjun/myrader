@@ -1,0 +1,81 @@
+# Settings 화면 (settings) — REQ-001 / REQ-007 / REQ-R5 / REQ-R6
+
+version: "3.0"
+
+screen:
+  id: SETTINGS
+  name: 설정
+  route: /settings
+  layout: mobile_single_column
+  auth: true
+  purpose: 가게 정보와 로그인 계정을 한 곳에서 관리한다.
+
+data_requirements:
+  - resource: account
+    needs: [id, email]
+    auth_required: true
+
+  - resource: businessSettings
+    needs: [businessId, name, category, region, placeUrl, websiteUrl]
+    auth_required: true
+
+components:
+  - id: business_info_form
+    type: form
+    position: main
+    function: 우리 가게 정보 보기/고치기.
+    data_source:
+      resource: businessSettings
+    fields: [name, category, region, placeUrl, websiteUrl]
+    events:
+      - on: submit
+        do: 가게 정보 저장
+
+  - id: account_info
+    type: detail
+    position: main
+    function: 로그인 계정 표시. 이메일은 과도하게 강조하지 않는다.
+    data_source:
+      resource: account
+
+  - id: change_store_button
+    type: card
+    position: main
+    function: 다른 가게로 바꾸기. /find로 이동한다.
+    events:
+      - on: click
+        do: /find 로 이동
+
+  - id: rediagnose_entry
+    type: card
+    position: main
+    function: 수동 재진단 또는 가게 변경 진입. 자동 주간 레이더와 혼동하지 않게 설명한다.
+    events:
+      - on: click
+        do: /find 또는 재진단 job 진입
+
+connections:
+  navigations:
+    - from: change_store_button
+      to: /find
+  shared_components:
+    - app_header
+    - bottom_navigation
+  external:
+    - auth
+
+tests:
+  - name: 가게 정보 표시/수정
+    when: 설정 화면 접속
+    then:
+      - 우리 가게 정보가 폼에 채워져 보임
+      - 수정 후 저장하면 반영됨
+
+  - name: 가게 바꾸기
+    when: 다른 가게로 바꾸기 클릭
+    then:
+      - /find로 이동
+
+notes:
+  - Settings는 주간 결과 화면이 아니다. 주간 결과는 /home 카드 ④가 소유한다.
+  - 결제수단, 해지, 영수증, 외부 알림 수신 설정은 현재 범위가 아니다.

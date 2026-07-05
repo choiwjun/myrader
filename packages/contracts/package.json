@@ -1,0 +1,34 @@
+{
+  "name": "@boina/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./diagnosis": "./src/diagnosis.ts",
+    "./api": "./src/api.ts",
+    "./external-api": "./src/external-api.ts",
+    "./snippet": "./src/snippet.ts",
+    "./prescription": "./src/prescription.ts",
+    "./inquiry": "./src/inquiry.ts",
+    "./radar": "./src/radar.ts",
+    "./errors": "./src/errors.ts",
+    "./enums": "./src/enums.ts",
+    "./queue": "./src/queue.ts",
+    "./copy": "./src/copy/index.ts",
+    "./copy/types": "./src/copy/types.ts",
+    "./copy/industry-vocab": "./src/copy/industry-vocab.ko.ts",
+    "./copy/rule-copy": "./src/copy/rule-copy.ko.ts",
+    "./copy/rule-copy-medium": "./src/copy/rule-copy-medium.ko.ts",
+    "./copy/render": "./src/copy/render.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  }
+}

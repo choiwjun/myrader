@@ -1,0 +1,62 @@
+# 공통 타입 정의 (types.yaml)
+# x-sag 엔진 contracts diagnosis 의 enum/union 을 사장님 언어 레이어로 차용.
+# 화면 카피에는 enum 코드값을 직접 노출하지 않는다(신호등/사장님 언어로 변환).
+
+version: "2.0"
+
+types:
+
+  Signal:
+    kind: enum
+    values: [green, yellow, red]
+    source: "x-sag DiagnosisJson signal (재사용)"
+    ui: "🟢 잘 됨 / 🟡 조금 더 / 🔴 안 됨 (점수 비노출)"
+
+  DiagnosisStatus:
+    kind: enum
+    values: [queued, running, done, failed]
+    source: "x-sag diagnosis 잡 상태 (재사용)"
+    ui: "진행 표시(준비 중 / 살펴보는 중 / 다 봤어요 / 잠깐 멈췄어요)"
+
+  Channel:
+    kind: enum
+    values: [naver, google, ai]
+    source: "x-sag DiagnosisJson 채널 (재사용)"
+    ui: "네이버 / 구글(맛보기) / AI 추천"
+
+  CompetitorSource:
+    kind: enum
+    values: [naver_serp, gpt_grounded]
+    source: "x-sag naverPresence.competitorTop / llmValidation.competitors (재사용)"
+    ui: "실측 출처 구분(네이버 검색 / AI 확인) — 인과 단정 금지"
+
+  GapActionTier:
+    kind: enum
+    values: [self_fix, snippet, vendor, ongoing]
+    source: "x-sag GapAnalyzer actionType (재사용)"
+    ui: "갭 → 행동 4분류 연결 키"
+
+  ActionTier:
+    kind: enum
+    values: [green_self, yellow_copy, red_vendor, gray_ongoing]
+    source: "x-sag GapAnalyzer actionType → 4분류 번역"
+    ui: "🟢 직접 5분·무료 / 🟡 복붙 / 🔴 업체 / ⏳ 꾸준히"
+
+  AssetType:
+    kind: enum
+    values: [snippet, place_intro, review_request, vendor_prescription]
+    source: "x-sag snippet 생성 (재사용)"
+    ui: "검색 답변글 / 가게 소개글 / 리뷰 요청 문구 / 업체 처방전 이메일"
+
+  Priority:
+    kind: range
+    min: 1
+    max: 5
+    source: "x-sag GapAnalyzer PriorityGap (재사용)"
+    ui: "1=가장 급함. 무료는 Top3 컷오프(priority 1~3 우선)"
+
+  PlanTier:
+    kind: enum
+    values: [free, paid]
+    source: "OQ-3 페이월(가격 미정 OPEN)"
+    ui: "free=요약/맛보기, paid=일회성 실행팩(전체 갭·모든 행동·생성물 전체)"

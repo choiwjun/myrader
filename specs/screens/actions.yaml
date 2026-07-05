@@ -1,0 +1,133 @@
+# Write 화면 (actions.yaml) — REQ-005 + REQ-006
+# 기존 S5 행동과 S6 생성물을 /write 한 화면으로 통합한다.
+
+version: "3.0"
+
+screen:
+  id: WRITE
+  name: 문안
+  route: /write
+  legacy_routes: [/actions, /assets]
+  layout: mobile_single_column
+  auth: false
+  purpose: 오늘 할 일과 복붙 문안을 한 화면에서 실행 가능하게 제공한다.
+
+data_requirements:
+  - resource: action
+    needs: [id, title, tier, isTodayOne, deeplink, doneable, isPaid, evidence]
+    filters:
+      diagnosisId: "?diagnosisId"
+      tier: "?tier"
+
+  - resource: generatedAsset
+    needs: [id, type, title, body, sourceKeywords, copyable, isPaid]
+    filters:
+      diagnosisId: "?diagnosisId"
+      actionId: "?actionId"
+
+  - resource: radarKeyword
+    optional: true
+    needs: [keyword, intent, weekStart, source]
+    filters:
+      subscriptionId: "?subscriptionId"
+
+components:
+  - id: today_one
+    component: M-01 Status Banner
+    position: header
+    function: 오늘 처리할 한 가지를 가장 위에 보여준다.
+    data_source:
+      resource: action
+    rules:
+      - isTodayOne=true 행동 1개만 강조
+      - 노출/매출 보장 표현 금지
+
+  - id: action_list
+    component: M-02 To-do Card
+    position: main
+    function: 직접/복붙/업체/꾸준히 행동을 사장님 언어로 보여준다.
+    data_source:
+      resource: action
+    state_labels:
+      green_self: 직접 할 일
+      yellow_copy: 복붙할 일
+      red_vendor: 업체에 맡길 일
+      gray_ongoing: 꾸준히 할 일
+    events:
+      - on: click:deeplink
+        do: 외부 수정 화면으로 이동
+      - on: click:copy_action
+        do: generated_asset_section으로 스크롤
+
+  - id: generated_asset_section
+    type: copy_panel
+    position: main
+    function: 소개글, 리뷰 요청, 메뉴/사진 설명, FAQ/snippet, 업체 처방전 문안을 복사 가능하게 제공한다.
+    data_source:
+      resource: generatedAsset
+    asset_types:
+      - place_intro
+      - review_request
+      - menu_photo_description
+      - faq_snippet
+      - vendor_brief
+    events:
+      - on: click:copy
+        do: 클립보드 복사 후 완료 상태 표시
+
+  - id: keyword_context
+    component: M-05 Search Term Card
+    position: support
+    function: 주간 레이더 키워드에서 넘어온 경우 어떤 검색어를 반영했는지 보여준다.
+    data_source:
+      resource: radarKeyword
+    optional: true
+
+  - id: evidence_sheet
+    component: M-04 Evidence Sheet
+    position: sheet
+    function: 문안 생성 근거와 사용 키워드, 수집/추정 라벨을 제공한다.
+
+connections:
+  navigations:
+    - from: action_list
+      to: /write
+    - from: generated_asset_section
+      to: /write
+  redirects:
+    - from: /actions
+      to: /write
+    - from: /assets
+      to: /write
+  external:
+    - diagnosis_engine
+    - snippet_generator
+    - naver_place
+
+tests:
+  - name: 오늘 할 일과 문안이 한 화면에 있다
+    when: /write 접속
+    then:
+      - 오늘 딱 하나가 보임
+      - 복붙 문안 섹션이 같은 화면에 보임
+
+  - name: legacy route redirect
+    when: /actions 또는 /assets 접속
+    then:
+      - /write로 이동하거나 동일 화면 alias가 렌더됨
+
+  - name: 복사 완료 상태
+    when: 문안 복사 버튼 클릭
+    then:
+      - 클립보드 복사 완료 상태가 표시됨
+
+  - name: 정직성
+    when: 문안과 행동을 봄
+    then:
+      - 노출/매출 보장 카피가 없음
+      - 사용 근거 또는 키워드를 evidence로 확인 가능
+
+notes:
+  - S5/S6는 별도 primary screen이 아니다.
+  - 주간 레이더 키워드는 /home card ④에서 /write로 진입할 수 있다.
+  - 결제 경계 없이 현재 제공 가능한 문안과 다음 행동을 보여준다.

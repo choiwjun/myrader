@@ -1,0 +1,25 @@
+<!--
+  xss-attempt-001 — script tag + onerror + javascript: URL + data: URL 페이로드 모음.
+  parser 가 script 태그를 제거하고 안전하게 bodyText 를 생성하는지 검증.
+-->
+<html>
+  <head>
+    <title>XSS Attempt Page</title>
+    <meta name="description" content="<script>alert('xss-in-meta')</script>">
+    <script>alert('inline-script-1');</script>
+    <script src="data:text/javascript,alert('data-url')"></script>
+  </head>
+  <body>
+    <h1>XSS Test</h1>
+    <img src="x" onerror="alert('img-onerror')">
+    <a href="javascript:alert('href-js-url')">위험 링크</a>
+    <a href="data:text/html,<script>alert(1)</script>">data url link</a>
+    <a href="JaVaScRiPt:alert('case-bypass')">case-bypass</a>
+    <iframe src="javascript:alert('iframe')"></iframe>
+    <svg onload="alert('svg-onload')"><script>alert('svg-script')</script></svg>
+    <body onload="alert('body-onload')">
+    <p onclick="alert('p-click')">클릭 위험</p>
+    <script>document.write('<script>alert(2)</' + 'script>')</script>
+    <style>@import 'javascript:alert(3)';</style>
+  </body>
+</html>

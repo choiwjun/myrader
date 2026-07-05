@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "paths": {
+      "@boina/contracts": ["../contracts/src/index.ts"],
+      "@boina/contracts/*": ["../contracts/src/*.ts"],
+      "@boina/db": ["../db/src/index.ts"],
+      "@boina/db/schema": ["../db/src/schema/index.ts"],
+      "@boina/db/client": ["../db/src/client.ts"]
+    }
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}

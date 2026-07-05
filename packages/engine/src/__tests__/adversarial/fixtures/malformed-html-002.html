@@ -1,0 +1,26 @@
+<!--
+  malformed-html-002 — 깨진 nesting (table 안에 form, p 안에 div, h1 안에 h2).
+-->
+<html>
+  <head>
+    <title>깨진 nesting</title>
+  </head>
+  <body>
+    <h1>외부 H1
+      <h2>내부 H2 (잘못 nested)</h2>
+    </h1>
+    <p>외부 paragraph
+      <div>p 안에 div (HTML 5 위반)</div>
+    </p>
+    <table>
+      <form action="/x">
+        <tr><td>잘못된 form/table 조합</td></tr>
+      </form>
+    </table>
+    <ul>
+      <ul>
+        <li>li 없이 nested ul</li>
+      </ul>
+    </ul>
+  </body>
+</html>

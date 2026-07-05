@@ -1,0 +1,76 @@
+# 공통 컴포넌트 정의 (components.yaml)
+# 여러 화면에서 재사용되는 컴포넌트. 각 화면 YAML 의 connections.shared_components 에서 참조.
+# 모바일 우선·전문용어 0·사장님 언어 원칙(05-design-system).
+
+version: "2.0"
+
+shared_components:
+
+  - id: app_header
+    type: navigation
+    position: header
+    function: >
+      상단 헤더. 가게명 표시 + 설정(S7) 진입.
+      브랜드/제품명은 OQ-1 미정이라 placeholder(노출 텍스트 보류).
+    used_by: [S1, S2, S3, S4, S5, S6, S7]
+    events:
+      - on: click:settings
+        do: 설정 화면(/settings)으로 이동
+    notes: "[OPEN] OQ-1 제품명/브랜딩 미정 → 헤더 브랜드 영역 placeholder."
+
+  - id: signal_light
+    type: detail
+    position: main
+    function: >
+      신호등 표시(🟢 잘 됨 / 🟡 조금 더 / 🔴 안 됨). 점수는 절대 노출하지 않는다.
+      Signal 타입(types.yaml)을 받아 색+이모지+사장님 언어 한 줄로 변환.
+    used_by: [S2, S3, S4, S5]
+    events:
+      - on: render
+        do: signal 값을 신호등 색/이모지로 변환, 점수 숨김
+
+  - id: step_nav
+    type: navigation
+    position: footer
+    function: >
+      하단 스텝 네비게이션(이전 / 다음). S2~S6 자유 왕복.
+      "한 번에 하나" 원칙 — 한 화면씩 진행/복귀.
+    used_by: [S2, S3, S4, S5, S6]
+    events:
+      - on: click:prev
+        do: 이전 스텝 화면으로 이동
+      - on: click:next
+        do: 다음 스텝 화면으로 이동
+
+  - id: big_copy_button
+    type: card
+    position: main
+    function: >
+      큰 복사 버튼. 생성물 본문을 클립보드에 복사하고 "복사됐어요" 피드백.
+      비IT 사장님 대상이라 버튼 크고 동작은 하나.
+    used_by: [S6]
+    events:
+      - on: click:copy
+        do: 해당 생성물 content 를 클립보드로 복사, 완료 토스트 표시
+
+  - id: today_one_banner
+    type: card
+    position: main
+    function: >
+      "오늘 딱 하나" 배너. 가장 급한 행동 1개를 크게 강조(isTodayOne=true).
+      응원 톤. 한 번에 하나 원칙의 핵심.
+    used_by: [S5]
+    events:
+      - on: click:start
+        do: 해당 행동의 deeplink 또는 상세로 이동
+
+  - id: scope_notice
+    type: inline_notice
+    position: content
+    function: >
+      현재 제공 범위를 넘어선 항목을 잠그지 않고 /write에서 바로 실행 가능한 다음 행동으로 안내한다.
+    used_by: [S4, S5, S6]
+    events:
+      - on: click:continue
+        do: /write 로 이동
+    notes: 결제 진입은 현재 범위가 아니다.

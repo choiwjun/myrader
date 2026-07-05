@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+
+<html class="light" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>보이나 - 생성물</title>
+<!-- Fonts: Plus Jakarta Sans for Headlines, Be Vietnam Pro for Body (System Fallback for Pretendard-like feel) -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Be+Vietnam+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .step-active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: #4f46e5;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        body {
+            font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard, Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f8fafc;
+        }
+        h1, h2, h3, .font-headline {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard, sans-serif;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-high": "#e2e8f0",
+                        "secondary-fixed": "#fef3c7",
+                        "outline-variant": "#cbd5e1",
+                        "primary-container": "#4f46e5",
+                        "on-error-container": "#991b1b",
+                        "inverse-surface": "#2a313b",
+                        "inverse-primary": "#c7d2fe",
+                        "surface-dim": "#e2e8f0",
+                        "outline": "#64748b",
+                        "primary": "#4338ca",
+                        "on-secondary-container": "#5c2400",
+                        "error-container": "#fee2e2",
+                        "tertiary-container": "#006f4b",
+                        "on-background": "#0f172a",
+                        "surface-tint": "#1353d8",
+                        "secondary-container": "#f59e0b",
+                        "on-primary": "#ffffff",
+                        "on-surface": "#0f172a",
+                        "surface-container-low": "#eef2ff",
+                        "surface-bright": "#f8fafc",
+                        "on-secondary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "surface": "#f8fafc",
+                        "primary-fixed": "#e0e7ff",
+                        "on-secondary-fixed-variant": "#92400e",
+                        "on-secondary-fixed": "#341100",
+                        "inverse-on-surface": "#eef2ff",
+                        "on-tertiary-fixed-variant": "#005236",
+                        "on-tertiary-fixed": "#002113",
+                        "error": "#dc2626",
+                        "on-surface-variant": "#434654",
+                        "secondary": "#b45309",
+                        "on-tertiary": "#ffffff",
+                        "primary-fixed-dim": "#c7d2fe",
+                        "tertiary-fixed-dim": "#4edea3",
+                        "surface-container": "#eef2ff",
+                        "secondary-fixed-dim": "#fde68a",
+                        "on-primary-container": "#e0e7ff",
+                        "on-tertiary-container": "#10b981",
+                        "tertiary": "#005438",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-fixed-variant": "#4338ca",
+                        "surface-container-highest": "#e2e8f0",
+                        "on-primary-fixed": "#1e1b4b",
+                        "surface-variant": "#e2e8f0",
+                        "background": "#f8fafc",
+                        "tertiary-fixed": "#34d399"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "container-margin": "24px",
+                        "xl": "32px",
+                        "2xl": "48px",
+                        "md": "16px",
+                        "sm": "8px",
+                        "base": "8px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "3xl": "64px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "body-md": ["Be Vietnam Pro"],
+                        "label-sm": ["Be Vietnam Pro"],
+                        "headline-xl": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["48px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-md": ["20px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "label-sm": ["14px", {"lineHeight": "1.4", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                        "headline-xl": ["32px", {"lineHeight": "1.3", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface">
+<!-- Top Navigation Bar -->
+<nav class="fixed top-0 w-full bg-surface/80 backdrop-blur-xl z-50 border-b border-outline-variant/30 flex justify-between items-center px-container-margin h-16">
+<div class="flex items-center gap-xl">
+<span class="font-headline-xl text-headline-xl font-bold text-primary">보이나</span>
+<!-- Progress Steps (Desktop) -->
+<div class="hidden md:flex items-center gap-md">
+<div class="flex items-center gap-sm text-outline font-label-sm">
+<span class="text-on-surface-variant">Step 1</span>
+<span class="text-outline">Find Store</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</div>
+<div class="flex items-center gap-sm text-outline font-label-sm">
+<span class="text-on-surface-variant">Step 2</span>
+<span class="text-outline">My Status</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</div>
+<div class="flex items-center gap-sm text-outline font-label-sm">
+<span class="text-on-surface-variant">Step 3</span>
+<span class="text-outline">Competition</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</div>
+<div class="flex items-center gap-sm text-outline font-label-sm">
+<span class="text-on-surface-variant">Step 4</span>
+<span class="text-outline">Gaps</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</div>
+<div class="flex items-center gap-sm text-outline font-label-sm">
+<span class="text-on-surface-variant">Step 5</span>
+<span class="text-outline">Action</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</div>
+<div class="flex items-center gap-sm font-label-sm text-primary relative step-active pb-1">
+<span class="font-bold">Step 6</span>
+<span class="font-bold">Result/Creation</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<button class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-low p-sm rounded-full transition-colors" data-icon="help"></button>
+<button class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-low p-sm rounded-full transition-colors" data-icon="account_circle"></button>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="pt-32 pb-3xl px-container-margin max-w-[1200px] mx-auto min-h-screen">
+<!-- Header Section -->
+<header class="mb-2xl space-y-md">
+<h1 class="font-display-lg text-display-lg-mobile md:text-display-lg text-on-surface leading-tight">
+                생성물
+            </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">
+                그대로 복사해서 쓰시면 돼요. <span class="text-primary font-medium">가게에 맞게 살짝 다듬으면</span> 더 좋아요.
+            </p>
+</header>
+<!-- Bento Grid: 2x2 Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-lg">
+<!-- Card 1: Store Introduction -->
+<div class="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant/30 shadow-sm hover:shadow-md transition-shadow group flex flex-col h-full">
+<div class="flex items-center gap-sm mb-lg">
+<div class="w-10 h-10 bg-primary-fixed rounded-lg flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="storefront"></span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md">가게 소개글</h3>
+<span class="font-label-xs text-primary px-sm py-0.5 bg-primary-fixed rounded-full">Free</span>
+</div>
+</div>
+<div class="flex-grow bg-surface-container-low/50 p-md rounded-lg border border-outline-variant/20 mb-lg overflow-hidden">
+<p class="font-body-md text-on-surface-variant leading-relaxed line-clamp-6">
+                        안녕하세요! 우리 동네에서 가장 따뜻한 커피를 내리는 '카페 보이나'입니다. 매일 아침 직접 로스팅한 신선한 원두로 정성을 다해 준비하고 있어요. 편안한 공간에서 여유로운 시간을 보내실 수 있도록 최선을 다하겠습니다. 언제든 들러주세요.
+                    </p>
+</div>
+<button class="w-full h-12 bg-primary-container text-on-primary font-semibold rounded-lg flex items-center justify-center gap-sm active:scale-[0.98] transition-all hover:brightness-110" onclick="copyToClipboard(this)">
+<span class="material-symbols-outlined text-[20px]" data-icon="content_copy"></span>
+                    복사하기
+                </button>
+</div>
+<!-- Card 2: Review Request -->
+<div class="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant/30 shadow-sm hover:shadow-md transition-shadow group flex flex-col h-full">
+<div class="flex items-center gap-sm mb-lg">
+<div class="w-10 h-10 bg-primary-fixed rounded-lg flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="rate_review"></span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md">리뷰 요청 문구</h3>
+<span class="font-label-xs text-primary px-sm py-0.5 bg-primary-fixed rounded-full">Free</span>
+</div>
+</div>
+<div class="flex-grow bg-surface-container-low/50 p-md rounded-lg border border-outline-variant/20 mb-lg overflow-hidden">
+<p class="font-body-md text-on-surface-variant leading-relaxed line-clamp-6">
+                        방문해주셔서 진심으로 감사합니다! 오늘 서비스는 어떠셨나요? 정성스러운 리뷰 한 줄은 저희에게 정말 큰 힘이 됩니다. 사진과 함께 남겨주시면 다른 손님들께도 큰 도움이 될 거예요. 늘 정성을 다하는 '카페 보이나'가 되겠습니다.
+                    </p>
+</div>
+<button class="w-full h-12 bg-primary-container text-on-primary font-semibold rounded-lg flex items-center justify-center gap-sm active:scale-[0.98] transition-all hover:brightness-110" onclick="copyToClipboard(this)">
+<span class="material-symbols-outlined text-[20px]" data-icon="content_copy"></span>
+                    복사하기
+                </button>
+</div>
+<!-- Card 3: FAQ Answers (Locked) -->
+<div class="relative bg-surface-container-lowest p-lg rounded-xl border border-outline-variant/30 shadow-sm overflow-hidden flex flex-col h-full">
+<div class="flex items-center gap-sm mb-lg opacity-40">
+<div class="w-10 h-10 bg-outline-variant rounded-lg flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="quiz"></span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md">자주 묻는 질문(FAQ) 답변글</h3>
+</div>
+</div>
+<div class="flex-grow bg-surface-container-low/50 p-md rounded-lg border border-outline-variant/20 mb-lg overflow-hidden blur-[4px] select-none pointer-events-none">
+<p class="font-body-md text-on-surface-variant leading-relaxed">
+                        Q: 주차 공간이 따로 있나요? <br/>
+                        A: 네, 저희 가게 뒤편에 넉넉한 전용 주차 공간이 마련되어 있습니다. 무료로 이용 가능하시니 편하게 방문해 주세요. <br/>
+                        Q: 예약도 가능한가요? <br/>
+                        A: 물론입니다! 4인 이상 단체석은 유선으로 미리...
+                    </p>
+</div>
+<!-- Paywall Overlay -->
+<div class="absolute inset-0 z-10 flex flex-col items-center justify-center p-lg bg-surface/40 backdrop-blur-[2px]">
+<div class="bg-surface-container-highest/90 p-lg rounded-2xl shadow-xl border border-outline-variant/30 text-center space-y-md">
+<span class="material-symbols-outlined text-primary text-[32px]" data-icon="lock" data-weight="fill" style="font-variation-settings: 'FILL' 1;"></span>
+<div class="space-y-xs">
+<p class="font-headline-md text-on-surface">프리미엄 전용</p>
+<p class="font-label-sm text-on-surface-variant">맞춤형 분석 결과에 따른<br/>전문 답변을 확인해보세요.</p>
+</div>
+<button class="w-full py-3 px-xl bg-primary text-on-primary font-semibold rounded-lg hover:brightness-110 transition-all active:scale-95">
+                            잠금 해제하고 보기
+                        </button>
+</div>
+</div>
+</div>
+<!-- Card 4: Business Request Email (Locked) -->
+<div class="relative bg-surface-container-lowest p-lg rounded-xl border border-outline-variant/30 shadow-sm overflow-hidden flex flex-col h-full">
+<div class="flex items-center gap-sm mb-lg opacity-40">
+<div class="w-10 h-10 bg-outline-variant rounded-lg flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="mail"></span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md">업체에 보낼 요청 메일 초안</h3>
+</div>
+</div>
+<div class="flex-grow bg-surface-container-low/50 p-md rounded-lg border border-outline-variant/20 mb-lg overflow-hidden blur-[4px] select-none pointer-events-none">
+<p class="font-body-md text-on-surface-variant leading-relaxed">
+                        제목: [협업 제안] 지역 상생 프로젝트 참여 요청의 건 <br/><br/>
+                        안녕하세요, 담당자님. 저희 '보이나'는 이번에 지역 골목상권 활성화를 위해...
+                    </p>
+</div>
+<!-- Paywall Overlay -->
+<div class="absolute inset-0 z-10 flex flex-col items-center justify-center p-lg bg-surface/40 backdrop-blur-[2px]">
+<div class="bg-surface-container-highest/90 p-lg rounded-2xl shadow-xl border border-outline-variant/30 text-center space-y-md">
+<span class="material-symbols-outlined text-primary text-[32px]" data-icon="lock" data-weight="fill" style="font-variation-settings: 'FILL' 1;"></span>
+<div class="space-y-xs">
+<p class="font-headline-md text-on-surface">프리미엄 전용</p>
+<p class="font-label-sm text-on-surface-variant">비즈니스 성공을 위한<br/>전략적인 커뮤니케이션 도구.</p>
+</div>
+<button class="w-full py-3 px-xl bg-primary text-on-primary font-semibold rounded-lg hover:brightness-110 transition-all active:scale-95">
+                            잠금 해제하고 보기
+                        </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Atmospheric Illustration/Graphic Area -->
+<div class="mt-3xl w-full h-[300px] relative rounded-3xl overflow-hidden border border-outline-variant/20">
+
+<div class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
+<div class="absolute inset-0 flex flex-col items-center justify-center text-center p-lg space-y-md">
+<div class="bg-primary/10 backdrop-blur-md px-lg py-md rounded-2xl border border-primary/20">
+<h2 class="font-headline-xl text-primary mb-sm">더 완벽한 가게를 위해</h2>
+<p class="font-body-md text-on-surface-variant">데이터 기반의 분석으로 가장 효과적인 문구를 생성해 드립니다.</p>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="w-full py-xl bg-surface border-t border-outline-variant/20">
+<div class="flex flex-col items-center justify-center gap-md px-container-margin text-center">
+<div class="flex gap-lg font-label-sm text-outline">
+<a class="hover:text-primary transition-colors" href="#">이용약관</a>
+<a class="hover:text-primary transition-colors" href="#">개인정보처리방침</a>
+<a class="hover:text-primary transition-colors" href="#">고객센터</a>
+</div>
+<p class="font-label-sm text-outline max-w-2xl">
+                © 2024 Boina. 본 서비스의 분석 결과는 참고용이며 법적 효력을 보장하지 않습니다. <br/>
+                모든 권리는 (주)보이나에 있으며 무단 복제를 금합니다.
+            </p>
+</div>
+</footer>
+<script>
+        // Simple micro-interaction for copying content
+        function copyToClipboard(button) {
+            const originalHtml = button.innerHTML;
+            const card = button.closest('div');
+            const content = card.querySelector('p').innerText;
+            
+            // Interaction: Feedback
+            button.innerHTML = `
+                <span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                복사되었습니다!
+            `;
+            button.classList.remove('bg-primary-container');
+            button.classList.add('bg-tertiary-container');
+            
+            // Realistic copy behavior (if actual browser API is needed)
+            // navigator.clipboard.writeText(content);
+            
+            setTimeout(() => {
+                button.innerHTML = originalHtml;
+                button.classList.add('bg-primary-container');
+                button.classList.remove('bg-tertiary-container');
+            }, 2000);
+        }
+
+        // Add hover effects for cards
+        const cards = document.querySelectorAll('.bg-surface-container-lowest');
+        cards.forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-4px)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0)';
+            });
+        });
+    </script>
+</body></html>

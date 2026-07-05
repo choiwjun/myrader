@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+
+<html class="light" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>보이나 - 가게 찾기</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&amp;family=Inter:wght@400;600&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;family=Plus+Jakarta+Sans:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-highest": "#dae2fd",
+                    "tertiary-container": "#5b606b",
+                    "primary-container": "#4f46e5",
+                    "tertiary": "#434853",
+                    "primary-fixed-dim": "#c3c0ff",
+                    "outline": "#777587",
+                    "on-secondary-fixed": "#100069",
+                    "on-secondary": "#ffffff",
+                    "surface-tint": "#4d44e3",
+                    "on-tertiary": "#ffffff",
+                    "surface-container-low": "#f2f3ff",
+                    "on-surface": "#131b2e",
+                    "on-tertiary-fixed-variant": "#424751",
+                    "surface-bright": "#faf8ff",
+                    "on-secondary-fixed-variant": "#372abf",
+                    "tertiary-fixed": "#dee2ef",
+                    "on-primary-container": "#dad7ff",
+                    "on-primary-fixed-variant": "#3323cc",
+                    "inverse-surface": "#283044",
+                    "secondary": "#4e45d5",
+                    "outline-variant": "#c7c4d8",
+                    "primary-fixed": "#e2dfff",
+                    "surface-container": "#eaedff",
+                    "on-error": "#ffffff",
+                    "surface": "#faf8ff",
+                    "secondary-fixed-dim": "#c3c0ff",
+                    "inverse-primary": "#c3c0ff",
+                    "on-primary-fixed": "#0f0069",
+                    "secondary-fixed": "#e3dfff",
+                    "secondary-container": "#6860ef",
+                    "primary": "#3525cd",
+                    "surface-variant": "#dae2fd",
+                    "on-tertiary-container": "#d7dbe8",
+                    "on-error-container": "#991b1b",
+                    "surface-container-high": "#e2e7ff",
+                    "error-container": "#fee2e2",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-fixed": "#171c25",
+                    "on-surface-variant": "#464555",
+                    "inverse-on-surface": "#eef0ff",
+                    "background": "#faf8ff",
+                    "on-secondary-container": "#fffbff",
+                    "error": "#dc2626",
+                    "surface-dim": "#d2d9f4",
+                    "on-background": "#131b2e",
+                    "tertiary-fixed-dim": "#c2c6d3",
+                    "on-primary": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "margin-desktop": "40px",
+                    "stack-md": "24px",
+                    "unit": "8px",
+                    "stack-lg": "48px",
+                    "container-max": "1280px",
+                    "stack-sm": "12px",
+                    "margin-mobile": "16px",
+                    "gutter": "24px"
+            },
+            "fontFamily": {
+                    "headline-lg-mobile": ["Plus Jakarta Sans"],
+                    "body-lg": ["Inter"],
+                    "button-text": ["Plus Jakarta Sans"],
+                    "label-md": ["Plus Jakarta Sans"],
+                    "headline-lg": ["Plus Jakarta Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "display-lg": ["Plus Jakarta Sans"],
+                    "body-md": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                    "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                    "button-text": ["16px", { "lineHeight": "24px", "fontWeight": "600" }],
+                    "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
+                    "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                    "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                    "display-lg": ["48px", { "lineHeight": "60px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                    "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', 'Pretendard', sans-serif; }
+        .font-plus-jakarta { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface antialiased min-h-screen flex flex-col">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 bg-surface-container-lowest/80 backdrop-blur-xl border-b border-outline-variant shadow-sm">
+<div class="flex justify-between items-center h-14 px-margin-desktop max-w-container-max mx-auto">
+<div class="font-headline-md text-headline-md font-bold text-primary">보이나</div>
+<nav class="hidden md:flex items-center gap-8">
+<a class="font-label-md text-label-md text-primary font-bold border-b-2 border-primary pb-1" href="#">가게 찾기</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">내 상태</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">경쟁 비교</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">갭</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">행동</a>
+</nav>
+<div class="flex items-center gap-4">
+<button class="p-2 hover:bg-surface-container-low rounded-lg transition-all active:scale-95 duration-150">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="settings">settings</span>
+</button>
+</div>
+</div>
+</header>
+<main class="flex-grow pt-32 pb-stack-lg px-margin-mobile md:px-0">
+<!-- Hero Section -->
+<section class="max-w-[560px] mx-auto text-center">
+<h1 class="font-plus-jakarta font-headline-lg text-headline-lg text-[#0f172a] mb-stack-sm">
+                가게 이름을 알려주세요
+            </h1>
+<p class="font-body-lg text-body-lg text-[#64748b] mb-stack-lg">
+                네이버에 등록된 가게를 찾아볼게요.
+            </p>
+<!-- Search Input Card -->
+<div class="glass-card rounded-xl p-stack-md text-left">
+<div class="space-y-stack-md">
+<!-- Input 1 -->
+<div class="group">
+<label class="block font-label-md text-label-md text-[#0f172a] mb-2">가게 이름 <span class="text-primary">*</span></label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-4 text-[#64748b] group-focus-within:text-primary transition-colors" data-icon="storefront">storefront</span>
+<input class="w-full h-[56px] pl-12 pr-4 bg-white border border-[#e2e8f0] rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-body-md text-body-md" placeholder="예: 홍길동 치킨" type="text"/>
+</div>
+</div>
+<!-- Input 2 -->
+<div class="group">
+<label class="block font-label-md text-label-md text-[#0f172a] mb-2">지역 (선택)</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-4 text-[#64748b] group-focus-within:text-primary transition-colors" data-icon="location_on">location_on</span>
+<input class="w-full h-[56px] pl-12 pr-4 bg-white border border-[#e2e8f0] rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-body-md text-body-md" placeholder="예: 서울 마포구" type="text"/>
+</div>
+</div>
+<!-- CTA Button -->
+<button class="w-full h-[56px] bg-primary-container hover:bg-[#4338ca] text-white font-plus-jakarta font-button-text text-button-text rounded-lg shadow-[0_4px_14px_rgba(79,70,229,0.39)] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                        가게 찾기
+                        <span class="material-symbols-outlined text-[20px]" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Trust Badges -->
+<div class="flex flex-wrap justify-center items-center gap-gutter mt-stack-md">
+<div class="flex items-center gap-2 text-[#64748b] font-label-md text-label-md">
+<span class="material-symbols-outlined text-[18px]" data-icon="check_circle">check_circle</span>
+<span>무료</span>
+</div>
+<div class="flex items-center gap-2 text-[#64748b] font-label-md text-label-md">
+<span class="material-symbols-outlined text-[18px]" data-icon="no_accounts">no_accounts</span>
+<span>회원가입 불필요</span>
+</div>
+<div class="flex items-center gap-2 text-[#64748b] font-label-md text-label-md">
+<span class="material-symbols-outlined text-[18px]" data-icon="schedule">schedule</span>
+<span>1분 소요</span>
+</div>
+</div>
+</section>
+<!-- Decorative Subtle Background Element -->
+<div class="fixed bottom-0 left-0 w-full h-1/2 pointer-events-none -z-10 opacity-30">
+
+</div>
+</main>
+<!-- Footer -->
+<footer class="w-full bg-surface-container-low border-t border-outline-variant">
+<div class="py-stack-md px-margin-desktop max-w-container-max mx-auto flex flex-col md:flex-row justify-between items-center gap-gutter">
+<div class="flex flex-col md:flex-row items-center gap-stack-sm">
+<div class="font-headline-md text-headline-md font-bold text-on-surface">보이나</div>
+<p class="font-body-md text-body-md text-on-surface-variant">© 2024 보이나. All rights reserved.</p>
+</div>
+<div class="flex items-center gap-8">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-all" href="#">이용약관</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-all" href="#">개인정보처리방침</a>
+</div>
+</div>
+</footer>
+<script>
+        // Simple micro-interaction for button press
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('mousedown', () => {
+                button.classList.add('scale-95');
+            });
+            button.addEventListener('mouseup', () => {
+                button.classList.remove('scale-95');
+            });
+            button.addEventListener('mouseleave', () => {
+                button.classList.remove('scale-95');
+            });
+        });
+
+        // Initialize Material Icons logic for dynamically added content if needed
+        document.querySelectorAll('[data-icon]').forEach(el => {
+            const iconName = el.getAttribute('data-icon');
+            if (el.classList.contains('material-symbols-outlined')) {
+                el.innerText = iconName;
+            }
+        });
+    </script>
+</body></html>

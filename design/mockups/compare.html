@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+
+<html class="light" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>보이나 - 경쟁 비교</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Be+Vietnam+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#4338ca",
+                        "outline": "#64748b",
+                        "error-container": "#fee2e2",
+                        "on-secondary-container": "#5c2400",
+                        "tertiary-container": "#006f4b",
+                        "on-background": "#0f172a",
+                        "on-primary": "#ffffff",
+                        "surface-tint": "#1353d8",
+                        "secondary-container": "#f59e0b",
+                        "outline-variant": "#cbd5e1",
+                        "surface-container-high": "#e2e8f0",
+                        "secondary-fixed": "#fef3c7",
+                        "on-error-container": "#991b1b",
+                        "inverse-surface": "#2a313b",
+                        "inverse-primary": "#c7d2fe",
+                        "primary-container": "#4f46e5",
+                        "surface-dim": "#e2e8f0",
+                        "secondary": "#b45309",
+                        "on-tertiary": "#ffffff",
+                        "primary-fixed-dim": "#c7d2fe",
+                        "tertiary": "#005438",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-fixed-variant": "#4338ca",
+                        "tertiary-fixed-dim": "#4edea3",
+                        "surface-container": "#eef2ff",
+                        "secondary-fixed-dim": "#fde68a",
+                        "on-primary-container": "#e0e7ff",
+                        "on-tertiary-container": "#10b981",
+                        "surface-variant": "#e2e8f0",
+                        "background": "#f8fafc",
+                        "surface-container-highest": "#e2e8f0",
+                        "on-primary-fixed": "#1e1b4b",
+                        "tertiary-fixed": "#34d399",
+                        "surface-container-low": "#eef2ff",
+                        "on-surface": "#0f172a",
+                        "surface": "#f8fafc",
+                        "surface-bright": "#f8fafc",
+                        "on-secondary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "inverse-on-surface": "#eef2ff",
+                        "primary-fixed": "#e0e7ff",
+                        "on-secondary-fixed-variant": "#92400e",
+                        "on-secondary-fixed": "#341100",
+                        "error": "#dc2626",
+                        "on-surface-variant": "#434654",
+                        "on-tertiary-fixed-variant": "#005236",
+                        "on-tertiary-fixed": "#002113"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "32px",
+                        "2xl": "48px",
+                        "gutter": "16px",
+                        "container-margin": "24px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "3xl": "64px",
+                        "md": "16px",
+                        "sm": "8px",
+                        "base": "8px"
+                    },
+                    "fontFamily": {
+                        "headline-xl": ["Plus Jakarta Sans"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "body-lg": ["Be Vietnam Pro"],
+                        "body-md": ["Be Vietnam Pro"],
+                        "label-sm": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "headline-xl": ["32px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                        "headline-md": ["20px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                        "display-lg": ["48px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-lg": ["18px", {"lineHeight": "1.8", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "label-sm": ["14px", {"lineHeight": "1.4", "letterSpacing": "0.01em", "fontWeight": "500"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Be Vietnam Pro', sans-serif; }
+        h1, h2, h3 { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(241, 245, 249, 1);
+        }
+        .step-active { color: #4338ca; font-weight: 700; position: relative; }
+        .step-active::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: #4338ca;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col">
+<!-- TopNavBar -->
+<header class="bg-surface/80 backdrop-blur-xl fixed top-0 w-full z-50 border-b border-outline-variant/30 h-16 flex justify-between items-center px-gutter">
+<div class="flex items-center gap-md">
+<img alt="보이나 로고" class="h-8" src="https://lh3.googleusercontent.com/aida/AP1WRLuE9Y3PTeTBuO-DrrfjkJAyeQ9EO2RAtz-3KyeR-sS84M-37T3z37rItK1eestSVf4gXpt3EYHLO3dPEpCFPsdnkF5YhQ7SOFAoAaoD9bWJO6foxQU2HWeACYBf0HlapjSl9feovD8vDOo3Ppj1_Hy_letlDY5aQMpEzWHoWrP3D9v8bf2h_Rxq9uVxNE939zOuVX0DdYXzphwso29eQLnH82ghArt5H7hs7K9yvHnusobRc8gmEJp3bm8"/>
+</div>
+<nav class="hidden md:flex items-center gap-xl">
+<div class="flex gap-sm items-center text-label-sm font-label-sm">
+<span class="text-outline">가게 찾기</span>
+<span class="material-symbols-outlined text-outline text-[16px]">chevron_right</span>
+<span class="text-outline">내 상태</span>
+<span class="material-symbols-outlined text-outline text-[16px]">chevron_right</span>
+<span class="step-active">경쟁 비교</span>
+<span class="material-symbols-outlined text-outline text-[16px]">chevron_right</span>
+<span class="text-outline">갭</span>
+<span class="material-symbols-outlined text-outline text-[16px]">chevron_right</span>
+<span class="text-outline">행동</span>
+</div>
+</nav>
+<div class="flex items-center gap-sm">
+<button class="p-xs hover:bg-surface-container-low transition-colors rounded-lg">
+<span class="material-symbols-outlined text-on-surface-variant">help</span>
+</button>
+<button class="p-xs hover:bg-surface-container-low transition-colors rounded-lg">
+<span class="material-symbols-outlined text-on-surface-variant">account_circle</span>
+</button>
+</div>
+</header>
+<main class="flex-grow pt-32 pb-3xl">
+<div class="max-w-[1200px] mx-auto px-container-margin">
+<!-- Headline Section -->
+<section class="mb-2xl space-y-md">
+<h1 class="font-headline-xl text-headline-xl text-on-surface max-w-2xl leading-tight">
+<span class="text-primary">옆집</span>은 네이버·AI에 먼저 보이고 있어요.<br/>
+                    우리도 같이 채워봐요.
+                </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-3xl">
+                    사장님의 가게와 비슷한 <span class="font-medium">(샘플)</span> 가게들을 분석해 정직하게 비교해 드립니다.
+                </p>
+</section>
+<!-- Comparison Grid -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-lg mb-2xl">
+<!-- Card 1 -->
+<div class="glass-card rounded-xl p-lg shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
+<div class="flex justify-between items-start mb-xl">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">네이버 스마트플레이스 노출</h3>
+<span class="inline-block mt-xs bg-surface-container-high px-2 py-0.5 rounded text-[12px] text-outline font-medium">(샘플)</span>
+</div>
+</div>
+<div class="flex-grow space-y-xl">
+<div class="flex items-center justify-between bg-tertiary-container/5 p-md rounded-lg border border-tertiary-container/10">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-tertiary-container" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-label-sm text-on-surface">옆집</span>
+</div>
+<span class="font-headline-md text-tertiary-container">먼저 보여요</span>
+</div>
+<div class="flex items-center justify-between bg-error-container/5 p-md rounded-lg border border-error-container/10">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-outline">error</span>
+<span class="font-label-sm text-on-surface">우리 가게</span>
+</div>
+<span class="font-headline-md text-outline">아직이에요</span>
+</div>
+</div>
+<div class="mt-xl pt-md border-t border-outline-variant/30 flex justify-between items-center">
+<span class="text-[12px] text-outline">네이버 검색에서 확인</span>
+<a class="text-primary font-label-sm hover:underline flex items-center gap-xs" href="#">
+                            옆집은 뭘 갖췄나 <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="glass-card rounded-xl p-lg shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
+<div class="flex justify-between items-start mb-xl">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">AI 답변 검색 결과</h3>
+<span class="inline-block mt-xs bg-surface-container-high px-2 py-0.5 rounded text-[12px] text-outline font-medium">(샘플)</span>
+</div>
+</div>
+<div class="flex-grow space-y-xl">
+<div class="flex items-center justify-between bg-tertiary-container/5 p-md rounded-lg border border-tertiary-container/10">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-tertiary-container" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-label-sm text-on-surface">옆집</span>
+</div>
+<span class="font-headline-md text-tertiary-container">먼저 보여요</span>
+</div>
+<div class="flex items-center justify-between bg-surface-container p-md rounded-lg border border-outline-variant/20 opacity-60">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-outline">radio_button_unchecked</span>
+<span class="font-label-sm text-on-surface">우리 가게</span>
+</div>
+<span class="font-headline-md text-outline">아직이에요</span>
+</div>
+</div>
+<div class="mt-xl pt-md border-t border-outline-variant/30 flex justify-between items-center">
+<span class="text-[12px] text-outline">CLOVA AI 기준</span>
+<a class="text-primary font-label-sm hover:underline flex items-center gap-xs" href="#">
+                            옆집은 뭘 갖췄나 <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="glass-card rounded-xl p-lg shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
+<div class="flex justify-between items-start mb-xl">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">리뷰 기반 추천 비중</h3>
+<span class="inline-block mt-xs bg-surface-container-high px-2 py-0.5 rounded text-[12px] text-outline font-medium">(샘플)</span>
+</div>
+</div>
+<div class="flex-grow space-y-xl">
+<div class="flex items-center justify-between bg-tertiary-container/5 p-md rounded-lg border border-tertiary-container/10">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-tertiary-container" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-label-sm text-on-surface">옆집</span>
+</div>
+<span class="font-headline-md text-tertiary-container">먼저 보여요</span>
+</div>
+<div class="flex items-center justify-between bg-error-container/5 p-md rounded-lg border border-error-container/10">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-outline">warning</span>
+<span class="font-label-sm text-on-surface">우리 가게</span>
+</div>
+<span class="font-headline-md text-outline">아직이에요</span>
+</div>
+</div>
+<div class="mt-xl pt-md border-t border-outline-variant/30 flex justify-between items-center">
+<span class="text-[12px] text-outline">사용자 검색 키워드 분석</span>
+<a class="text-primary font-label-sm hover:underline flex items-center gap-xs" href="#">
+                            옆집은 뭘 갖췄나 <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</div>
+</div>
+</section>
+<!-- CTA Section -->
+<section class="flex flex-col items-center gap-xl text-center">
+<button class="bg-primary text-on-primary font-headline-md py-md px-3xl rounded-xl shadow-lg hover:bg-primary/90 active:scale-95 transition-all w-full max-w-md">
+                    옆집은 뭘 갖췄나 볼까요?
+                </button>
+<div class="max-w-2xl">
+<p class="text-outline font-label-sm leading-relaxed">
+                        본 비교 데이터는 검색 결과에 기반한 <span class="font-semibold">(샘플)</span> 데이터이며,<br/>실제 매출이나 순위를 단정하지 않습니다. 정직한 분석 결과를 바탕으로 가게 성장을 돕습니다.
+                    </p>
+</div>
+</section>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-surface dark:bg-surface-container-lowest border-t border-outline-variant/20 py-xl mt-auto">
+<div class="max-w-[1200px] mx-auto px-container-margin flex flex-col md:flex-row justify-between items-center gap-md">
+<p class="font-label-sm text-outline">
+                © 2024 Boina. 본 서비스의 분석 결과는 참고용이며 법적 효력을 보장하지 않습니다.
+            </p>
+<div class="flex gap-lg">
+<a class="font-label-sm text-outline hover:text-primary transition-colors" href="#">이용약관</a>
+<a class="font-label-sm text-outline hover:text-primary transition-colors" href="#">개인정보처리방침</a>
+<a class="font-label-sm text-outline hover:text-primary transition-colors" href="#">고객센터</a>
+</div>
+</div>
+</footer>
+<script>
+        // Simple micro-interactions
+        document.querySelectorAll('.glass-card').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-4px)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0)';
+            });
+        });
+    </script>
+</body></html>

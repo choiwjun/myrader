@@ -1,0 +1,27 @@
+{
+  "name": "boina",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --filter '@boina/web' dev",
+    "build": "bun run --filter '@boina/web' build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "biome check apps packages tests",
+    "lint:fix": "biome check --write apps packages tests",
+    "typecheck": "tsc --noEmit && bun run --filter '*' typecheck",
+    "db:generate": "bun run --filter '@boina/db' db:generate",
+    "db:migrate": "bun run --filter '@boina/db' db:migrate"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^22.10.7",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}

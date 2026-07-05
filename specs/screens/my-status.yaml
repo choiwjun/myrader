@@ -1,0 +1,101 @@
+# Status 화면 (my-status) — REQ-002
+# 홈 카드 ②의 상세 화면. 채널 상태를 `●/◐/○`와 evidence sheet로 보여준다.
+
+version: "3.0"
+
+screen:
+  id: STATUS
+  name: 상태
+  route: /status
+  layout: mobile_single_column
+  auth: false
+  purpose: 네이버, 구글, SNS, AI 인용 재료 상태와 고칠 우선순위를 보여준다.
+
+data_requirements:
+  - resource: diagnosis
+    needs: [id, businessId, overallSignal, status, completedAt]
+    filters:
+      diagnosisId: "?diagnosisId"
+
+  - resource: channelStatus
+    needs: [channel, signal, summaryLine, found, note, collectedAt, evidence]
+    filters:
+      diagnosisId: "?diagnosisId"
+
+components:
+  - id: status_banner
+    component: M-01 Status Banner
+    position: header
+    function: 전체 상태와 오늘 먼저 볼 한 가지를 보여준다.
+    data_source:
+      resource: diagnosis
+    rules:
+      - 숫자 점수 노출 금지
+      - 공포형 실패 표현 금지
+
+  - id: channel_signal_rows
+    component: M-03 Signal Row
+    position: main
+    function: 채널별 상태를 낮은 위협도의 3단계로 보여준다.
+    data_source:
+      resource: channelStatus
+    channels:
+      - naver
+      - google
+      - sns
+      - ai
+    state_symbols:
+      good: "● 좋음"
+      needs_work: "◐ 손볼 곳"
+      not_ready: "○ 준비 전"
+
+  - id: priority_fix_list
+    component: M-02 To-do Card
+    position: main
+    function: 오늘 직접 고칠 수 있는 항목을 먼저 보여준다.
+    data_source:
+      resource: channelStatus
+    events:
+      - on: click:write
+        do: /write 로 이동
+
+  - id: evidence_sheet
+    component: M-04 Evidence Sheet
+    position: sheet
+    function: 수집 시각, 출처, 원본, 실측/수집/추정/실패/빈 결과 라벨을 제공한다.
+    data_source:
+      resource: channelStatus
+
+connections:
+  navigations:
+    - from: priority_fix_list
+      to: /write
+  shared_components:
+    - app_header
+    - bottom_navigation
+    - evidence_sheet
+  external:
+    - diagnosis_engine
+
+tests:
+  - name: 상태 표현
+    when: /status 접속
+    then:
+      - `● 좋음`, `◐ 손볼 곳`, `○ 준비 전` 중 하나로 채널 상태가 보임
+      - 숫자 점수가 primary UI에 보이지 않음
+
+  - name: evidence sheet
+    when: 근거 보기를 열음
+    then:
+      - 수집 시각과 출처가 보임
+      - 실측/수집/추정/실패/빈 결과 라벨이 보임
+
+  - name: 문안으로 이동
+    when: 우선순위 할 일 CTA 클릭
+    then:
+      - /write로 이동
+
+notes:
+  - /status는 홈 카드 ②의 상세 화면이다.
+  - /compare로 이동하지 않는다. 경쟁 비교는 /rivals가 소유한다.
+  - AI/구글은 인과 단정 금지. 실측하지 않은 값에 실측 라벨을 붙이지 않는다.

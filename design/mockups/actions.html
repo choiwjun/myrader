@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+
+<html class="light" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Be+Vietnam+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(241, 245, 249, 0.5);
+        }
+
+        .premium-lock-gradient {
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .btn-hover-effect {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .btn-hover-effect:active {
+            transform: scale(0.96);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#4338ca",
+                        "primary-container": "#4f46e5",
+                        "on-primary": "#ffffff",
+                        "on-primary-container": "#e0e7ff",
+                        "secondary": "#b45309",
+                        "tertiary": "#005438",
+                        "surface": "#f8fafc",
+                        "surface-container": "#eef2ff",
+                        "surface-container-low": "#eef2ff",
+                        "surface-container-lowest": "#ffffff",
+                        "outline": "#64748b",
+                        "outline-variant": "#cbd5e1",
+                        "on-surface": "#0f172a",
+                        "on-surface-variant": "#434654",
+                        "error": "#dc2626"
+                    },
+                    "spacing": {
+                        "xs": "4px", "sm": "8px", "md": "16px", "lg": "24px", "xl": "32px", "2xl": "48px", "3xl": "64px",
+                        "gutter": "16px", "container-margin": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-xl": ["Plus Jakarta Sans"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "body-md": ["Be Vietnam Pro"],
+                        "label-sm": ["Be Vietnam Pro"]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-surface text-on-surface">
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/30 h-16 flex justify-between items-center px-container-margin md:px-gutter">
+<div class="max-w-[1200px] w-full mx-auto flex justify-between items-center">
+<div class="flex items-center gap-xl">
+<span class="text-primary font-bold text-[24px] tracking-tight">보이나</span>
+<nav class="hidden md:flex items-center gap-lg">
+<a class="text-on-surface-variant font-medium hover:text-primary transition-colors" href="#">가게 찾기</a>
+<a class="text-on-surface-variant font-medium hover:text-primary transition-colors" href="#">내 상태</a>
+<a class="text-on-surface-variant font-medium hover:text-primary transition-colors" href="#">경쟁 비교</a>
+<a class="text-on-surface-variant font-medium hover:text-primary transition-colors" href="#">갭</a>
+<a class="text-primary font-bold border-b-2 border-primary pt-1" href="#">행동</a>
+</nav>
+</div>
+<div class="flex items-center gap-md">
+<button class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-low p-sm rounded-full transition-colors">help</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-low p-sm rounded-full transition-colors">account_circle</button>
+</div>
+</div>
+</header>
+<main class="pt-32 pb-2xl px-container-margin max-w-[1200px] mx-auto">
+<!-- Hero Banner Section -->
+<section class="mb-3xl">
+<div class="relative overflow-hidden rounded-[24px] p-xl md:p-3xl bg-primary-container text-white shadow-xl group">
+<!-- Decorative background elements -->
+<div class="absolute -right-20 -top-20 w-80 h-80 bg-tertiary-fixed-dim/20 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-1000"></div>
+<div class="absolute right-10 bottom-10 w-40 h-40 bg-secondary-container/10 rounded-full blur-2xl"></div>
+<div class="relative z-10 max-w-2xl">
+<span class="inline-block px-md py-xs bg-white/20 backdrop-blur-md rounded-full text-label-sm font-semibold mb-lg">오늘 딱 하나</span>
+<h1 class="text-display-lg-mobile md:text-display-lg font-bold mb-md leading-tight">
+                        영업시간 정보 채우기
+                    </h1>
+<p class="text-body-lg text-on-primary-container/90 mb-2xl">
+                        사장님이 직접 5분이면 충분해요. <br class="hidden md:block"/>
+                        정확한 영업시간은 손님들에게 신뢰를 주는 가장 첫걸음입니다.
+                    </p>
+<button class="btn-hover-effect flex items-center gap-sm bg-white text-primary-container px-xl py-lg rounded-xl font-bold text-headline-md shadow-lg">
+                        지금 바로 하기
+                        <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+<!-- Hero Image Placeholder -->
+<div class="absolute right-0 bottom-0 hidden lg:block w-1/3 h-full overflow-hidden">
+<img class="w-full h-full object-cover opacity-40 mix-blend-overlay" data-alt="A modern, clean storefront interior with a focus on a professional digital display showing clear business hours. The lighting is soft and natural, reflecting a trustworthy and organized business environment. The color palette is composed of soft blues, crisp whites, and gentle emerald tones, matching the high-end minimalist Korean UI style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDhmeQcjTRz6J5yqCvh2BJdOi1EtnIikPgHmzhHwsc4iEUzYdxavVv3281c_w9k3PRE9Rd7TbA6kzSZe5351OFiZWO63hvRJm5f3EMAAp4mVyB3_Jpx5BP2YJb6tX58aW0ylHZn-IwfXmIzvawJwunu0eqHFA9L2M60WIMADSFIigzGzVwvhk5WAJksjbDI_AA4FVNP0bCLlcPgTuywIhV_GkWwLo0d9m9mVmdNk68yoggmRA9D-DwmME-QztivOLN8gMcHfYB0GqM"/>
+</div>
+</div>
+</section>
+<!-- 4-Grid Action Section -->
+<section>
+<div class="flex items-center justify-between mb-xl">
+<h2 class="text-headline-xl font-bold tracking-tight">도움이 될 수 있는 행동</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-lg">
+<!-- Action 1: Emerald (Direct) -->
+<div class="bg-surface-container-lowest border border-outline-variant/20 p-xl rounded-[20px] shadow-sm hover:shadow-md transition-all flex flex-col justify-between min-h-[220px]">
+<div class="flex items-start justify-between">
+<div class="w-12 h-12 rounded-xl bg-tertiary-fixed/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary text-[28px]">edit_calendar</span>
+</div>
+<span class="text-label-sm text-tertiary font-bold px-sm py-xs bg-tertiary-fixed/10 rounded-lg">직접 하기</span>
+</div>
+<div class="mt-lg">
+<h3 class="text-headline-md font-bold mb-xs">네이버 스마트플레이스 영업시간 수정</h3>
+<p class="text-on-surface-variant text-body-md">최신 정보를 유지해 예약 취소를 줄여보세요.</p>
+</div>
+<div class="mt-xl flex justify-end">
+<button class="btn-hover-effect text-primary font-bold flex items-center gap-xs">
+                            바로 가기
+                            <span class="material-symbols-outlined text-[18px]">open_in_new</span>
+</button>
+</div>
+</div>
+<!-- Action 2: Amber (Copy/Paste) -->
+<div class="bg-surface-container-lowest border border-outline-variant/20 p-xl rounded-[20px] shadow-sm hover:shadow-md transition-all flex flex-col justify-between min-h-[220px]">
+<div class="flex items-start justify-between">
+<div class="w-12 h-12 rounded-xl bg-secondary-fixed/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary text-[28px]">content_copy</span>
+</div>
+<span class="text-label-sm text-secondary font-bold px-sm py-xs bg-secondary-fixed/10 rounded-lg">복붙하기</span>
+</div>
+<div class="mt-lg">
+<h3 class="text-headline-md font-bold mb-xs">자주 묻는 질문(FAQ) 답변 복사</h3>
+<p class="text-on-surface-variant text-body-md">단골들이 궁금해하는 질문을 미리 준비했어요.</p>
+</div>
+<div class="mt-xl flex justify-end">
+<button class="btn-hover-effect bg-secondary-fixed/20 text-secondary px-lg py-sm rounded-lg font-bold">복사하기</button>
+</div>
+</div>
+<!-- Action 3: Red (Outsource) - Locked -->
+<div class="relative bg-surface-container-lowest border border-outline-variant/20 p-xl rounded-[20px] shadow-sm flex flex-col justify-between min-h-[220px] overflow-hidden group">
+<!-- Premium Overlay -->
+<div class="absolute inset-0 z-20 flex flex-col items-center justify-center backdrop-blur-[2px] bg-white/60 opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-primary text-[32px] mb-sm">lock</span>
+<p class="font-bold text-primary">프리미엄 전용 행동</p>
+</div>
+<div class="flex items-start justify-between">
+<div class="w-12 h-12 rounded-xl bg-error-container/50 flex items-center justify-center">
+<span class="material-symbols-outlined text-error text-[28px]">assignment_ind</span>
+</div>
+<div class="flex gap-xs">
+<span class="text-label-sm text-error font-bold px-sm py-xs bg-error-container/30 rounded-lg">유료 서비스</span>
+<span class="material-symbols-outlined text-outline text-[20px]">lock</span>
+</div>
+</div>
+<div class="mt-lg opacity-60">
+<h3 class="text-headline-md font-bold mb-xs">전문가에게 상세 페이지 맡기기</h3>
+<p class="text-on-surface-variant text-body-md">매력적인 소개글로 방문율을 높일 수 있습니다.</p>
+</div>
+<div class="mt-xl flex justify-end opacity-60">
+<button class="text-outline font-bold cursor-not-allowed">서비스 신청</button>
+</div>
+</div>
+<!-- Action 4: Grey (Consistency) -->
+<div class="bg-surface-container-lowest border border-outline-variant/20 p-xl rounded-[20px] shadow-sm hover:shadow-md transition-all flex flex-col justify-between min-h-[220px]">
+<div class="flex items-start justify-between">
+<div class="w-12 h-12 rounded-xl bg-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-outline text-[28px]">photo_library</span>
+</div>
+<span class="text-label-sm text-on-surface-variant font-bold px-sm py-xs bg-surface-variant/50 rounded-lg">꾸준히 하기</span>
+</div>
+<div class="mt-lg">
+<h3 class="text-headline-md font-bold mb-xs">주 1회 새로운 사진 올리기</h3>
+<p class="text-on-surface-variant text-body-md">생생한 현장 사진은 손님을 부르는 가장 좋은 광고입니다.</p>
+</div>
+<div class="mt-xl flex justify-end">
+<button class="btn-hover-effect text-on-surface font-bold border border-outline-variant/50 px-lg py-sm rounded-lg hover:bg-surface-container-low transition-colors">글 보러가기</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Feedback Section -->
+<section class="mt-3xl py-2xl border-t border-outline-variant/20">
+<div class="max-w-2xl">
+<p class="text-on-surface-variant text-body-md leading-relaxed">
+                    오늘 보여드린 행동들은 다른 성공한 사장님들이 가장 많이 실천하는 순서대로 추천해 드렸어요. 
+                    부담 갖지 마시고 천천히 하나씩 따라와 보세요. 보이나가 사장님의 비즈니스 성장을 정직하게 돕겠습니다.
+                </p>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full py-xl bg-surface border-t border-outline-variant/20">
+<div class="max-w-[1200px] mx-auto px-container-margin text-center">
+<div class="flex flex-col items-center justify-center gap-md">
+<div class="flex gap-lg text-label-sm text-outline">
+<a class="hover:text-primary transition-colors" href="#">이용약관</a>
+<a class="hover:text-primary transition-colors" href="#">개인정보처리방침</a>
+<a class="hover:text-primary transition-colors" href="#">고객센터</a>
+</div>
+<p class="text-label-sm text-outline">
+                    © 2024 Boina. 본 서비스의 분석 결과는 참고용이며 법적 효력을 보장하지 않습니다.
+                </p>
+</div>
+</div>
+</footer>
+<script>
+        // Micro-interactions and effects
+        document.querySelectorAll('.btn-hover-effect').forEach(button => {
+            button.addEventListener('mouseenter', () => {
+                button.style.transform = 'translateY(-1px)';
+            });
+            button.addEventListener('mouseleave', () => {
+                button.style.transform = 'translateY(0)';
+            });
+        });
+
+        // Simple scroll appearance logic
+        const observerOptions = {
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('opacity-100', 'translate-y-0');
+                    entry.target.classList.remove('opacity-0', 'translate-y-4');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('section').forEach(section => {
+            section.classList.add('transition-all', 'duration-700', 'opacity-0', 'translate-y-4');
+            observer.observe(section);
+        });
+    </script>
+</body></html>

@@ -1,0 +1,146 @@
+/* @TASK P0-T1 - 전역 스타일 (Tailwind CSS v4)
+   @SPEC .claude/constitutions/tailwind/v4-syntax.md
+   v4 문법: @import "tailwindcss"; (v3 의 @tailwind base/components/utilities 금지) */
+/* ── 폰트 ─────────────────────────────────────────────────────────────
+   Pretendard (한글 우선) — jsdelivr CDN
+   Plus Jakarta Sans (영문/숫자 헤드라인) — Google Fonts
+   Material Symbols Outlined (아이콘) — Google Fonts
+   ────────────────────────────────────────────────────────────────── */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap");
+@import "tailwindcss";
+
+:root {
+  --boina-bg: #f6f7f5;
+  --boina-card: #ffffff;
+  --boina-ink: #191f28;
+  --boina-ink-2: #4e5968;
+  --boina-ink-3: #8b95a1;
+  --boina-line: #e9ecee;
+  --boina-brand: #0b7a55;
+  --boina-brand-deep: #075e42;
+  --boina-brand-soft: #e7f4ee;
+  --boina-good: #0b7a55;
+  --boina-mid: #c77700;
+  --boina-wait: #6b7684;
+}
+
+/* ── 색 토큰 + 폰트 (Tailwind v4 @theme) ──────────────────────────── */
+@theme {
+  /* 인디고 프라이머리 */
+  --color-primary: #4f46e5;
+  --color-primary-dark: #4338ca;
+  --color-primary-container: #4f46e5;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #e0e7ff;
+  --color-on-primary-fixed-variant: #4338ca;
+  --color-on-primary-fixed: #1e1b4b;
+  --color-primary-fixed: #e0e7ff;
+  --color-primary-fixed-dim: #c7d2fe;
+  --color-inverse-primary: #c7d2fe;
+  --color-surface-tint: #1353d8;
+
+  /* 인디고 틴트 */
+  --color-surface-container-low: #eef2ff;
+  --color-surface-container: #eef2ff;
+
+  /* 신호등 */
+  --color-signal-green: #10b981;
+  --color-signal-amber: #f59e0b;
+  --color-signal-slate: #94a3b8;
+
+  /* tertiary (에메랄드) */
+  --color-tertiary: #005438;
+  --color-tertiary-fixed: #34d399;
+  --color-tertiary-fixed-dim: #4edea3;
+  --color-on-tertiary-fixed: #002113;
+  --color-on-tertiary-fixed-variant: #005236;
+  --color-on-tertiary-container: #10b981;
+  --color-tertiary-container: #006f4b;
+  --color-on-tertiary: #ffffff;
+
+  /* secondary (앰버) */
+  --color-secondary: #b45309;
+  --color-secondary-container: #f59e0b;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #5c2400;
+  --color-secondary-fixed: #fef3c7;
+  --color-secondary-fixed-dim: #fde68a;
+  --color-on-secondary-fixed: #341100;
+  --color-on-secondary-fixed-variant: #92400e;
+
+  /* 서피스·중립 (slate) */
+  --color-surface: #f8fafc;
+  --color-surface-bright: #f8fafc;
+  --color-surface-dim: #e2e8f0;
+  --color-surface-variant: #e2e8f0;
+  --color-surface-container-high: #e2e8f0;
+  --color-surface-container-highest: #e2e8f0;
+  --color-surface-container-lowest: #ffffff;
+  --color-background: #f8fafc;
+  --color-inverse-surface: #2a313b;
+  --color-inverse-on-surface: #eef2ff;
+
+  /* 텍스트 */
+  --color-on-surface: #0f172a;
+  --color-on-surface-variant: #434654;
+  --color-on-background: #0f172a;
+
+  /* 아웃라인 */
+  --color-outline: #64748b;
+  --color-outline-variant: #cbd5e1;
+
+  /* 에러 */
+  --color-error: #dc2626;
+  --color-error-container: #fee2e2;
+  --color-on-error: #ffffff;
+  --color-on-error-container: #991b1b;
+
+  /* 폰트 패밀리 */
+  --font-sans: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans", "Pretendard", sans-serif;
+}
+
+/* ── 전역 기본값 ────────────────────────────────────────────────────── */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+/* 인앱 신호등 HERO 글로우 — pulse-soft (status 등) */
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.04);
+  }
+}
+
+/* Material Symbols 아이콘 렌더링 기본값 */
+.material-symbols-outlined {
+  /* biome-ignore lint/a11y/useGenericFontNames: 아이콘 폰트 — 텍스트 대체글꼴 없음(의도) */
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+  text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  display: inline-block;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  vertical-align: middle;
+  line-height: 1;
+}

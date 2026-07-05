@@ -1,0 +1,21 @@
+<!--
+  schema-malformed-001 — 잘못된 JSON-LD 페이로드 모음.
+  parser 가 throw 하지 않고 유효한 schema 만 수집하는지 검증.
+-->
+<html>
+  <head>
+    <title>Schema Malformed</title>
+    <script type="application/ld+json">{ this is not json }</script>
+    <script type="application/ld+json">{"@type": "Organization", "name": "유효한 스키마"}</script>
+    <script type="application/ld+json">undefined</script>
+    <script type="application/ld+json">NaN</script>
+    <script type="application/ld+json"></script>
+    <script type="application/ld+json">{"@type": "FAQPage", "mainEntity": [{"@type": "Question"</script>
+    <script type="application/ld+json">[1, 2, 3, {"@type": "Article", "headline": "Array element schema"}]</script>
+    <script type="application/ld+json">{"@type": "Product", "name": "trailing-comma",}</script>
+    <script type="application/ld+json">{"@type": "WebSite", "name": "큰따옴표 \" 가 escape 안 됨"}</script>
+  </head>
+  <body>
+    <h1>Schema Test</h1>
+  </body>
+</html>

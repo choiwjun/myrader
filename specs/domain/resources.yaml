@@ -1,0 +1,157 @@
+# 도메인 리소스 정의 (resources.yaml)
+# =====================================================================
+# 중요: 도메인 리소스는 x-sag 엔진(core-engine + contracts diagnosis 계약)을
+#       그대로 차용한다. 화면은 이 리소스가 "무엇을 주는지"만 참조하고,
+#       백엔드는 x-sag core-engine / contracts diagnosis 가 "어떻게 제공할지"를
+#       독립적으로 결정한다. (신규 빌드 아님 — 재사용 + 배선/번역 레이어)
+#
+# 매핑 근거:
+#   - diagnosis 잡        = contracts diagnosis (DiagnosisJson) + runDiagnosisPipeline()
+#   - channelStatus       = DiagnosisJson naverPresence / google(맛보기) / llmValidation
+#   - competitor          = naverPresence.competitorTop + llmValidation.competitors
+#   - gapItem             = core-engine v2/gap GapAnalyzer (GapMatrixRow / PriorityGap) 번역
+#   - action              = GapAnalyzer actionType + 룰 priority → 사장님 언어 4분류
+#   - generatedAsset      = core-engine snippet 생성 차용 ([유료] 실행팩)
+#
+# 정직성 가드(x-sag POLICY 일관): 점수↔실인용 무상관(자사 n=51). 화면 카피는
+# 인과 단정 금지. competitorTop(실측) vs competitorGap(룰 기반 역공학)을 구분.
+# =====================================================================
+
+version: "2.0"
+
+resources:
+
+  # ---------------------------------------------------------------
+  - name: business
+    source: "x-sag core-engine (재사용)"
+    description: 사장님이 식별한 내 가게. S1에서 확정되어 진단 잡의 대상이 된다.
+    used_by: [S1, S7]
+    fields:
+      - id            # 내부 식별자
+      - name          # 가게 이름
+      - category      # 업종(예: 한식당, 미용실)
+      - region        # 지역(예: 서울 마포구)
+      - placeUrl      # 네이버 플레이스 URL (확정 후보)
+      - websiteUrl    # 홈페이지 URL (선택)
+
+  # ---------------------------------------------------------------
+  - name: placeCandidate
+    source: "x-sag core-engine (재사용)"
+    description: 네이버 플레이스 검색 후보. 사장님이 이름+지역 입력 시 노출되어 내 가게를 고른다.
+    used_by: [S1]
+    fields:
+      - placeUrl      # 후보의 네이버 플레이스 URL
+      - name          # 후보 가게 이름
+      - address       # 후보 주소(동명이 가게 구분용)
+      - category      # 후보 업종
+
+  # ---------------------------------------------------------------
+  - name: diagnosis
+    source: "x-sag core-engine (재사용 — runDiagnosisPipeline / contracts DiagnosisJson)"
+    description: 진단 잡. S1 "진단 시작"으로 큐잉되어 백그라운드 실행, 진행 상태를 화면에 알린다.
+    used_by: [S1, S2]
+    fields:
+      - id            # 진단 잡 ID
+      - businessId    # 대상 가게
+      - status        # queued | running | done | failed (진행 표시용)
+      - overallSignal # green | red | yellow (전체 한눈 신호등)
+      - startedAt
+      - completedAt
+
+  # ---------------------------------------------------------------
+  - name: channelStatus
+    source: "x-sag core-engine (재사용 — DiagnosisJson naverPresence/google/llmValidation)"
+    description: >
+      채널별 신호등(네이버/구글/AI). 점수는 숨기고 신호등+사장님 언어 한 줄만 노출.
+      google 은 v1 맛보기(on-page/AI Overview), ai 는 grounded·게이팅(실인용일 때만 green).
+    used_by: [S2]
+    fields:
+      - channel       # naver | google | ai
+      - signal        # green | yellow | red
+      - summaryLine   # 사장님 언어 한 줄 요약 (전문용어 0)
+      - found         # 노출/인용 여부 (선택)
+      - note          # 맛보기·게이팅 등 부가 안내 (선택)
+
+  # ---------------------------------------------------------------
+  - name: competitor
+    source: "x-sag core-engine (재사용 — naverPresence.competitorTop + llmValidation.competitors)"
+    description: >
+      실측 라이벌(누가 위인가). 손실 프레이밍 카드의 입력.
+      source 로 실측 채널(naver SERP) / AI grounded 를 구분 표기(정직성).
+    used_by: [S3]
+    fields:
+      - id
+      - name          # 경쟁사 이름(익명화 옵션 가능)
+      - channel       # naver | ai (어디서 앞서는지)
+      - beatsMe       # true = 옆집이 나보다 위 (손실 프레이밍 트리거)
+      - rank          # 노출 순위 (선택)
+      - source        # naver_serp | gpt_grounded (실측 출처)
+
+  # ---------------------------------------------------------------
+  - name: gapItem
+    source: "x-sag core-engine (재사용 — v2/gap GapAnalyzer GapMatrixRow / PriorityGap 번역)"
+    description: >
+      역공학 갭(걔는 갖췄고 당신은 없음). 룰 한 줄을 사장님 언어 label 로 번역.
+      [무료] priority 상위 Top3 만, [유료] 전체 매트릭스. 인과 단정 금지(위생·구조 격차).
+    used_by: [S4]
+    fields:
+      - id
+      - label          # 사장님 언어 한 줄("영업시간이 안 적혀 있어요")
+      - competitorHas  # 경쟁사 보유 여부
+      - iHave          # 내 보유 여부
+      - category       # 갭 묶음(노출/소개/리뷰 등)
+      - actionTier     # self_fix | snippet | vendor | ongoing (→ action 4분류 연결)
+      - priority       # 1-5 (1=가장 급함, Top3 컷오프 기준)
+      - isPaid         # true = 유료 실행팩에서만 전체 노출
+
+  # ---------------------------------------------------------------
+  - name: action
+    source: "x-sag core-engine (재사용 — GapAnalyzer actionType/priority → 4분류 번역)"
+    description: >
+      행동 카드. "오늘 딱 하나" + 4분류(🟢직접/🟡복붙/🔴업체/⏳꾸준히).
+      직접건은 deeplink 로 바로가기. [무료] 오늘딱하나+일부, [유료] 전체.
+    used_by: [S5]
+    fields:
+      - id
+      - title          # 사장님 언어 행동 제목
+      - tier           # green_self | yellow_copy | red_vendor | gray_ongoing
+      - isTodayOne     # true = "오늘 딱 하나" 배너 대상(1개)
+      - deeplink       # 직접건 바로가기 URL (선택; 예: 네이버 플레이스 수정)
+      - doneable       # 사장님이 직접 끝낼 수 있는지
+      - isPaid         # true = 유료 실행팩에서만 노출
+
+  # ---------------------------------------------------------------
+  - name: generatedAsset
+    source: "x-sag core-engine (재사용 — snippet 생성 차용, [유료] 실행팩)"
+    description: >
+      복붙용 생성물. 스니펫/플레이스 소개글/리뷰 요청 문구/업체 처방전 이메일초안.
+      큰 복사 버튼으로 바로 사용. 전체는 [유료] 실행팩.
+    used_by: [S6]
+    fields:
+      - id
+      - type           # snippet | place_intro | review_request | vendor_prescription
+      - title          # 사장님 언어 생성물 이름
+      - content        # 복붙 본문
+      - copyable       # 복사 가능 여부(항상 true)
+
+  # ---------------------------------------------------------------
+  - name: account
+    source: "x-sag core-engine (재사용 — 계정/인증 계약)"
+    description: 로그인 계정. S7 설정에서 표시.
+    used_by: [S7]
+    fields:
+      - id
+      - email
+
+  # ---------------------------------------------------------------
+  - name: businessSettings
+    source: "x-sag core-engine (재사용 — business 설정)"
+    description: 가게 정보 편집 + (v1.5) 재진단 진입. v1 재진단 버튼은 placeholder.
+    used_by: [S7]
+    fields:
+      - businessId
+      - name
+      - category
+      - region
+      - placeUrl
+      - websiteUrl

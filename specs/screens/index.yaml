@@ -1,0 +1,92 @@
+# 화면 인덱스 (index.yaml)
+# 첫 방문: /find → /home. 재방문: /home. Primary menu: home/status/rivals/write/settings.
+
+version: "3.0"
+
+screens:
+  - id: HOME
+    name: 홈 피드
+    route: /home
+    file: home.yaml
+    req: [REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, REQ-R3, REQ-R5]
+    cards:
+      - hero_today_one
+      - channel_status
+      - rival_one_line
+      - weekly_search_terms
+      - steady_next_step
+
+  - id: FIND
+    name: 가게 찾기
+    route: /find
+    file: store-finder.yaml
+    req: [REQ-001]
+    role: secondary_entry
+
+  - id: STATUS
+    name: 상태
+    route: /status
+    file: my-status.yaml
+    req: [REQ-002]
+
+  - id: RIVALS
+    name: 라이벌
+    route: /rivals
+    file: vs-competitor.yaml
+    req: [REQ-003, REQ-004]
+    absorbs: [/compare, /gap]
+
+  - id: WRITE
+    name: 문안
+    route: /write
+    file: actions.yaml
+    req: [REQ-005, REQ-006]
+    absorbs: [/actions, /assets]
+
+  - id: SETTINGS
+    name: 설정
+    route: /settings
+    file: settings.yaml
+    req: [REQ-001, REQ-007, REQ-R5, REQ-R6]
+
+sheet_specs:
+  - id: RADAR_INTEREST_SHEET
+    name: 주간 레이더 관심 sheet
+    owner: HOME.weekly_search_terms
+    req: [REQ-R5]
+    behavior: contextual_sheet_not_primary_route
+
+legacy_redirects:
+  - from: /compare
+    to: /rivals
+  - from: /gap
+    to: /rivals
+  - from: /actions
+    to: /write
+  - from: /assets
+    to: /write
+  - from: /checkout
+    to: /home
+
+navigation:
+  first_visit: [/find, /home]
+  revisit_start: /home
+  primary_menu: [/home, /status, /rivals, /write, /settings]
+  secondary_entry: [/find]
+  card_order:
+    home:
+      - hero_today_one
+      - channel_status
+      - rival_one_line
+      - weekly_search_terms
+      - steady_next_step
+
+radar_card_states:
+  S8:
+    meaning: 관심 등록/대기 상태
+    route: /home
+    card: weekly_search_terms
+  S9:
+    meaning: 주간 결과/빈 결과/실패 상태
+    route: /home
+    card: weekly_search_terms

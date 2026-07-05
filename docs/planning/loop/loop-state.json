@@ -1,0 +1,113 @@
+{
+  "schema": "planning-loop-supervisor/loop-state@1",
+  "project": "소상공인 셀프 SEO/AEO/GEO 진단 + 경쟁사 비교 + 행동 (네이버+구글, 한눈에)",
+  "engine": "x-sag (github.com/choiwjun/x-sag) 분석 엔진 재사용",
+  "generated_at": "2026-06-13",
+  "iteration": 1,
+  "iteration_note": "추가 patch 루프 미수행 — 미달이 OQ 결정·사장님 검증이라 문서 재생성으로 해소 불가",
+  "requirements": ["REQ-001", "REQ-002", "REQ-003", "REQ-004", "REQ-005", "REQ-006", "REQ-007"],
+  "scores": {
+    "product_clarity": 5,
+    "requirement_completeness": 4,
+    "technical_feasibility": 5,
+    "user_flow_coverage": 4,
+    "data_model_fit": 4,
+    "ui_screen_completeness": 4,
+    "design_system_applicability": 4,
+    "task_executability": 4,
+    "testability": 3,
+    "traceability": 5,
+    "consistency": 4,
+    "scope_control": 4,
+    "implementation_readiness": 3
+  },
+  "score_total": 54,
+  "score_max": 65,
+  "hard_fails": [],
+  "core_items": [
+    "product_clarity",
+    "requirement_completeness",
+    "technical_feasibility",
+    "traceability",
+    "consistency",
+    "task_executability",
+    "implementation_readiness"
+  ],
+  "core_threshold": 4,
+  "core_pass_count": 6,
+  "core_total_count": 7,
+  "core_below_threshold": ["Implementation Readiness"],
+  "gate_pass": false,
+  "gate_status": "conditional_yellow",
+  "gates_derived": true,
+  "derived_gates_file": "docs/planning/loop/08-derived-gates.md",
+  "open_questions": ["OQ-1", "OQ-2", "OQ-3", "OQ-4", "OQ-5", "OQ-6"],
+  "open_questions_detail": {
+    "OQ-1": "제품명 (가칭 미정) — OPEN",
+    "OQ-2": "MVP 컷 — 확정 (DECISION_LOG: v1/v1.5/영구제외)",
+    "OQ-3": "무료/유료 경계·가격 액수 — 정책 확정, 액수는 사장님 검증 후 OPEN",
+    "OQ-4": "구글 SERP 키·비용 — v1.5로 분리, OPEN",
+    "OQ-5": "백그라운드 잡 인프라 선택 — OPEN (P0-T3에서 결정)",
+    "OQ-6": "엔진 재사용 방식 (import vs 추출/복사) — OPEN (P0-R0에서 결정)"
+  },
+  "blocking_open_questions": [],
+  "blocking_open_questions_resolved": "OQ-5·OQ-6·OQ-3 결정 완료 (DECISION_LOG 2026-06-13)",
+  "upstream_gaps": [
+    "OQ-6 엔진 통합 방식 미결정 (P0-R0)",
+    "OQ-5 백그라운드 잡 인프라 미결정 (P0-T3)",
+    "OQ-3 페이월/가격 액수 미결정 (REQ-006 페이월 경계)",
+    "REQ-004 x-sag GapAnalyzer 배선 (x-sag에선 미배선) (P2-R4)",
+    "OQ-4 구글 실 SERP v1.5 분리 (REQ-002)",
+    "REQ-007 재진단/추이 v1.5 — v1 게이트 보류"
+  ],
+  "user_validation": "AC-7 충족 (2026-06-14, 사용자 보고 — 2026-06-13 목업 sajangnim-validation.html 검증으로 사장님 이해/만족 확인. 목업 리뷰 기반, 정량 stopwatch 아님)",
+  "user_validation_gate": "G-사장님이해 (AC-7: 비IT 사장님 2~3명 5분 이해도 테스트) — 충족",
+  "patch_performed": false,
+  "patch_skip_reason": "미달 항목이 문서 결함이 아니라 OQ 결정·사장님 검증 미수행이라 patch(문서 재생성)로 해소 불가 → upstream gap 조건으로 기록",
+  "final_verdict": "full_green",
+  "final_verdict_label": "풀 Green — 4조건 충족, v1 개발 착수 승인 (2026-06-14)",
+  "promotion": {
+    "from": "conditional_green",
+    "to": "full_green",
+    "date": "2026-06-14",
+    "iteration": 2,
+    "basis": "풀 Green 4조건 모두 충족 (재채점 아닌 조건 해소 기반 승격)",
+    "conditions_met": {
+      "OQ-5_OQ-6": "DECISION_LOG 2026-06-13 (잡=경량, 엔진=복사 후 독립 패키지화)",
+      "OQ-3_paygate_price": "DECISION_LOG 2026-06-13 (일회성 실행팩 ~4,900~5,900원)",
+      "AC-7_user_validation": "2026-06-13 목업 검증으로 사장님 이해/만족 확인 (사용자 보고 2026-06-14)",
+      "OQ-4_google_serp": "v1.5 분리"
+    },
+    "note": "AC-7은 정량 stopwatch 측정이 아닌 목업 리뷰 기반 만족 확인 — 사용자 결정(충돌 우선순위 1위)으로 충족 처리. 정식 오픈 후 실사용 행동 데이터로 재확인 권장.",
+    "next": "v1 '구현완료' 선언은 08-derived-gates의 Hard/Metric/Domain/Evidence 게이트 증거 통과 후에만 가능"
+  },
+  "recommended_start_phases": ["P0 셋업", "P1 공통", "P2 프론트 화면(S1~S7)"],
+  "start_preconditions": [
+    "P0-R0 (엔진통합 OQ-6) 결정 선행",
+    "P0-T3 (잡 인프라 OQ-5) 결정 선행",
+    "P2-R4 (GapAnalyzer 배선) upstream-gap"
+  ],
+  "full_green_conditions": [
+    "OQ-5·OQ-6 결정",
+    "OQ-3 페이월/가격 결정",
+    "사장님 이해도 검증 (AC-7)",
+    "구글 실 SERP는 v1.5 (OQ-4)"
+  ],
+  "residual_risks": [
+    "사장님 미검증 (제품 전체 베팅)",
+    "7화면 복잡도 (비IT엔 다소 많음)",
+    "페이월 전환률 미검증"
+  ],
+  "baseline_docs": [
+    "docs/planning/01-prd.md",
+    "docs/planning/02-trd.md",
+    "docs/planning/03-user-flow.md",
+    "docs/planning/04-database-design.md",
+    "docs/planning/05-design-system.md",
+    "docs/planning/06-screens.md",
+    "docs/planning/06-tasks.md",
+    "docs/planning/07-coding-convention.md",
+    "docs/planning/DECISION_LOG.md",
+    "specs/"
+  ]
+}

@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+
+<html class="light" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>보이나 - 내 가게 관리</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Be+Vietnam+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Shared Components JSON Logic and Tailwind Config -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-container": "#4f46e5",
+                    "on-secondary-fixed": "#341100",
+                    "on-secondary-fixed-variant": "#92400e",
+                    "secondary-fixed-dim": "#fde68a",
+                    "error": "#dc2626",
+                    "on-surface-variant": "#434654",
+                    "tertiary-container": "#006f4b",
+                    "secondary": "#b45309",
+                    "on-primary-container": "#e0e7ff",
+                    "error-container": "#fee2e2",
+                    "surface-variant": "#e2e8f0",
+                    "tertiary-fixed": "#34d399",
+                    "on-error": "#ffffff",
+                    "on-primary": "#ffffff",
+                    "inverse-surface": "#2a313b",
+                    "surface-tint": "#1353d8",
+                    "on-tertiary-fixed-variant": "#005236",
+                    "surface-container-highest": "#e2e8f0",
+                    "surface-bright": "#f8fafc",
+                    "primary-fixed": "#e0e7ff",
+                    "tertiary-fixed-dim": "#4edea3",
+                    "secondary-container": "#f59e0b",
+                    "surface-container": "#eef2ff",
+                    "primary": "#4338ca",
+                    "on-secondary-container": "#5c2400",
+                    "outline-variant": "#cbd5e1",
+                    "on-surface": "#0f172a",
+                    "on-primary-fixed": "#1e1b4b",
+                    "on-tertiary-container": "#10b981",
+                    "surface-container-high": "#e2e8f0",
+                    "inverse-on-surface": "#eef2ff",
+                    "surface-dim": "#e2e8f0",
+                    "tertiary": "#005438",
+                    "on-tertiary-fixed": "#002113",
+                    "surface": "#f8fafc",
+                    "on-tertiary": "#ffffff",
+                    "background": "#f8fafc",
+                    "primary-fixed-dim": "#c7d2fe",
+                    "on-primary-fixed-variant": "#4338ca",
+                    "inverse-primary": "#c7d2fe",
+                    "on-background": "#0f172a",
+                    "outline": "#64748b",
+                    "on-error-container": "#991b1b",
+                    "surface-container-low": "#eef2ff",
+                    "on-secondary": "#ffffff",
+                    "secondary-fixed": "#fef3c7",
+                    "surface-container-lowest": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xs": "4px",
+                    "md": "16px",
+                    "lg": "24px",
+                    "container-margin": "24px",
+                    "2xl": "48px",
+                    "gutter": "16px",
+                    "base": "8px",
+                    "3xl": "64px",
+                    "xl": "32px",
+                    "sm": "8px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "label-xs": ["Be Vietnam Pro"],
+                    "headline-xl-mobile": ["Plus Jakarta Sans"],
+                    "body-lg": ["Be Vietnam Pro"],
+                    "display-lg": ["Plus Jakarta Sans"],
+                    "headline-xl": ["Plus Jakarta Sans"],
+                    "display-lg-mobile": ["Plus Jakarta Sans"],
+                    "body-md": ["Be Vietnam Pro"],
+                    "label-sm": ["Be Vietnam Pro"]
+            },
+            "fontSize": {
+                    "headline-md": ["20px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                    "label-xs": ["12px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                    "headline-xl-mobile": ["24px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "1.8", "fontWeight": "400"}],
+                    "display-lg": ["48px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-xl": ["32px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                    "display-lg-mobile": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "label-sm": ["14px", {"lineHeight": "1.4", "letterSpacing": "0.01em", "fontWeight": "500"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #F9FAFB;
+            color: #0f172a;
+            -webkit-font-smoothing: antialiased;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid #F1F5F9;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.02);
+        }
+        .input-focus-ring:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md selection:bg-primary-fixed-dim">
+<!-- Top Navigation Bar -->
+<nav class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/30 flex justify-between items-center px-lg h-16">
+<div class="flex items-center gap-xl max-w-[1200px] w-full mx-auto justify-between">
+<div class="flex items-center gap-xl">
+<span class="font-headline-xl text-headline-xl font-bold text-primary">보이나</span>
+<div class="hidden md:flex gap-lg">
+<a class="text-primary font-bold font-label-sm text-label-sm" href="#">설정</a>
+<a class="text-on-surface-variant hover:bg-surface-container-low transition-colors px-md py-xs rounded-lg font-label-sm text-label-sm" href="#">통계</a>
+<a class="text-on-surface-variant hover:bg-surface-container-low transition-colors px-md py-xs rounded-lg font-label-sm text-label-sm" href="#">기록</a>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<button class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-low p-xs rounded-full transition-all">help</button>
+<div class="flex items-center gap-xs hover:bg-surface-container-low px-sm py-xs rounded-full cursor-pointer transition-all">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">account_circle</span>
+</div>
+</div>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="pt-32 pb-2xl px-container-margin max-w-[1200px] mx-auto">
+<div class="flex flex-col gap-3xl">
+<!-- Header Section -->
+<header class="flex justify-between items-end">
+<div>
+<h1 class="font-headline-xl text-headline-xl text-on-surface tracking-tight">내 가게 관리</h1>
+<p class="text-on-surface-variant mt-xs">가게의 소중한 정보를 안전하게 관리하세요.</p>
+</div>
+<button class="flex items-center gap-xs text-primary font-semibold hover:bg-primary-fixed/30 px-md py-sm rounded-xl transition-all active:scale-95">
+<span class="material-symbols-outlined text-[20px]">store</span>
+<span class="text-label-sm font-label-sm">다른 가게 보기</span>
+</button>
+</header>
+<!-- Grid Layout for Settings Cards -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-lg items-start">
+<!-- Card 1: Shop Information (Bento Main) -->
+<section class="lg:col-span-8 flex flex-col gap-lg">
+<div class="glass-card bg-surface-container-lowest rounded-2xl p-xl flex flex-col gap-xl">
+<div class="flex items-center gap-md border-b border-outline-variant/20 pb-lg">
+<div class="w-12 h-12 rounded-xl bg-primary-container flex items-center justify-center text-white">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">store</span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md">가게 기본 정보</h3>
+<p class="text-label-sm text-outline">정확한 정보를 입력하면 분석 신뢰도가 높아집니다.</p>
+</div>
+</div>
+<form class="flex flex-col gap-xl">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-lg">
+<div class="flex flex-col gap-xs">
+<label class="text-label-sm font-label-sm text-on-surface-variant px-xs">가게 이름</label>
+<input class="h-12 px-md bg-surface-container-low border border-outline-variant/50 rounded-xl font-body-md text-body-md input-focus-ring transition-all" placeholder="가게 이름을 입력하세요" type="text" value="미나리 식당 성수점"/>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="text-label-sm font-label-sm text-on-surface-variant px-xs">업종</label>
+<select class="h-12 px-md bg-surface-container-low border border-outline-variant/50 rounded-xl font-body-md text-body-md input-focus-ring transition-all">
+<option>한식</option>
+<option>일식</option>
+<option>카페</option>
+<option>베이커리</option>
+</select>
+</div>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="text-label-sm font-label-sm text-on-surface-variant px-xs">지역</label>
+<input class="h-12 px-md bg-surface-container-low border border-outline-variant/50 rounded-xl font-body-md text-body-md input-focus-ring transition-all" placeholder="상세 주소를 입력하세요" type="text" value="서울특별시 성동구 연무장길 15"/>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="text-label-sm font-label-sm text-on-surface-variant px-xs">네이버 플레이스 연결</label>
+<div class="h-12 px-md bg-surface-container-high/50 border border-outline-variant/30 rounded-xl flex items-center justify-between group">
+<span class="text-on-surface-variant font-medium">연결됨: smartplace.naver.com/minari_seongsu</span>
+<span class="bg-tertiary/10 text-tertiary px-sm py-[2px] rounded-full text-label-xs font-label-xs flex items-center gap-xs">
+<span class="w-1.5 h-1.5 bg-tertiary rounded-full animate-pulse"></span>
+                                        정상 연결
+                                    </span>
+</div>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="text-label-sm font-label-sm text-on-surface-variant px-xs">홈페이지 URL (선택)</label>
+<input class="h-12 px-md bg-surface-container-low border border-outline-variant/50 rounded-xl font-body-md text-body-md input-focus-ring transition-all" placeholder="https://example.com" type="url"/>
+</div>
+<div class="pt-md flex justify-end">
+<button class="bg-primary-container text-on-primary-container px-2xl h-12 rounded-xl font-semibold hover:brightness-110 active:scale-95 transition-all shadow-md shadow-primary-container/10" type="button">
+                                    저장하기
+                                </button>
+</div>
+</form>
+</div>
+</section>
+<!-- Sidebar Content -->
+<aside class="lg:col-span-4 flex flex-col gap-lg">
+<!-- Card 2: Account -->
+<div class="glass-card bg-surface-container-lowest rounded-2xl p-lg flex flex-col gap-md">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-outline">account_circle</span>
+<h4 class="font-headline-md text-headline-md !text-[16px]">계정 정보</h4>
+</div>
+<div class="p-md bg-surface-container-low rounded-xl flex flex-col gap-xs">
+<span class="text-label-xs text-outline font-label-xs uppercase tracking-wider">현재 로그인 계정</span>
+<span class="font-medium text-on-surface">owner_minari@gmail.com</span>
+</div>
+</div>
+<!-- Card 3: Re-diagnosis -->
+<div class="glass-card bg-surface-container-lowest rounded-2xl p-lg flex flex-col gap-md relative overflow-hidden">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-outline">autorenew</span>
+<h4 class="font-headline-md text-headline-md !text-[16px]">주간 재진단</h4>
+</div>
+<span class="bg-primary-fixed-dim/30 text-on-primary-fixed-variant px-sm py-[2px] rounded-full text-label-xs font-label-xs">
+                                곧 제공돼요
+                            </span>
+</div>
+<p class="text-label-sm text-on-surface-variant">
+                            가게의 변화를 감지하여 매주 새로운 개선안을 제안해 드립니다.
+                        </p>
+<button class="w-full h-12 bg-surface-dim text-outline rounded-xl cursor-not-allowed font-medium opacity-50 flex items-center justify-center gap-sm" disabled="">
+                            진단 예약하기
+                        </button>
+</div>
+<!-- Visual Support Element -->
+<div class="rounded-2xl h-48 relative overflow-hidden group">
+<img class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="A clean, minimalist interior of a modern Korean restaurant in Seoul during soft daylight hours. The setting features light wood furniture, pristine white walls, and elegant hanging pendants, creating a serene and trustworthy professional atmosphere. The image uses high-key lighting to emphasize a sophisticated, premium hospitality vibe consistent with a modern tech-driven service platform." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBKKN_8BUtweg1XIzhK9072GgfZYlXblkssAUsO3ynGdogfA_wWv6kbIPrdxQBIXn9qWQVS9cDAXzqb_rv-Kg5Gjs5ZkLsYZ5Vk_cG8L9xvi-QBOZiniklCYQCvS1MAq51a5UZFf6ULETnEp_nVJc2KexFTk75ELf8DDB_kC4pvOTRe6fwAkfK1u3Uyw9xA2QxeRb9OJF18JDB_gAWGVzbSm2JVWdOrWU_zalj6att-_2BnR2cJ0Ox0Vuf8gsBH-8vyktfnHnfzrBE"/>
+<div class="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent flex items-end p-lg">
+<p class="text-white font-medium text-label-sm">성수동 인기 식당 랭킹 TOP 10에 진입해 보세요.</p>
+</div>
+</div>
+</aside>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="w-full py-xl bg-surface border-t border-outline-variant/20 mt-3xl">
+<div class="max-w-[1200px] mx-auto px-container-margin flex flex-col items-center gap-md text-center">
+<div class="flex gap-lg">
+<a class="text-outline hover:text-primary transition-colors text-label-sm font-label-sm" href="#">이용약관</a>
+<a class="text-outline hover:text-primary transition-colors text-label-sm font-label-sm" href="#">개인정보처리방침</a>
+<a class="text-outline hover:text-primary transition-colors text-label-sm font-label-sm" href="#">고객센터</a>
+</div>
+<p class="font-label-sm text-label-sm text-outline max-w-2xl leading-relaxed">
+                © 2024 Boina. 본 서비스의 분석 결과는 참고용이며 법적 효력을 보장하지 않습니다.
+            </p>
+</div>
+</footer>
+<script>
+        // Micro-interactions for form focus
+        document.querySelectorAll('input, select').forEach(el => {
+            el.addEventListener('focus', () => {
+                el.parentElement.querySelector('label').classList.add('text-primary');
+            });
+            el.addEventListener('blur', () => {
+                el.parentElement.querySelector('label').classList.remove('text-primary');
+            });
+        });
+
+        // Simple save feedback simulation
+        const saveBtn = document.querySelector('button:contains("저장하기")');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const originalText = saveBtn.innerText;
+                saveBtn.innerText = '저장 중...';
+                saveBtn.classList.add('opacity-80');
+                setTimeout(() => {
+                    saveBtn.innerText = '저장 완료!';
+                    saveBtn.classList.remove('bg-primary-container');
+                    saveBtn.classList.add('bg-tertiary');
+                    setTimeout(() => {
+                        saveBtn.innerText = originalText;
+                        saveBtn.classList.add('bg-primary-container');
+                        saveBtn.classList.remove('bg-tertiary');
+                        saveBtn.classList.remove('opacity-80');
+                    }, 2000);
+                }, 1000);
+            });
+        }
+
+        // Polyfill for text-based selector
+        window.addEventListener('DOMContentLoaded', () => {
+            const buttons = document.getElementsByTagName('button');
+            for(let btn of buttons) {
+                if(btn.textContent.includes('저장하기')) {
+                    btn.addEventListener('click', () => {
+                        console.log('Save action triggered');
+                    });
+                }
+            }
+        });
+    </script>
+</body></html>

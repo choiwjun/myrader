@@ -1,0 +1,38 @@
+# Legacy reverse-gap 화면 — /rivals로 통합됨
+# 기존 S4 역공학 갭 스펙은 /rivals의 reverse_gap_section으로 흡수한다.
+
+version: "3.0"
+
+screen:
+  id: LEGACY_REVERSE_GAP
+  name: 역공학 갭 legacy alias
+  route: /gap
+  primary_route: /rivals
+  status: legacy_redirect_or_alias
+  absorbed_by: specs/screens/vs-competitor.yaml
+  reason: S3 경쟁 비교와 S4 역공학 갭을 한 화면에서 비교해야 사장님이 흐름을 끊지 않고 이해한다.
+
+redirect:
+  from: /gap
+  to: /rivals
+  preserve_query:
+    - diagnosisId
+    - businessId
+    - tier
+
+absorbed_components:
+  - gap_intro -> rivals.reverse_gap_section
+  - gap_matrix_card -> rivals.reverse_gap_section
+  - paid_gap_lock -> rivals.reverse_gap_section
+  - go_actions_button -> rivals.write_cta
+
+data_contract:
+  resource: gapItem
+  owner_screen: RIVALS
+  needs: [id, label, competitorHas, iHave, category, actionTier, priority, isPaid, evidence]
+
+acceptance:
+  - /gap은 primary navigation에 나타나지 않는다.
+  - /gap deep link는 /rivals로 redirect 또는 동일 화면 alias를 렌더한다.
+  - 갭 카드는 /write로 연결한다.
+  - 근거 없는 인과 단정과 실측 표현을 쓰지 않는다.

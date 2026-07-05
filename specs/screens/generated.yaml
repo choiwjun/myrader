@@ -1,0 +1,40 @@
+# Legacy generated 화면 — /write로 통합됨
+# 기존 S6 생성물 스펙은 /write의 generated_asset_section으로 흡수한다.
+
+version: "3.0"
+
+screen:
+  id: LEGACY_GENERATED
+  name: 생성물 legacy alias
+  route: /assets
+  primary_route: /write
+  status: legacy_redirect_or_alias
+  absorbed_by: specs/screens/actions.yaml
+  reason: 추천 행동과 복붙 문안은 한 화면에서 이어져야 실행 장벽이 낮다.
+
+redirect:
+  from: /assets
+  to: /write
+  preserve_query:
+    - diagnosisId
+    - actionId
+    - type
+
+absorbed_components:
+  - assets_intro -> write.generated_asset_section
+  - snippet_card -> write.generated_asset_section
+  - place_intro_card -> write.generated_asset_section
+  - review_request_card -> write.generated_asset_section
+  - vendor_prescription_card -> write.generated_asset_section
+  - paid_assets_lock -> write.generated_asset_section
+
+data_contract:
+  resource: generatedAsset
+  owner_screen: WRITE
+  needs: [id, type, title, body, sourceKeywords, copyable, isPaid]
+
+acceptance:
+  - /assets는 primary navigation에 나타나지 않는다.
+  - /assets deep link는 /write로 redirect 또는 동일 화면 alias를 렌더한다.
+  - copy CTA와 복사 완료 상태는 /write에서 제공한다.
+  - 생성물이 효과를 보장한다고 단정하지 않는다.
