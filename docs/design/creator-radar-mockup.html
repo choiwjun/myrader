@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>서치레이더 — S2 성도(星圖) 대시보드 목업</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+<style>
+:root{
+  --bg-space:#0A0E1A; --bg-panel:#101624; --bg-raised:#17202F;
+  --line-subtle:rgba(125,155,200,.14);
+  --signal-naver:#00E09E; --signal-ai:#4DD8FF; --signal-hot:#FFB020; --signal-down:#FF5C7A;
+  --c-violet:#A78BFA;
+  --text-hi:#EAF1FB; --text-body:#B7C3D6; --text-dim:#7E8CA3;
+  --mono:'JetBrains Mono',monospace; --sans:'Pretendard Variable',Pretendard,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg-space);color:var(--text-body);font-family:var(--sans);font-size:14px;overflow:hidden}
+::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:var(--bg-raised);border-radius:4px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+.app{display:grid;grid-template-rows:56px 1fr 32px;height:100vh}
+.main{display:grid;grid-template-columns:230px 1fr 350px;min-height:0}
+
+/* ── 헤더 ── */
+header{display:flex;align-items:center;gap:18px;padding:0 20px;border-bottom:1px solid var(--line-subtle);background:var(--bg-panel);z-index:5}
+.logo{display:flex;align-items:center;gap:9px;color:var(--text-hi);font-weight:700;font-size:15px}
+.logo .dot{width:10px;height:10px;border-radius:50%;background:var(--signal-ai);box-shadow:0 0 12px var(--signal-ai);animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.4}}
+.topic-tab{display:flex;align-items:center;gap:8px;background:var(--bg-raised);border:1px solid var(--line-subtle);border-radius:999px;padding:6px 14px;color:var(--text-hi);font-weight:600;cursor:pointer}
+.searchbar{display:flex;align-items:center;gap:8px;color:var(--text-dim);border:1px solid var(--line-subtle);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer}
+.searchbar kbd{font-family:var(--mono);font-size:10px;border:1px solid var(--line-subtle);border-radius:4px;padding:1px 5px}
+.mode-toggle{display:flex;border:1px solid var(--line-subtle);border-radius:8px;overflow:hidden;font-size:12px}
+.mode-toggle span{padding:6px 12px;cursor:pointer;color:var(--text-dim)}
+.mode-toggle span.on{background:rgba(77,216,255,.12);color:var(--signal-ai);font-weight:700}
+.spacer{flex:1}
+.quota{font-size:12px;color:var(--text-dim)}
+.quota b{color:var(--text-hi)}
+.btn-scan{background:linear-gradient(135deg,rgba(0,224,158,.16),rgba(77,216,255,.16));border:1px solid rgba(0,224,158,.5);color:var(--text-hi);font-weight:700;font-size:13px;border-radius:8px;padding:8px 16px;cursor:pointer;font-family:var(--sans)}
+.btn-scan:hover{box-shadow:0 0 24px rgba(0,224,158,.3)}
+
+/* ── 좌 패널 ── */
+aside.left{border-right:1px solid var(--line-subtle);padding:18px 16px;background:var(--bg-panel);overflow-y:auto;z-index:4}
+.side-title{font-size:11px;letter-spacing:.14em;color:var(--text-dim);margin:0 0 12px;font-weight:600}
+.channel{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line-subtle);border-radius:10px;margin-bottom:8px;background:var(--bg-space)}
+.ch-light{width:8px;height:8px;border-radius:50%;flex:none}
+.ch-light.ok{background:var(--signal-naver);box-shadow:0 0 8px rgba(0,224,158,.7)}
+.ch-light.run{background:var(--signal-ai);box-shadow:0 0 8px rgba(77,216,255,.7);animation:pulse 1.2s infinite}
+.ch-name{flex:1;color:var(--text-hi);font-size:13px;font-weight:600}
+.ch-state{font-size:11px;color:var(--text-dim)}
+.legend{margin-top:20px}
+.lg{display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 0;color:var(--text-body)}
+.lg i{width:9px;height:9px;border-radius:50%}
+.hint{margin-top:20px;font-size:11px;color:var(--text-dim);line-height:1.7;border-top:1px solid var(--line-subtle);padding-top:14px}
+.hint b{color:var(--text-body)}
+
+/* ── 성도(星圖) ── */
+.center{position:relative;min-width:0;overflow:hidden;background:
+  radial-gradient(1200px 800px at 50% 60%,rgba(20,30,55,.55),transparent 70%),var(--bg-space)}
+.topsignal{position:absolute;top:14px;left:18px;right:18px;display:flex;align-items:center;gap:14px;padding:12px 16px;border:1px solid rgba(0,224,158,.35);border-radius:12px;background:linear-gradient(90deg,rgba(0,224,158,.10),rgba(77,216,255,.06));backdrop-filter:blur(6px);z-index:3}
+.ts-label{font-size:10px;letter-spacing:.16em;color:var(--signal-naver);font-weight:700}
+.ts-kw{color:var(--text-hi);font-weight:700;font-size:15px}
+.ts-why{color:var(--text-dim);font-size:12px}
+.ts-meta{margin-left:auto;font-size:11px;color:var(--text-dim);text-align:right;line-height:1.5}
+
+.chart{position:absolute;inset:0;display:grid;place-items:center}
+.field{position:relative;width:min(88vh,760px);aspect-ratio:1;--r:50%}
+
+/* 등고선 링 + 라벨 */
+.ring{position:absolute;border:1px solid rgba(77,216,255,.13);border-radius:50%;left:50%;top:50%;transform:translate(-50%,-50%)}
+.r90{width:34%;height:34%;border-color:rgba(0,224,158,.22)}
+.r70{width:62%;height:62%}
+.r50{width:90%;height:90%;border-style:dashed}
+.rlab{position:absolute;left:50%;font-family:var(--mono);font-size:10px;color:var(--text-dim);transform:translateX(-50%);background:var(--bg-space);padding:0 6px}
+.rlab.l90{top:calc(50% - 17% - 7px);color:rgba(0,224,158,.8)}
+.rlab.l70{top:calc(50% - 31% - 7px)}
+.rlab.l50{top:calc(50% - 45% - 7px)}
+
+/* 스윕 */
+.sweep{position:absolute;inset:5%;border-radius:50%;
+  background:conic-gradient(from 0deg,rgba(77,216,255,.20) 0deg,rgba(77,216,255,.05) 22deg,transparent 26deg);
+  animation:spin 12s linear infinite;mix-blend-mode:screen;pointer-events:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* 중심 코어 */
+.core{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;z-index:2}
+.core .halo{width:64px;height:64px;margin:0 auto;border-radius:50%;
+  background:radial-gradient(circle,rgba(77,216,255,.5),rgba(77,216,255,.08) 55%,transparent 70%);
+  display:grid;place-items:center;animation:breathe 4s ease-in-out infinite}
+@keyframes breathe{50%{transform:scale(1.12)}}
+.core .halo i{width:12px;height:12px;border-radius:50%;background:var(--text-hi);box-shadow:0 0 18px var(--signal-ai)}
+.core .t{margin-top:4px;font-size:12px;color:var(--text-dim)}
+.core .t b{color:var(--text-hi);font-weight:700;font-size:13px}
+
+/* 성좌선 */
+svg.links{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+svg.links line{stroke-width:1}
+
+/* 노드 (별) */
+.node{position:absolute;transform:translate(-50%,-50%);cursor:pointer;z-index:2;text-align:center}
+.node .star{position:relative;margin:0 auto;border-radius:50%;background:var(--text-hi)}
+.node .star::before{content:"";position:absolute;inset:-14px;border-radius:50%;background:radial-gradient(circle,var(--nc,rgba(77,216,255,.55)),transparent 70%);opacity:.85;animation:tw 3.2s ease-in-out infinite}
+@keyframes tw{50%{opacity:.45;transform:scale(.88)}}
+.node.lg .star{width:14px;height:14px;box-shadow:0 0 22px var(--ncs,var(--signal-ai))}
+.node.md .star{width:10px;height:10px;box-shadow:0 0 14px var(--ncs,var(--signal-ai))}
+.node.sm .star{width:7px;height:7px;box-shadow:0 0 9px var(--ncs,var(--signal-ai))}
+.node .lab{margin-top:9px;white-space:nowrap;font-size:12.5px;font-weight:600;color:var(--text-hi);text-shadow:0 2px 10px rgba(0,0,0,.9)}
+.node .sc{font-family:var(--mono);font-size:11px;margin-top:2px}
+.node .sc .n{color:var(--signal-naver)} .node .sc .a{color:var(--signal-ai)}
+.node.sm .lab,.node.sm .sc{opacity:0;transition:opacity .15s}
+.node.sm:hover .lab,.node.sm:hover .sc{opacity:1}
+.node.sel .star{outline:2px solid rgba(77,216,255,.7);outline-offset:4px;border-radius:50%}
+.node.new .star::after{content:"";position:absolute;inset:-6px;border:1.5px solid var(--signal-hot);border-radius:50%;animation:blip 1.6s ease-out 3}
+@keyframes blip{from{transform:scale(.4);opacity:1}to{transform:scale(2.2);opacity:0}}
+
+/* 배경 별 트윙클 */
+.bgstar{position:absolute;width:2px;height:2px;border-radius:50%;background:rgba(200,220,255,.5);animation:tw 4s ease-in-out infinite}
+
+/* 캡처 버튼 */
+.capture{position:absolute;right:18px;bottom:16px;z-index:3;display:flex;gap:8px}
+.capture button{background:rgba(16,22,36,.8);backdrop-filter:blur(6px);border:1px solid var(--line-subtle);color:var(--text-body);font-size:12px;border-radius:8px;padding:8px 13px;cursor:pointer;font-family:var(--sans)}
+.capture button:hover{color:var(--signal-ai);border-color:rgba(77,216,255,.4)}
+
+/* ── 우 패널 (S3) ── */
+aside.right{border-left:1px solid var(--line-subtle);background:var(--bg-panel);padding:20px;overflow-y:auto;z-index:4}
+.sel-kw{color:var(--text-hi);font-size:18px;font-weight:700;line-height:1.35}
+.verdict{display:inline-block;margin-top:9px;background:var(--signal-naver);color:#04281C;font-weight:700;font-size:12px;border-radius:999px;padding:4px 12px}
+.big-scores{display:flex;gap:10px;margin:16px 0 4px}
+.bigcard{flex:1;border:1px solid var(--line-subtle);border-radius:12px;padding:11px;text-align:center;background:var(--bg-space)}
+.bigcard .t{font-size:10.5px;font-weight:700;letter-spacing:.06em}
+.bigcard.n .t{color:var(--signal-naver)} .bigcard.a .t{color:var(--signal-ai)}
+.bigcard .v{font-family:var(--mono);font-size:34px;font-weight:700;color:var(--text-hi);line-height:1.2}
+.sec-t{font-size:11px;letter-spacing:.14em;color:var(--text-dim);font-weight:700;margin:18px 0 8px}
+.ev{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line-subtle);font-size:13px}
+.ev .k{color:var(--text-dim)} .ev .v{font-family:var(--mono);color:var(--text-hi);font-weight:600}
+.ev .note{color:var(--text-body);font-size:12px;text-align:right}
+.probe{background:var(--bg-space);border:1px solid rgba(77,216,255,.25);border-radius:10px;padding:11px;font-size:12.5px;margin-top:4px;line-height:1.6}
+.probe .q{color:var(--signal-ai);font-weight:600;margin-bottom:5px}
+.actions{display:flex;gap:10px;margin-top:18px}
+.btn{flex:1;border-radius:9px;padding:11px 0;font-weight:700;font-size:13px;cursor:pointer;font-family:var(--sans)}
+.btn.pri{background:var(--signal-ai);border:none;color:#03222E}
+.btn.sec{background:transparent;border:1px solid var(--line-subtle);color:var(--text-body)}
+.foot-note{margin-top:14px;font-size:11px;color:var(--text-dim);line-height:1.6}
+
+/* ── 티커 ── */
+.ticker{display:flex;align-items:center;border-top:1px solid var(--line-subtle);background:var(--bg-panel);overflow:hidden;font-size:12px;z-index:5}
+.ticker .live{flex:none;padding:0 14px;color:var(--signal-down);font-weight:800;font-size:10px;letter-spacing:.18em}
+.ticker-track{display:flex;gap:36px;white-space:nowrap;animation:marq 60s linear infinite}
+.ticker:hover .ticker-track{animation-play-state:paused}
+@keyframes marq{to{transform:translateX(-50%)}}
+.tk{color:var(--text-dim)} .tk b{color:var(--text-hi);font-weight:600}
+.tk .n{color:var(--signal-naver);font-family:var(--mono)} .tk .a{color:var(--signal-ai);font-family:var(--mono)}
+@media (prefers-reduced-motion:reduce){
+  .sweep,.ticker-track,.node .star::before,.bgstar,.core .halo,.logo .dot,.ch-light.run{animation:none}
+}
+
+/* ── 모바일 (≤900px): 단일 컬럼 스택 — 02 문서 모바일 명세 반영 ── */
+@media (max-width:900px){
+  body{overflow:auto}
+  .app{display:flex;flex-direction:column;height:auto;min-height:100vh}
+  header{flex-wrap:nowrap;gap:10px;padding:0 12px;height:48px}
+  .searchbar span,.searchbar kbd,.quota,.mode-toggle{display:none}
+  .btn-scan{padding:7px 12px;font-size:12px}
+  .main{display:flex;flex-direction:column}
+
+  /* 수집 채널 → 가로 칩 스크롤 */
+  aside.left{border-right:none;border-bottom:1px solid var(--line-subtle);padding:10px 12px;display:flex;gap:8px;overflow-x:auto;align-items:center}
+  aside.left .side-title,.legend,.hint{display:none}
+  .channel{flex:none;margin:0;padding:7px 10px}
+  .ch-name{font-size:12px}
+
+  /* 성도: 화면폭 정사각 */
+  .center{overflow:visible}
+  .topsignal{position:static;margin:10px 12px 0;backdrop-filter:none}
+  .ts-kw{font-size:14px}
+  .ts-meta{display:none}
+  .chart{position:static;padding:6px 0}
+  .field{width:min(100vw - 16px,480px)}
+  .node .lab{font-size:11px}
+  .node.md .lab,.node.md .sc{opacity:0;transition:opacity .15s} /* 모바일: TOP만 상시 라벨 */
+  .node.md:hover .lab,.node.md:hover .sc,.node.sel .lab,.node.sel .sc{opacity:1}
+  .capture{position:static;justify-content:flex-end;padding:0 12px 10px}
+
+  /* 상세 패널: 차트 아래로 (실서비스는 바텀시트 — 목업은 스택으로 대응) */
+  aside.right{border-left:none;border-top:1px solid var(--line-subtle);padding:16px 14px}
+  .bigcard .v{font-size:30px}
+
+  .ticker{position:sticky;bottom:0}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo"><span class="dot"></span>서치레이더</div>
+    <div class="topic-tab">제주 여행 ▾</div>
+    <div class="searchbar">🔍 키워드 즉시 조회 <kbd>⌘K</kbd></div>
+    <div class="mode-toggle"><span class="on">✦ 성도</span><span>☰ 카드</span></div>
+    <div class="spacer"></div>
+    <div class="quota">오늘 스캔 <b class="num">186</b>/999</div>
+    <button class="btn-scan">▶ 지금 스캔</button>
+  </header>
+
+  <div class="main">
+
+    <aside class="left">
+      <div class="side-title">수집 채널</div>
+      <div class="channel"><span class="ch-light ok"></span><span class="ch-name">연관 신호</span><span class="ch-state">완료</span></div>
+      <div class="channel"><span class="ch-light ok"></span><span class="ch-name">검색량·경쟁</span><span class="ch-state">완료</span></div>
+      <div class="channel"><span class="ch-light run"></span><span class="ch-name">트렌드 변동</span><span class="ch-state">수집 중</span></div>
+      <div class="channel"><span class="ch-light run"></span><span class="ch-name">AI 프로브</span><span class="ch-state">4/10</span></div>
+
+      <div class="legend">
+        <div class="side-title">성좌 (클러스터)</div>
+        <div class="lg"><i style="background:var(--signal-ai);box-shadow:0 0 6px var(--signal-ai)"></i>실내·우천</div>
+        <div class="lg"><i style="background:var(--signal-naver);box-shadow:0 0 6px var(--signal-naver)"></i>맛집·카페</div>
+        <div class="lg"><i style="background:var(--signal-hot);box-shadow:0 0 6px var(--signal-hot)"></i>한달살기</div>
+        <div class="lg"><i style="background:var(--c-violet);box-shadow:0 0 6px var(--c-violet)"></i>가족·아이</div>
+      </div>
+
+      <div class="hint"><b>읽는 법</b><br/>중심에 가까울수록 강한 신호예요. 별의 밝기는 종합 점수, 별자리 선은 함께 묶이는 주제입니다.</div>
+    </aside>
+
+    <section class="center">
+      <div class="topsignal">
+        <div>
+          <div class="ts-label">TOP SIGNAL</div>
+          <div class="ts-kw">제주 비오는날 갈만한곳 <span class="num" style="color:var(--signal-naver)">N87</span> <span class="num" style="color:var(--signal-ai)">AI92</span></div>
+          <div class="ts-why">AI 답변에 블로그 인용 0건 — 빈자리입니다</div>
+        </div>
+        <div class="ts-meta">마지막 스캔 오전 06:12<br/>다음 자동 스캔 <span class="num">17:48:22</span></div>
+      </div>
+
+      <div class="chart"><div class="field">
+
+        <!-- 배경 별 -->
+        <span class="bgstar" style="left:12%;top:22%"></span><span class="bgstar" style="left:83%;top:15%;animation-delay:1s"></span>
+        <span class="bgstar" style="left:70%;top:78%;animation-delay:2s"></span><span class="bgstar" style="left:22%;top:70%;animation-delay:.5s"></span>
+        <span class="bgstar" style="left:48%;top:8%;animation-delay:1.6s"></span><span class="bgstar" style="left:90%;top:52%;animation-delay:2.4s"></span>
+        <span class="bgstar" style="left:6%;top:48%;animation-delay:3s"></span><span class="bgstar" style="left:60%;top:92%;animation-delay:.8s"></span>
+
+        <!-- 등고선 -->
+        <div class="ring r90"></div><div class="ring r70"></div><div class="ring r50"></div>
+        <span class="rlab l90">90</span><span class="rlab l70">70</span><span class="rlab l50">50</span>
+
+        <!-- 스윕 -->
+        <div class="sweep"></div>
+
+        <!-- 성좌선 (좌표는 노드 %와 일치) -->
+        <svg class="links" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <line x1="61" y1="34" x2="72" y2="24" stroke="rgba(77,216,255,.28)"/>
+          <line x1="61" y1="34" x2="50" y2="50" stroke="rgba(77,216,255,.18)"/>
+          <line x1="30" y1="42" x2="18" y2="30" stroke="rgba(0,224,158,.25)"/>
+          <line x1="30" y1="42" x2="50" y2="50" stroke="rgba(0,224,158,.16)"/>
+          <line x1="38" y1="72" x2="26" y2="82" stroke="rgba(255,176,32,.25)"/>
+          <line x1="38" y1="72" x2="50" y2="50" stroke="rgba(255,176,32,.15)"/>
+          <line x1="68" y1="64" x2="80" y2="74" stroke="rgba(167,139,250,.28)"/>
+          <line x1="68" y1="64" x2="50" y2="50" stroke="rgba(167,139,250,.16)"/>
+        </svg>
+
+        <!-- 중심 -->
+        <div class="core"><div class="halo"><i></i></div><div class="t"><b>제주 여행</b><br/>키워드 23개 감시 중</div></div>
+
+        <!-- 노드: 반경=점수, 각도=클러스터 -->
+        <div class="node lg sel" style="left:61%;top:34%;--nc:rgba(77,216,255,.55);--ncs:var(--signal-ai)">
+          <div class="star"></div><div class="lab">제주 비오는날 갈만한곳</div>
+          <div class="sc"><span class="n">N87</span> · <span class="a">AI92</span></div>
+        </div>
+        <div class="node md" style="left:72%;top:24%;--nc:rgba(77,216,255,.45);--ncs:var(--signal-ai)">
+          <div class="star"></div><div class="lab">제주 실내 데이트</div>
+          <div class="sc"><span class="n">N78</span> · <span class="a">AI71</span></div>
+        </div>
+        <div class="node md" style="left:30%;top:42%;--nc:rgba(0,224,158,.5);--ncs:var(--signal-naver)">
+          <div class="star"></div><div class="lab">애월 카페 오션뷰</div>
+          <div class="sc"><span class="n">N65</span> · <span class="a">AI58</span></div>
+        </div>
+        <div class="node sm" style="left:18%;top:30%;--nc:rgba(0,224,158,.4);--ncs:var(--signal-naver)">
+          <div class="star"></div><div class="lab">제주 흑돼지 맛집</div><div class="sc"><span class="n">N57</span></div>
+        </div>
+        <div class="node md new" style="left:38%;top:72%;--nc:rgba(255,176,32,.5);--ncs:var(--signal-hot)">
+          <div class="star"></div><div class="lab">제주 한달살기 비용</div>
+          <div class="sc"><span class="n">N74</span> · <span style="color:var(--text-dim)">AI 측정중</span></div>
+        </div>
+        <div class="node sm" style="left:26%;top:82%;--nc:rgba(255,176,32,.4);--ncs:var(--signal-hot)">
+          <div class="star"></div><div class="lab">한달살기 숙소</div><div class="sc"><span class="n">N52</span></div>
+        </div>
+        <div class="node md" style="left:68%;top:64%;--nc:rgba(167,139,250,.5);--ncs:var(--c-violet)">
+          <div class="star"></div><div class="lab">제주 아이랑 실내</div>
+          <div class="sc"><span class="n">N62</span> · <span class="a">AI80</span></div>
+        </div>
+        <div class="node sm" style="left:80%;top:74%;--nc:rgba(167,139,250,.4);--ncs:var(--c-violet)">
+          <div class="star"></div><div class="lab">키즈 카페 제주</div><div class="sc"><span class="n">N48</span></div>
+        </div>
+        <div class="node sm" style="left:86%;top:42%;--nc:rgba(77,216,255,.35);--ncs:var(--signal-ai)">
+          <div class="star"></div><div class="lab">비 오는 제주 드라이브</div><div class="sc"><span class="n">N44</span></div>
+        </div>
+
+      </div></div>
+
+      <div class="capture">
+        <button>⤢ 전체화면</button>
+        <button>✦ 성도 이미지로 저장</button>
+      </div>
+    </section>
+
+    <aside class="right">
+      <div class="sel-kw">제주 비오는날 갈만한곳</div>
+      <span class="verdict">지금 쓰세요</span>
+
+      <div class="big-scores">
+        <div class="bigcard n"><div class="t">네이버 기회</div><div class="v num">87</div></div>
+        <div class="bigcard a"><div class="t">AI 인용 가능성</div><div class="v num">92</div></div>
+      </div>
+
+      <div class="sec-t">근거</div>
+      <div class="ev"><span class="k">월 검색량</span><span class="v">18,400</span><span class="note">수요 충분</span></div>
+      <div class="ev"><span class="k">경쟁 포화도</span><span class="v">0.7</span><span class="note">검색 대비 글이 적어요</span></div>
+      <div class="ev"><span class="k">7일 변동</span><span class="v">×2.3</span><span class="note">장마 예보 영향 추정</span></div>
+
+      <div class="sec-t">AI 프로브 결과</div>
+      <div class="probe">
+        <div class="q">"제주 비 오는 날 갈 만한 곳 추천해줘"</div>
+        블로그 인용 <b style="color:var(--text-hi)">1건뿐</b> · 나머지는 관광공사 페이지.
+        개인 후기형 콘텐츠의 빈자리가 큽니다.
+      </div>
+
+      <div class="sec-t">추천 앵글</div>
+      <div class="probe" style="border-color:var(--line-subtle)">☂ <b style="color:var(--text-hi)">동선 순서 목록형</b>(1→2→3 코스)이 AI 인용에 유리해요. 실내 위주 + 이동시간 명시.</div>
+
+      <div class="actions">
+        <button class="btn pri">브리핑 복사</button>
+        <button class="btn sec">이 키워드 추적</button>
+      </div>
+      <div class="foot-note">측정 기준: 매주 월 07:00, 질문 12종을 ChatGPT·퍼플렉시티에 질의해 확인합니다. 점수는 가능성이며 노출을 보장하지 않습니다.</div>
+    </aside>
+
+  </div>
+
+  <div class="ticker">
+    <span class="live">● LIVE</span>
+    <div class="ticker-track">
+      <span class="tk">신규 발견 <b>제주 한달살기 비용</b> <span class="n">N74</span></span>
+      <span class="tk"><b>제주 실내데이트</b> <span class="n">N78</span> <span class="a">AI71</span></span>
+      <span class="tk"><b>제주 아이랑 실내</b> <span class="n">N62</span> <span class="a">AI80</span></span>
+      <span class="tk"><b>애월 카페 오션뷰</b> <span class="n">N65</span> <span class="a">AI58</span></span>
+      <span class="tk">TOP <b>제주 비오는날 갈만한곳</b> <span class="n">N87</span> <span class="a">AI92</span></span>
+      <span class="tk">신규 발견 <b>제주 한달살기 비용</b> <span class="n">N74</span></span>
+      <span class="tk"><b>제주 실내데이트</b> <span class="n">N78</span> <span class="a">AI71</span></span>
+      <span class="tk"><b>제주 아이랑 실내</b> <span class="n">N62</span> <span class="a">AI80</span></span>
+      <span class="tk"><b>애월 카페 오션뷰</b> <span class="n">N65</span> <span class="a">AI58</span></span>
+      <span class="tk">TOP <b>제주 비오는날 갈만한곳</b> <span class="n">N87</span> <span class="a">AI92</span></span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

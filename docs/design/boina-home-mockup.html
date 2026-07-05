@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>가게 성적표 — 홈 목업 v2 (유료 퀄리티)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --bg:#F6F7F5; --card:#FFFFFF;
+  --ink:#191F28; --ink-2:#4E5968; --ink-3:#8B95A1; --line:#E9ECEE;
+  --brand:#0B7A55; --brand-deep:#075E42; --brand-soft:#E7F4EE;
+  --good:#0B7A55; --mid:#C77700; --wait:#6B7684;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#D8DCD9;font-family:Pretendard,sans-serif;color:var(--ink);display:grid;place-items:start center;padding:24px 0;font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.ms{font-family:'Material Symbols Outlined';font-weight:400;font-size:24px;line-height:1;color:var(--ink-2);user-select:none}
+.num{font-variant-numeric:tabular-nums;font-weight:700}
+.phone{width:390px;background:var(--bg);border-radius:28px;overflow:hidden;box-shadow:0 24px 60px rgba(25,31,40,.30);min-height:844px;position:relative;padding-bottom:80px}
+
+/* 헤더 */
+.top{display:flex;align-items:center;padding:20px 20px 10px}
+.top .store{font-size:19px;font-weight:800;letter-spacing:-.01em}
+.top .sub{font-size:13.5px;color:var(--ink-3);margin-top:1px}
+.top .gear{margin-left:auto;width:40px;height:40px;border-radius:12px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;cursor:pointer}
+
+.feed{padding:6px 20px 20px;display:flex;flex-direction:column;gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px;box-shadow:0 1px 3px rgba(25,31,40,.05)}
+.cap{font-size:13px;font-weight:700;color:var(--ink-3);letter-spacing:.02em;margin-bottom:12px}
+
+/* M-01 대표 상태 배너 */
+.banner{background:linear-gradient(155deg,#0B7A55,#075E42);border:none;color:#fff;border-radius:22px;padding:22px;box-shadow:0 8px 20px rgba(11,122,85,.28);cursor:pointer}
+.banner .wk{font-size:13px;color:rgba(255,255,255,.72);font-weight:600}
+.banner .hero{font-size:22px;font-weight:800;line-height:1.45;letter-spacing:-.01em;margin-top:6px}
+.banner .delta{display:inline-flex;align-items:center;gap:6px;margin-top:12px;background:rgba(255,255,255,.16);border-radius:999px;padding:6px 13px;font-size:14px;font-weight:700}
+.banner .delta .ms{color:#fff;font-size:18px}
+
+/* M-02 할 일 카드 */
+.todo{display:flex;gap:14px;align-items:flex-start}
+.check{flex:none;width:44px;height:44px;border-radius:50%;border:2.5px solid var(--brand);display:grid;place-items:center;cursor:pointer;margin-top:2px}
+.check .ms{color:var(--brand);font-size:26px;opacity:0;transition:opacity .2s}
+.check:hover .ms{opacity:.35}
+.todo .t{font-size:18px;font-weight:700;line-height:1.4;letter-spacing:-.01em}
+.todo .why{font-size:14px;color:var(--ink-2);margin-top:4px}
+.todo .row{display:flex;align-items:center;gap:10px;margin-top:12px}
+.chip{font-size:13px;font-weight:700;color:var(--brand-deep);background:var(--brand-soft);border-radius:999px;padding:5px 12px}
+.golink{margin-left:auto;font-size:15px;font-weight:700;color:var(--brand);display:flex;align-items:center;gap:2px;cursor:pointer}
+.golink .ms{color:var(--brand);font-size:19px}
+
+/* M-03 신호 행 */
+.sig{display:flex;align-items:center;gap:13px;padding:13px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.sig:first-of-type{padding-top:2px}
+.sig:last-of-type{border-bottom:none;padding-bottom:2px}
+.tile{flex:none;width:40px;height:40px;border-radius:12px;background:var(--brand-soft);display:grid;place-items:center}
+.tile .ms{color:var(--brand-deep);font-size:22px}
+.sig .name{font-size:16.5px;font-weight:700}
+.sig .state{font-size:14px;color:var(--ink-2);margin-top:1px}
+.status{margin-left:auto;display:flex;align-items:center;gap:7px;flex:none}
+.shape{font-size:15px;font-weight:800}
+.s-good{color:var(--good)} .s-mid{color:var(--mid)} .s-wait{color:var(--wait)}
+.trend{font-size:13px;color:var(--ink-3)}
+.sig .ms.chev{font-size:20px;color:#C4CBD1;margin-left:2px}
+.evidence{margin-top:12px;display:flex;align-items:center;gap:6px;font-size:14px;font-weight:700;color:var(--ink-2);cursor:pointer}
+.evidence .ms{font-size:18px}
+
+/* M-05 검색어 카드 */
+.kw{display:flex;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid var(--line)}
+.kw .shape{font-size:13px}
+.kw .w{font-size:16.5px;font-weight:700;letter-spacing:-.01em}
+.kw .why{font-size:13.5px;color:var(--ink-2);margin-top:1px}
+.kw .make{margin-left:auto;flex:none;background:var(--brand-soft);color:var(--brand-deep);font-weight:700;font-size:14px;border:none;border-radius:11px;padding:10px 14px;cursor:pointer;font-family:inherit}
+.kw.blur .w,.kw.blur .why{filter:blur(5px);user-select:none}
+.kw.blur .make{visibility:hidden}
+.unlock{margin-top:14px;background:var(--brand);color:#fff;border:none;border-radius:14px;width:100%;padding:15px;font-size:16.5px;font-weight:800;cursor:pointer;font-family:inherit}
+.unlock-sub{text-align:center;font-size:13px;color:var(--ink-3);margin-top:8px}
+
+/* 옆집 카드 */
+.rival-quote{font-size:16.5px;font-weight:700;line-height:1.55;letter-spacing:-.01em}
+.rival-bar{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:14px;color:var(--ink-2)}
+.rival-bar .num{color:var(--ink)}
+.vs{color:var(--ink-3);font-size:12px;font-weight:700}
+
+/* M-06 변화 카드 */
+.delta-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:15.5px}
+.delta-row:last-of-type{border-bottom:none}
+.delta-row .ms{font-size:19px;color:var(--brand)}
+.delta-row .from{color:var(--ink-3)}
+.delta-row b{font-weight:800}
+
+/* 탭바 */
+.tabbar{position:absolute;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding:8px 8px calc(10px + env(safe-area-inset-bottom))}
+.tab{flex:1;text-align:center;font-size:12px;color:var(--ink-3);font-weight:700;cursor:pointer;padding-top:4px}
+.tab .ms{display:block;margin:0 auto 2px;font-size:24px;color:var(--ink-3)}
+.tab.on,.tab.on .ms{color:var(--brand)}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <div class="top">
+    <div>
+      <div class="store">순이네 밥상</div>
+      <div class="sub">망원동 · 한식</div>
+    </div>
+    <div class="gear"><span class="ms">settings</span></div>
+  </div>
+
+  <div class="feed">
+
+    <!-- M-01 대표 상태 배너 : 3초 확인 -->
+    <div class="banner">
+      <div class="wk">6월 4주차 성적표</div>
+      <div class="hero">이번 주 우리 가게,<br/>잘 보이고 있어요</div>
+      <div class="delta"><span class="ms">trending_up</span>지난주보다 한 칸 올랐어요</div>
+    </div>
+
+    <!-- M-02 오늘 할 일 -->
+    <div class="card">
+      <div class="cap">오늘 할 일 · 하나만</div>
+      <div class="todo">
+        <div class="check"><span class="ms">check</span></div>
+        <div style="flex:1">
+          <div class="t">네이버플레이스에<br/>메뉴 사진 3장 올리기</div>
+          <div class="why">사진이 채워진 가게부터 AI가 알아봐요</div>
+          <div class="row">
+            <span class="chip">5분 · 직접 가능</span>
+            <span class="golink">바로가기<span class="ms">arrow_forward</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- M-03 채널 신호 -->
+    <div class="card">
+      <div class="cap">지금 이렇게 보여요</div>
+      <div class="sig">
+        <div class="tile"><span class="ms">smart_toy</span></div>
+        <div><div class="name">AI 추천</div><div class="state">준비 중이에요 — 위 할 일부터</div></div>
+        <div class="status"><span class="shape s-wait">○</span><span class="trend">—</span><span class="ms chev">chevron_right</span></div>
+      </div>
+      <div class="sig">
+        <div class="tile"><span class="ms">storefront</span></div>
+        <div><div class="name">네이버</div><div class="state">잘 보이고 있어요</div></div>
+        <div class="status"><span class="shape s-good">●</span><span class="trend">↑</span><span class="ms chev">chevron_right</span></div>
+      </div>
+      <div class="sig">
+        <div class="tile"><span class="ms">public</span></div>
+        <div><div class="name">구글</div><div class="state">조금만 더 채우면 돼요</div></div>
+        <div class="status"><span class="shape s-mid">◐</span><span class="trend">→</span><span class="ms chev">chevron_right</span></div>
+      </div>
+      <div class="evidence"><span class="ms">fact_check</span>실제 확인 결과 보기 — 오늘 오전 6시에 물어봤어요</div>
+    </div>
+
+    <!-- 옆집 -->
+    <div class="card">
+      <div class="cap">옆집은요</div>
+      <div class="rival-quote">돌솥△△은 챗GPT 추천에 나와요.<br/>차이는 딱 하나, 리뷰 답글이에요.</div>
+      <div class="rival-bar">
+        리뷰 답글 <span class="num">12%</span><span class="vs">나</span> · <span class="num">87%</span><span class="vs">돌솥△△</span>
+        <span class="golink" style="margin-left:auto">차이 전부 보기<span class="ms">arrow_forward</span></span>
+      </div>
+    </div>
+
+    <!-- M-05 검색어 (레이더 구독 — 미구독 상태: 블러 티저) -->
+    <div class="card">
+      <div class="cap">이번 주 손님이 검색한 말</div>
+      <div class="kw">
+        <span class="shape s-good">●</span>
+        <div><div class="w">망원동 비오는날 맛집</div><div class="why">검색은 늘고 글은 적어요</div></div>
+        <button class="make">글감 만들기</button>
+      </div>
+      <div class="kw blur">
+        <span class="shape s-good">●</span>
+        <div><div class="w">망원동 혼밥 맛집</div><div class="why">점심 검색이 늘고 있어요</div></div>
+        <button class="make">글감 만들기</button>
+      </div>
+      <div class="kw blur" style="border-bottom:none">
+        <span class="shape s-mid">◐</span>
+        <div><div class="w">망원시장 근처 밥집</div><div class="why">주말마다 오르는 말이에요</div></div>
+        <button class="make">글감 만들기</button>
+      </div>
+      <button class="unlock">매주 월요일, 5개 전부 받기</button>
+      <div class="unlock-sub">월 19,900원 · 언제든 한 번에 해지돼요</div>
+    </div>
+
+    <!-- M-06 변화 카드 -->
+    <div class="card">
+      <div class="cap">이번 달, 하신 일이 만든 변화</div>
+      <div class="delta-row"><span class="ms">task_alt</span>할 일 <b>4개</b> 완료했어요</div>
+      <div class="delta-row"><span class="ms">trending_up</span>구글 <span class="from">○ 준비 중</span> → <b class="s-mid">◐ 보통</b></div>
+      <div class="delta-row"><span class="ms">forum</span>리뷰 답글 <span class="from num">12%</span> → <b class="num">41%</b></div>
+    </div>
+
+  </div>
+
+  <div class="tabbar">
+    <div class="tab on"><span class="ms">home</span>우리 가게</div>
+    <div class="tab"><span class="ms">compare_arrows</span>옆집</div>
+    <div class="tab"><span class="ms">edit_note</span>글감</div>
+  </div>
+
+</div>
+</body>
+</html>
