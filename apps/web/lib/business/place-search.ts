@@ -1,10 +1,10 @@
 // @TASK P2-R1 - placeCandidate 검색 서비스 (네이버 플레이스 검색 → 후보 목록)
 // @SPEC specs/domain/resources.yaml#placeCandidate (placeUrl, name, address, category)
-// @SPEC specs/screens/store-finder.yaml#store_search_form (이름+지역 → 후보, 입력 최소화)
+// @SPEC specs/screens/store-finder.yaml#store_search_form (이름 필수 + 지역 선택 → 후보, 입력 최소화)
 // @SPEC docs/planning/07-coding-convention.md §2 (앱↔엔진은 contracts 타입 경계, deep import 금지)
 // @TEST apps/web/tests/business/place-search.test.ts
 //
-// 사장님이 가게 이름 한 칸 + 지역을 입력하면 네이버 플레이스 검색 후보(placeCandidate)를
+// 사장님이 가게 이름을 입력하고, 지역은 선택으로 더 좁히면 네이버 플레이스 검색 후보(placeCandidate)를
 // 돌려준다. 동명 가게는 address 로 구분한다.
 //
 // [네이버 연동 — Phase 1 diagnosis 와 동일 게이팅 패턴]
@@ -35,18 +35,24 @@ export interface PlaceCandidate {
   category: string;
 }
 
-/** 검색 입력 — 가게 이름 한 칸 + 지역 (store-finder.yaml 필터). */
+/** 검색 입력 — 가게 이름 필수 + 지역 선택 (store-finder.yaml 필터). */
 export interface PlaceSearchInput {
   /** 가게 이름(검색어). */
   query: string;
-  /** 지역(예: "서울 마포구"). */
-  region: string;
+  /** 지역(예: "서울 마포구"). 비면 전국 범위로 검색한다. */
+  region?: string | null;
 }
 
-/** 검색 입력 검증 — 빈 검색어/과도한 길이 거부 (Guardrails: 입력 검증). */
+/** 검색 입력 검증 — 빈 검색어/과도한 길이 거부, 지역은 선택. */
 const PlaceSearchInputSchema = z.object({
   query: z.string().trim().min(1).max(50),
-  region: z.string().trim().min(1).max(50),
+  region: z
+    .string()
+    .trim()
+    .max(50)
+    .nullable()
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : "전국")),
 });
 
 /**
@@ -93,13 +99,14 @@ const FIXTURE_DISTRICTS = ["마포구", "강남구", "종로구", "은평구", "
 const FIXTURE_CATEGORIES = ["한식", "카페", "분식", "미용실", "음식점"] as const;
 
 const mockPlaceSearchProvider: PlaceSearchProvider = async ({ query, region }) => {
-  const baseRegion = region.split(/\s+/)[0] ?? region;
-  const seed = stableHash(`${query}::${region}`);
+  const safeRegion = region?.trim() || "전국";
+  const baseRegion = safeRegion.split(/\s+/)[0] ?? safeRegion;
+  const seed = stableHash(`${query}::${safeRegion}`);
   // 동명 가게가 흔한 프랜차이즈류는 여러 지점(다른 주소)을 노출 → address 로 구분.
   const count = 3;
   const candidates: PlaceCandidate[] = [];
   for (let i = 0; i < count; i++) {
-    const idNum = (stableHash(`${query}::${region}::${i}`) % 9_000_000) + 1_000_000;
+    const idNum = (stableHash(`${query}::${safeRegion}::${i}`) % 9_000_000) + 1_000_000;
     const district = FIXTURE_DISTRICTS[(seed + i) % FIXTURE_DISTRICTS.length] ?? "마포구";
     const category = FIXTURE_CATEGORIES[(seed + i) % FIXTURE_CATEGORIES.length] ?? "음식점";
     candidates.push({
@@ -127,7 +134,8 @@ export function createNaverPlaceSearchProvider(
   return async ({ query, region }) => {
     const clientId = process.env.NAVER_CLIENT_ID ?? "";
     const clientSecret = process.env.NAVER_CLIENT_SECRET ?? "";
-    const keyword = `${region} ${query}`.trim();
+    const safeRegion = region?.trim() || "전국";
+    const keyword = `${safeRegion} ${query}`.trim();
     const url = `https://openapi.naver.com/v1/search/local.json?query=${encodeURIComponent(keyword)}&display=5`;
     const res = await fetchImpl(url, {
       headers: {
@@ -154,7 +162,7 @@ export function createNaverPlaceSearchProvider(
         ? item.link
         : `https://place.naver.com/search/${encodeURIComponent(stripTags(item.title ?? query))}`,
       name: stripTags(item.title ?? query),
-      address: item.roadAddress || item.address || region,
+      address: item.roadAddress || item.address || safeRegion,
       category: item.category ?? "기타",
     }));
   };

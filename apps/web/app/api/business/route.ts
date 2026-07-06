@@ -40,10 +40,15 @@ function searchUnavailable(): NextResponse {
   );
 }
 
-// GET 검색 쿼리 검증 (이름 한 칸 + 지역).
+// GET 검색 쿼리 검증 (이름 필수, 지역 선택 — 비면 전국 범위로 검색).
 const SearchQuerySchema = z.object({
   name: z.string().trim().min(1).max(50),
-  region: z.string().trim().min(1).max(50),
+  region: z
+    .string()
+    .trim()
+    .max(50)
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : "전국")),
 });
 
 // POST 확정 본문 검증 — placeCandidate(확정 후보) + 선택 websiteUrl.

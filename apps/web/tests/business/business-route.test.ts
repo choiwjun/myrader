@@ -35,6 +35,18 @@ describe("GET /api/business (placeCandidate 검색, P2-R1)", () => {
     expect(typeof first?.address).toBe("string");
   });
 
+  it("name만으로도 후보 목록을 반환한다 (지역 선택)", async () => {
+    const res = await GET(getReq("name=%EC%8A%A4%ED%83%80%EB%B2%85%EC%8A%A4"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      success: boolean;
+      data: { candidates: Array<{ placeUrl: string; name: string; address: string }> };
+    };
+    expect(body.success).toBe(true);
+    expect(body.data.candidates.length).toBeGreaterThan(0);
+    expect(body.data.candidates[0]?.address).toContain("전국");
+  });
+
   it("name 누락 시 400 (Validation, 헌법: 비-200 에러)", async () => {
     const res = await GET(getReq("region=%EC%84%9C%EC%9A%B8"));
     expect(res.status).toBe(400);

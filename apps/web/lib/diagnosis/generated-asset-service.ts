@@ -328,7 +328,7 @@ export function deriveGeneratedAssetViewFromPersisted(
     const type = dbToAssetType(r.type);
     if (!type) continue; // 알 수 없는 DB type — 제외(발명 금지).
     if (options.type && type !== options.type) continue;
-    if (!isPaid && !options.type && !FREE_PREVIEW_TYPES.includes(type)) continue;
+    if (!isPaid && !FREE_PREVIEW_TYPES.includes(type)) continue;
     const title = assetTypeToLabel(type).label;
     const content = r.code;
     // 07 §4 생성물 가드: 통과 못 한 본문/제목은 출력하지 않는다(저장돼 있어도 — 정직 폴백).

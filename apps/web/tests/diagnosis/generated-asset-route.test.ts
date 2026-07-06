@@ -207,6 +207,28 @@ describe("GET /api/generated-asset (P2-R6 / P3-R1)", () => {
     expect(body.data.paywall.lockedCount).toBe(2);
   });
 
+  it("free 세션이 유료 type만 직접 요청해도 content 없이 잠금 메타만 반환한다", async () => {
+    state.tier = "free";
+    state.view = completedView();
+    state.assets = [
+      { type: "FAQ_HTML", code: "Q. 영업시간은요? A. 오전 11시부터 밤 9시까지예요." },
+      { type: "SERVICE", code: "안녕하세요, 아래 내용으로 도움 받고 싶어요." },
+    ];
+    state.gapRows = [];
+
+    const res = await GET(req(`diagnosisId=${VALID_UUID}&type=snippet`));
+    const body = (await res.json()) as {
+      data: {
+        assets: unknown[];
+        paywall: { locked: boolean; lockedCount: number };
+      };
+    };
+
+    expect(body.data.assets).toEqual([]);
+    expect(body.data.paywall.locked).toBe(true);
+    expect(body.data.paywall.lockedCount).toBe(1);
+  });
+
   it("actionId와 keyword가 있으면 생성물에 근거와 sourceKeywords를 붙인다", async () => {
     state.tier = "paid";
     state.view = completedView();

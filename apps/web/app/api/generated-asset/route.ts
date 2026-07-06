@@ -90,9 +90,11 @@ export async function GET(request: Request) {
         })
       : deriveGeneratedAssetViewFromView({ isPaid });
 
-    // 잠금 메타(★ content 0): ?type 미지정 시 전체 생성물 - 무료 노출 = 잠긴 개수. 잠긴 본문은 응답에 없음.
-    // ?type 지정(단일 생성물 진입)에는 잠금 카드를 적용하지 않는다(목록 경계는 ?type 미지정에만).
-    const totalAssets = type ? assets.length : persisted.length;
+    // 잠금 메타(★ content 0): 전체 목록은 persisted 전체 - 무료 노출, type 직접 요청은 해당 type 존재 여부 - 노출.
+    // 무료 사용자가 유료 type(snippet/vendor_prescription)을 직접 요청해도 본문 없이 lockedCount 만 받는다.
+    const totalAssets = type
+      ? persisted.filter((row) => dbToAssetType(row.type) === type).length
+      : persisted.length;
     const paywall = computePaywallMeta(totalAssets, assets.length, paid);
 
     return NextResponse.json({ data: { assets, intro, isPaid: paid, paywall }, success: true });
