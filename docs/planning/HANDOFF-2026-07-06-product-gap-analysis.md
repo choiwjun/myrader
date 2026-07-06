@@ -12,7 +12,7 @@
 
 ## 결론
 
-엔진 결함 수정과 별개로, 제품의 핵심 계약인 “실측 기반 진단 → 경쟁사/갭 → 오늘 할 일” 흐름은 아직 완성 상태가 아니다. 가장 큰 문제는 실측 근거와 job payload가 영속화되지 않고, 경쟁사 갭이 실제 경쟁사 진단이 아니라 추정으로 생성되며, Home/Status/Rivals/Write 화면의 데이터 계약이 기획서보다 약하다는 점이다.
+엔진 결함 수정과 별개로, 제품의 핵심 계약인 “실측 기반 진단 → 경쟁사/갭 → 오늘 할 일” 흐름은 현재 레포에서 끝까지 연결됐는지 재검증이 필요하다. 사용자 확인에 따르면 기존 boina에는 실측 저장 구현이 있었으므로, 아래 P0 항목은 “새로 처음 구현”이 아니라 기존 boina 구현을 우선 찾아 복원·이식·재연결하고 현재 read path/API/UI까지 회귀검증하는 작업으로 취급한다. 현재 확인된 위험은 실측 근거/job payload/경쟁사 갭 저장 흔적은 있으나, 현재 플로우에서 홈페이지 진단·Naver/AI evidence·실제 경쟁사 진단 결과가 화면 계약까지 안정적으로 이어지는지 불명확하다는 점이다.
 
 ## 출시 차단급 이슈
 
@@ -22,23 +22,25 @@
 - `packages/engine/src/pipeline.ts`는 비웹 source에서 `platformLiveFetchAllowlist` 기본값이 빈 배열이다.
 - 결과: 홈페이지 SEO/AEO/GEO 분석이 누락되거나 `PLATFORM_LIVE_FETCH_NOT_APPROVED` 경로로 빈/부분 결과가 될 수 있다.
 
-**다음 작업:** 홈페이지 URL이 있으면 `sourceType: "website"`로 우선 진단하고, 네이버 플레이스는 공식 API/허용된 수집 경로로만 보조 증거화한다.
+**다음 작업:** 기존 boina의 홈페이지/플랫폼 진단 입력 배선을 우선 확인한다. 홈페이지 URL이 있으면 `sourceType: "website"`로 우선 진단하고, 네이버 플레이스는 공식 API/허용된 수집 경로로만 보조 증거화하도록 현재 `/find`→`/api/diagnosis` 입력을 회귀검증한다.
 
-### P0-2. 경쟁사 갭이 실제 경쟁사 진단이 아니라 추정
+### P0-2. 경쟁사 갭 실측 저장 배선 회귀검증
 
-- `apps/web/lib/diagnosis/diagnosis-persistence.ts`의 `buildCompetitorReports()`는 내 실패 룰을 경쟁사는 모두 `passed: true`로 가정한다.
-- `apps/web/lib/diagnosis/competitor-derivation.ts`는 `naver_serp:<name>`, `gpt_grounded:<name>` placeholder를 gap 입력으로 사용한다.
-- 결과: “경쟁사는 있고 우리는 없음”이 사실이 아닐 수 있다.
+- `apps/web/lib/diagnosis/diagnosis-persistence.ts`는 competitors/gap_rows 저장 배선을 갖고 있지만, `buildCompetitorReports()` 경로는 내 실패 룰을 경쟁사는 모두 `passed: true`로 가정한다.
+- `apps/web/lib/diagnosis/competitor-derivation.ts`는 `naver_serp:<name>`, `gpt_grounded:<name>` placeholder를 gap 입력으로 사용할 수 있다.
+- 기존 boina에서 실제 경쟁사 실측 저장이 이미 있었다면, 현재 레포에서는 그 구현이 read/write path와 연결됐는지 확인해야 한다.
+- 결과: 기존 실측 구현이 끊겨 있으면 “경쟁사는 있고 우리는 없음”이 사실이 아닐 수 있다.
 
-**다음 작업:** 실제 competitor URL을 보존하고, 경쟁사별 lightweight `runDiagnosisPipeline()`을 돌린 뒤 그 결과를 `GapAnalyzer`에 넣는다. 실제 경쟁사 리포트가 없으면 gap row 대신 measured-unavailable 상태를 반환한다.
+**다음 작업:** 기존 boina의 경쟁사 실측 저장/GapAnalyzer 배선을 찾아 현재 `competitors`, `gap_rows`, `/api/competitor`, `/api/gap`, `/rivals` 경로에 재연결한다. 실제 competitor report가 없으면 gap row 대신 measured-unavailable 상태를 반환한다.
 
-### P0-3. Naver/AI 실측 근거가 영속화되지 않음
+### P0-3. Naver/AI 실측 근거 저장 배선 회귀검증
 
-- `apps/web/lib/diagnosis/channel-status-service.ts`는 persisted `engine_results`에 grounded evidence가 없어 AI green이 불가능하다고 명시한다.
-- `llmValidation`, `naverPresence`, `GapResult`가 구조적으로 저장되지 않는다.
-- 결과: AI HERO, Status evidence sheet, 채널 신호가 기획서의 실측/수집/추정 라벨 계약을 만족하지 못한다.
+- `engine_results.evidence` 등 현재 레포에도 evidence 저장 구조는 존재한다.
+- 동시에 `apps/web/lib/diagnosis/channel-status-service.ts`의 persisted 경로 주석은 `naverPresence/llmValidation` 원자료가 없고 AI green이 불가능하다고 설명한다.
+- 기존 boina에서 `naverPresence`, `llmValidation`, `GapResult` 실측 저장이 이미 있었다면, 현재 레포에서는 그 원자료가 저장·조회·화면 evidence sheet까지 이어지는지 확인해야 한다.
+- 결과: 기존 실측 저장 구현이 끊겨 있으면 AI HERO, Status evidence sheet, 채널 신호가 기획서의 실측/수집/추정 라벨 계약을 만족하지 못한다.
 
-**다음 작업:** `diagnosisId` 기준으로 full `DiagnosisJson` raw JSON 또는 `naverPresence`, `llmValidation`, `GapResult` 전용 evidence 테이블/JSON 컬럼을 추가한다.
+**다음 작업:** 기존 boina의 `naverPresence`, `llmValidation`, `GapResult` 저장 구현을 우선 찾아 현재 DB/API에 복원한다. `diagnosisId` 기준 raw `DiagnosisJson` 또는 구조화 evidence를 저장하고 `/api/channel-status`, `/status`, `/rivals`가 그 저장 근거를 읽도록 회귀검증한다.
 
 ### P0-4. DB job payload가 정확히 영속화되지 않음
 
@@ -111,10 +113,10 @@
 
 ## 권장 실행 순서
 
-1. 진단 입력/크롤 계약 수정: 홈페이지 우선, 네이버 플레이스 보조 증거화, platform allowlist 정책 명확화.
+1. 진단 입력/크롤 계약 회귀검증: 기존 boina 배선 확인, 홈페이지 우선, 네이버 플레이스 보조 증거화, platform allowlist 정책 명확화.
 2. durable job payload 저장.
-3. `DiagnosisJson`/evidence raw 저장 및 channel-status 재배선.
-4. 실제 competitor diagnostics + `GapAnalyzer` 재배선.
+3. 기존 boina의 `DiagnosisJson`/실측 evidence 저장 구현 복원 또는 현재 저장 구조와 read path 재연결.
+4. 기존 boina의 실제 competitor diagnostics + `GapAnalyzer` 배선 복원 또는 현재 gap 저장 경로 회귀검증.
 5. cost gate 실제 정책 구현.
 6. Home/Status/Rivals/Write API/UI evidence contract 보강.
 7. action completion과 deep link query 보존 수정.
