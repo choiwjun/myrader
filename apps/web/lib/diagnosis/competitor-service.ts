@@ -48,12 +48,20 @@ export interface Competitor {
   rank?: number;
   /** naver_serp | gpt_grounded — 실측 출처(정직 표기용). */
   source: CompetitorSource;
+  /** evidence sheet 용 수집 시각(ISO 8601). */
+  collectedAt?: string;
+  /** evidence sheet 용 원근거(raw/structured). */
+  evidence?: unknown;
+  /** measured | estimated | unavailable */
+  measurementLabel?: "measured" | "estimated" | "unavailable";
 }
 
 /** 변환 옵션 — 익명화 등 노출 정책(resources.yaml/05 규율). */
 export interface CompetitorOptions {
   /** true 면 실명 비노출(마스킹). 기본 false(실명 노출). */
   anonymize?: boolean;
+  /** stored llmValidation raw evidence(있으면 AI 경쟁사 카드 근거에 sampleQuery/mentionedInQueries 연결). */
+  llmMeasurement?: LlmValidation;
 }
 
 // ---------------------------------------------------------------------------
@@ -236,6 +244,7 @@ export interface PersistedCompetitorLike {
   name: string;
   source: "naver_serp" | "gpt_grounded" | "manual";
   serpRank: number | null;
+  collectedAt: string;
 }
 
 /**
@@ -253,7 +262,6 @@ export function deriveCompetitorViewFromPersisted(
   const competitors: Competitor[] = [];
   let naverIdx = 0;
   let aiIdx = 0;
-  // naver_serp 먼저(rank 오름차순), 그다음 gpt_grounded — manual 은 제외(신뢰 채널 아님).
   const naver = rows
     .filter((r) => r.source === "naver_serp")
     .sort((a, b) => (a.serpRank ?? 0) - (b.serpRank ?? 0));
@@ -267,6 +275,9 @@ export function deriveCompetitorViewFromPersisted(
       channel: "naver",
       beatsMe: true,
       source: "naver_serp",
+      collectedAt: r.collectedAt,
+      evidence: { serpRank: r.serpRank },
+      measurementLabel: "measured",
     };
     if (r.serpRank !== null) c.rank = r.serpRank;
     competitors.push(c);
@@ -275,12 +286,18 @@ export function deriveCompetitorViewFromPersisted(
   for (const r of ai) {
     const name = cleanName(r.name);
     if (!name) continue;
+    const matchedEvidence = options.llmMeasurement?.competitors?.find(
+      (candidate) => cleanName(candidate.name) === name,
+    );
     competitors.push({
       id: makeUuidV4(),
       name: anonymize ? anonName("ai", aiIdx) : name,
       channel: "ai",
       beatsMe: true,
       source: "gpt_grounded",
+      collectedAt: r.collectedAt,
+      evidence: matchedEvidence ?? { name },
+      measurementLabel: "measured",
     });
     aiIdx += 1;
   }

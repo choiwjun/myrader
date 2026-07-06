@@ -22,6 +22,14 @@
 
 import type { DiagnosisJson, LlmValidation, NaverPresence } from "@boina/contracts/diagnosis";
 import type { HealthBand } from "@boina/contracts/enums";
+import {
+  BUSINESS_PRESENCE_MEASUREMENT_CODE,
+  getBusinessPresenceMeasurement,
+  getLlmValidationMeasurement,
+  LLM_VALIDATION_MEASUREMENT_CODE,
+  pickLatestTimestamp,
+  type MeasurementLabel,
+} from "./measurement.js";
 import type { Channel, Signal } from "../shared/ui-labels.js";
 
 /**
@@ -39,6 +47,14 @@ export interface ChannelStatus {
   found?: boolean;
   /** 맛보기·게이팅 등 부가 안내 (선택). */
   note?: string;
+  /** evidence sheet 용 출처 라벨(정직 표기). */
+  source?: string;
+  /** evidence sheet 용 수집 시각(ISO 8601). */
+  collectedAt?: string;
+  /** evidence sheet 용 원근거(raw/structured). */
+  evidence?: unknown;
+  /** measured | estimated | unavailable */
+  measurementLabel?: MeasurementLabel;
 }
 
 // ---------------------------------------------------------------------------
@@ -379,10 +395,13 @@ function googleViewLine(signal: Signal): string {
 export interface PersistedEngineResultLike {
   /** naver | google | ai_citation. */
   channel: string;
+  code: string;
   /** 내부 점수(impactScore) — 신호 판정 전용(응답 노출 0). */
   impactScore: number | null;
   /** high | medium | low — 갭 시급도(내부 신호). */
   priority: "high" | "medium" | "low";
+  evidence: Record<string, unknown> | null;
+  collectedAt: string;
 }
 
 /** 채널별 미진단 시 "아직 측정 전" 신호등 1줄(준비 중 — 추측 0). */
@@ -392,29 +411,21 @@ function notMeasuredChannel(channel: Channel): ChannelStatus {
     signal: "yellow",
     summaryLine: "아직 살펴보는 중이에요. 조금만 기다려 주세요.",
     note: "진단이 끝나면 채널별로 더 정확히 알려드릴게요.",
+    source: "unavailable",
+    measurementLabel: "unavailable",
+    evidence: { reason: "not_measured" },
   };
 }
 
-/**
- * 채널의 미통과 항목 시급도(high 가중)로 신호등을 판정한다(내부 점수 — 외부 노출 0).
- *   high 0건 + 전체 적음 → green / high 있으나 적음 → yellow / high 다수 → red.
- */
+/** 채널의 미통과 항목 시급도(high 가중)로 신호등을 판정한다(내부 점수 — 외부 노출 0). */
 function gapDensityToSignal(rows: PersistedEngineResultLike[]): Signal {
-  if (rows.length === 0) return "green"; // 미통과 항목 0 → 양호.
+  if (rows.length === 0) return "green";
   const high = rows.filter((r) => r.priority === "high").length;
   if (high === 0) return rows.length <= 2 ? "green" : "yellow";
   if (high <= 2) return "yellow";
   return "red";
 }
 
-/**
- * 영속화된 engine_results → S2 채널 신호등 3종(naver/google/ai)(실데이터 경로).
- *
- * 채널 매핑(04 §3 역): naver←naver, google←google, ai←ai_citation.
- * 정직성: 점수(number) 응답 노출 0 — 채널별 미통과 항목 시급도로 신호만 산출(summaryLine 은 사장님 언어).
- *   - ai 채널: grounded 실인용 근거 없음(영속화 [OPEN]) → green 절대 불가(게이팅) — yellow/red 만.
- *   - 채널별 항목이 전혀 없으면(미측정) "준비 중"(yellow) — 추측 단정 0.
- */
 export function deriveChannelStatusesFromPersisted(
   rows: PersistedEngineResultLike[],
 ): ChannelStatus[] {
@@ -422,31 +433,69 @@ export function deriveChannelStatusesFromPersisted(
     return (["naver", "google", "ai"] as const).map((c) => notMeasuredChannel(c));
   }
 
-  const naverRows = rows.filter((r) => r.channel === "naver");
-  const googleRows = rows.filter((r) => r.channel === "google");
-  const aiRows = rows.filter((r) => r.channel === "ai_citation");
+  const measurementRows = rows.filter(
+    (row) =>
+      row.code === BUSINESS_PRESENCE_MEASUREMENT_CODE || row.code === LLM_VALIDATION_MEASUREMENT_CODE,
+  );
+  const signalRows = rows.filter(
+    (row) =>
+      row.code !== BUSINESS_PRESENCE_MEASUREMENT_CODE && row.code !== LLM_VALIDATION_MEASUREMENT_CODE,
+  );
+  const naverRows = signalRows.filter((r) => r.channel === "naver");
+  const googleRows = signalRows.filter((r) => r.channel === "google");
+  const aiRows = signalRows.filter((r) => r.channel === "ai_citation");
+  const businessPresence = getBusinessPresenceMeasurement(measurementRows);
+  const llmValidation = getLlmValidationMeasurement(measurementRows);
 
   const naverSignal = gapDensityToSignal(naverRows);
   const googleSignal = gapDensityToSignal(googleRows);
-  // ai 게이팅: grounded 실인용 근거 없음 → green 불가. green 후보면 yellow 로 강등(정직).
   const aiRaw = gapDensityToSignal(aiRows);
   const aiSignal: Signal = aiRaw === "green" ? "yellow" : aiRaw;
 
   return [
-    { channel: "naver", signal: naverSignal, summaryLine: naverViewLine(naverSignal) },
+    {
+      channel: "naver",
+      signal: naverSignal,
+      summaryLine: naverViewLine(naverSignal),
+      ...(businessPresence?.found !== undefined ? { found: businessPresence.found } : {}),
+      source: businessPresence?.source ?? "engine_results",
+      collectedAt:
+        businessPresence?.collectedAt ?? pickLatestTimestamp(naverRows.map((row) => row.collectedAt)),
+      evidence:
+        businessPresence?.payload ??
+        naverRows.map((row) => row.evidence).filter((evidence) => evidence !== null),
+      measurementLabel: businessPresence?.measurementLabel ?? (naverRows.length > 0 ? "estimated" : "unavailable"),
+      ...(businessPresence ? {} : { note: "네이버 표면 수집이 없어서 준비도 기준으로 보여드려요." }),
+    },
     {
       channel: "google",
       signal: googleSignal,
       summaryLine: googleViewLine(googleSignal),
       note: GOOGLE_PREVIEW_NOTE,
+      source: googleRows.length > 0 ? "engine_results" : "unavailable",
+      collectedAt: pickLatestTimestamp(googleRows.map((row) => row.collectedAt)),
+      evidence: googleRows.map((row) => row.evidence).filter((evidence) => evidence !== null),
+      measurementLabel: googleRows.length > 0 ? "estimated" : "unavailable",
     },
-    {
-      channel: "ai",
-      signal: aiSignal,
-      summaryLine: aiPersistedLine(aiSignal),
-      found: false,
-      note: "AI 추천은 준비가 쌓일수록 좋아져요. 너무 걱정 마세요.",
-    },
+    llmValidation
+      ? {
+          ...deriveAiChannelStatus(llmValidation.payload),
+          source: llmValidation.source,
+          collectedAt: llmValidation.collectedAt,
+          evidence: llmValidation.payload,
+          measurementLabel: llmValidation.measurementLabel,
+        }
+      : {
+          channel: "ai",
+          signal: aiSignal,
+          summaryLine: aiPersistedLine(aiSignal),
+          found: false,
+          note: "AI 실인용 측정이 없어 준비도 기준으로만 보여드려요.",
+          source: aiRows.length > 0 ? "engine_results" : "unavailable",
+          collectedAt: pickLatestTimestamp(aiRows.map((row) => row.collectedAt)),
+          evidence: aiRows.map((row) => row.evidence).filter((evidence) => evidence !== null),
+          measurementLabel: aiRows.length > 0 ? "estimated" : "unavailable",
+        },
   ];
 }
 
@@ -456,7 +505,6 @@ function aiPersistedLine(signal: Signal): string {
     case "yellow":
       return "AI가 우리 가게를 조금씩 익히는 중이에요.";
     default:
-      // red (green 은 게이팅으로 불가).
       return "아직 AI가 우리 가게를 잘 몰라요. 지금부터 준비하면 돼요.";
   }
 }

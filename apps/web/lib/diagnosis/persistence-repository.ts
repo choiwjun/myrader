@@ -114,11 +114,12 @@ export async function persistDiagnosisArtifacts(
 // 읽기(select) — route 가 실데이터로 채널/경쟁/갭/행동/생성물 렌더
 // ---------------------------------------------------------------------------
 
-/** route 가 신뢰 경쟁사를 읽는 행 형태(점수 비노출 — name/source/serpRank 만). */
+/** route 가 신뢰 경쟁사를 읽는 행 형태(점수 비노출 — name/source/serpRank + 측정 메타만). */
 export interface PersistedCompetitor {
   name: string;
   source: "naver_serp" | "gpt_grounded" | "manual";
   serpRank: number | null;
+  collectedAt: string;
 }
 
 /** diagnosisId 의 신뢰 경쟁사 목록(추측 0 — 저장된 것만). */
@@ -131,6 +132,7 @@ export async function getPersistedCompetitors(
       name: competitorsTable.name,
       source: competitorsTable.source,
       serpRank: competitorsTable.serpRank,
+      discoveredAt: competitorsTable.discoveredAt,
     })
     .from(competitorsTable)
     .where(eq(competitorsTable.diagnosisId, diagnosisId));
@@ -138,16 +140,20 @@ export async function getPersistedCompetitors(
     name: r.name ?? "",
     source: r.source,
     serpRank: r.serpRank,
+    collectedAt: r.discoveredAt.toISOString(),
   }));
 }
 
-/** route 가 갭을 읽는 행 형태(사장님 언어 label + 경쟁사보유/내갭 + 4분류 tier — 코드값/점수 0). */
+/** route 가 갭을 읽는 행 형태(사장님 언어 label + 경쟁사보유/내갭 + 4분류 tier + 근거 메타). */
 export interface PersistedGapRow {
   item: string;
   competitorHas: boolean;
   isMyGap: boolean;
   /** ★ action 4분류(🟢🟡🔴⏳) 복원용 — 저장된 도메인 tier(self_fix/snippet/vendor/ongoing). */
   actionTier: GapActionTier;
+  source: "naver_serp" | "gpt_grounded" | "manual";
+  collectedAt: string;
+  competitorName: string | null;
 }
 
 /** diagnosisId 의 gap_rows(competitor join — 진단 단위 조회). */
@@ -160,7 +166,10 @@ export async function getPersistedGapRows(
       item: gapRowsTable.item,
       competitorHas: gapRowsTable.competitorHas,
       isMyGap: gapRowsTable.isMyGap,
-      actionTier: gapRowsTable.actionTier, // ★ 4분류 복원(#1) — green 수렴 버그 차단.
+      actionTier: gapRowsTable.actionTier,
+      source: competitorsTable.source,
+      collectedAt: competitorsTable.discoveredAt,
+      competitorName: competitorsTable.name,
     })
     .from(gapRowsTable)
     .innerJoin(competitorsTable, eq(gapRowsTable.competitorId, competitorsTable.id))
@@ -170,6 +179,9 @@ export async function getPersistedGapRows(
     competitorHas: r.competitorHas,
     isMyGap: r.isMyGap,
     actionTier: r.actionTier,
+    source: r.source,
+    collectedAt: r.collectedAt.toISOString(),
+    competitorName: r.competitorName ?? null,
   }));
 }
 
@@ -222,13 +234,16 @@ export async function getPersistedGeneratedAssets(
   return rows.filter((r) => r.isLatest === true).map((r) => ({ type: r.type, code: r.code }));
 }
 
-/** route 가 채널 신호를 위해 읽는 engine_result 행 형태(채널·카테고리·점수 — 점수는 내부 판단용). */
+/** route 가 채널 신호를 위해 읽는 engine_result 행 형태(채널·점수·원근거·수집시각). */
 export interface PersistedEngineResult {
   channel: string;
   category: string;
+  code: string;
   /** 내부 점수(impactScore) — route 가 signal 판단에만 쓰고 응답엔 절대 노출 0(07 §4). */
   impactScore: number | null;
   priority: "high" | "medium" | "low";
+  evidence: Record<string, unknown> | null;
+  collectedAt: string;
 }
 
 /** diagnosisId 의 engine_results(채널 신호 산출용 원자료). */
@@ -240,16 +255,22 @@ export async function getPersistedEngineResults(
     .select({
       channel: engineResultsTable.channel,
       category: engineResultsTable.category,
+      code: engineResultsTable.code,
       impactScore: engineResultsTable.impactScore,
       priority: engineResultsTable.priority,
+      evidence: engineResultsTable.evidence,
+      createdAt: engineResultsTable.createdAt,
     })
     .from(engineResultsTable)
     .where(eq(engineResultsTable.diagnosisId, diagnosisId));
   return rows.map((r) => ({
     channel: r.channel,
     category: r.category,
+    code: r.code,
     impactScore: r.impactScore,
     priority: r.priority,
+    evidence: r.evidence ?? null,
+    collectedAt: r.createdAt.toISOString(),
   }));
 }
 

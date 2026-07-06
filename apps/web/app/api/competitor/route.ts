@@ -20,7 +20,12 @@ import {
 } from "@/lib/diagnosis/competitor-service";
 import { getDefaultDiagnosisRepository } from "@/lib/diagnosis/diagnosis-repository";
 import { getDiagnosisView } from "@/lib/diagnosis/diagnosis-service";
-import { getDefaultDb, getPersistedCompetitors } from "@/lib/diagnosis/persistence-repository";
+import { getLlmValidationMeasurement } from "@/lib/diagnosis/measurement";
+import {
+  getDefaultDb,
+  getPersistedCompetitors,
+  getPersistedEngineResults,
+} from "@/lib/diagnosis/persistence-repository";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -42,10 +47,15 @@ export async function GET(request: Request) {
     }
 
     // 실데이터 경로: 영속화된 competitors(신뢰 소스만) → 라이벌 카드. 없으면 정직 빈 상태(추측 0).
-    const persisted = await getPersistedCompetitors(getDefaultDb(), diagnosisId);
+    const db = getDefaultDb();
+    const [persisted, engineResults] = await Promise.all([
+      getPersistedCompetitors(db, diagnosisId),
+      getPersistedEngineResults(db, diagnosisId),
+    ]);
+    const llmMeasurement = getLlmValidationMeasurement(engineResults)?.payload;
     const { competitors, headline } =
       persisted.length > 0
-        ? deriveCompetitorViewFromPersisted(persisted)
+        ? deriveCompetitorViewFromPersisted(persisted, { llmMeasurement })
         : deriveCompetitorViewFromView();
 
     return NextResponse.json({ data: { competitors, headline }, success: true });

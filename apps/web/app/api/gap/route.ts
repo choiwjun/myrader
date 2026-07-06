@@ -22,7 +22,11 @@
 import { getDefaultDiagnosisRepository } from "@/lib/diagnosis/diagnosis-repository";
 import { getDiagnosisView } from "@/lib/diagnosis/diagnosis-service";
 import { deriveGapViewFromPersisted, deriveGapViewFromView } from "@/lib/diagnosis/gap-service";
-import { getDefaultDb, getPersistedGapRows } from "@/lib/diagnosis/persistence-repository";
+import {
+  getDefaultDb,
+  getPersistedCompetitors,
+  getPersistedGapRows,
+} from "@/lib/diagnosis/persistence-repository";
 import { computePaywallMeta, resolveRequestPlanTier } from "@/lib/diagnosis/plan-tier";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -48,20 +52,48 @@ export async function GET(request: Request) {
     }
 
     // 실데이터 경로: 영속화된 gap_rows(GapAnalyzer 산출) → gapItem. 없으면 정직 빈 상태(추측 0).
-    const gapRows = await getPersistedGapRows(getDefaultDb(), diagnosisId);
-    const {
-      items,
-      intro,
-      isPaid: paid,
-    } = gapRows.length > 0
-      ? deriveGapViewFromPersisted(gapRows, { isPaid })
-      : deriveGapViewFromView({ isPaid });
+    const db = getDefaultDb();
+    const [gapRows, competitors] = await Promise.all([
+      getPersistedGapRows(db, diagnosisId),
+      getPersistedCompetitors(db, diagnosisId),
+    ]);
+    const gapView =
+      gapRows.length > 0
+        ? deriveGapViewFromPersisted(gapRows, { isPaid })
+        : deriveGapViewFromView({ isPaid });
 
-    // 잠금 메타(★ content 0): 내 갭 전체 - 무료 노출 = 잠긴 개수. 무료 응답엔 잠긴 content 없음.
     const totalMyGaps = gapRows.filter((r) => r.isMyGap === true).length;
-    const paywall = computePaywallMeta(totalMyGaps, items.length, paid);
+    const paywall = computePaywallMeta(totalMyGaps, gapView.items.length, gapView.isPaid);
+    const unavailableEvidence =
+      gapRows.length === 0 && competitors.length > 0
+        ? {
+            source: competitors[0]?.source ?? "unavailable",
+            collectedAt: competitors[0]?.collectedAt,
+            evidence: {
+              reason: "competitor_reports_unavailable",
+              competitors: competitors.map((competitor) => ({
+                name: competitor.name,
+                source: competitor.source,
+                collectedAt: competitor.collectedAt,
+              })),
+            },
+            measurementLabel: "unavailable" as const,
+          }
+        : null;
 
-    return NextResponse.json({ data: { items, intro, isPaid: paid, paywall }, success: true });
+    return NextResponse.json({
+      data: {
+        items: gapView.items,
+        intro: gapView.intro,
+        isPaid: gapView.isPaid,
+        paywall,
+        source: unavailableEvidence?.source ?? gapView.source,
+        collectedAt: unavailableEvidence?.collectedAt ?? gapView.collectedAt,
+        evidence: unavailableEvidence?.evidence ?? gapView.evidence,
+        measurementLabel: unavailableEvidence?.measurementLabel ?? gapView.measurementLabel,
+      },
+      success: true,
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

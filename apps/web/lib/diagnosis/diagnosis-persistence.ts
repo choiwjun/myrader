@@ -50,6 +50,10 @@ import {
   deriveGapItemsFromResult,
 } from "./gap-service.js";
 import { type GeneratedAsset, deriveGeneratedAssets } from "./generated-asset-service.js";
+import {
+  BUSINESS_PRESENCE_MEASUREMENT_CODE,
+  LLM_VALIDATION_MEASUREMENT_CODE,
+} from "./measurement.js";
 
 // ---------------------------------------------------------------------------
 // 채널 매핑 (04 §3: engine_result.channel — naver / google / ai_citation)
@@ -129,6 +133,68 @@ export function mapEngineResults(
     pageUrl: it.pageUrl ?? null,
     ruleVersion: it.ruleVersion ?? "1.0.0",
   }));
+}
+
+function mapMeasurementEngineResults(
+  diagnosisId: string,
+  output: DiagnosisPipelineOutput,
+): EngineResultInsert[] {
+  const rows: EngineResultInsert[] = [];
+  const naverSurface = output.businessPresence.surfaces.find(
+    (surface) => surface.sourceType === "naver_place",
+  );
+  rows.push({
+    diagnosisId,
+    channel: "naver",
+    category: "geo",
+    actionType: "self_fix",
+    priority: "low",
+    difficulty: "easy",
+    code: BUSINESS_PRESENCE_MEASUREMENT_CODE,
+    title: "보유 채널 수집",
+    description: "가게 보유 채널과 표면 수집 결과",
+    evidence: {
+      measurementKind: "business_presence",
+      source: naverSurface?.sourceType ?? output.businessPresence.primarySourceType,
+      measurementLabel: naverSurface?.status === "fetched" ? "measured" : "estimated",
+      found: naverSurface?.status === "fetched",
+      payload: output.businessPresence,
+    },
+    impactScore: null,
+    expectedEffect: null,
+    isAiGenerated: false,
+    relatedSnippetType: null,
+    recommendationText: null,
+    pageUrl: output.businessPresence.primaryUrl,
+    ruleVersion: "measurement.v1",
+  });
+  if (output.llmValidation) {
+    rows.push({
+      diagnosisId,
+      channel: "ai_citation",
+      category: "aeo",
+      actionType: "self_fix",
+      priority: "low",
+      difficulty: "easy",
+      code: LLM_VALIDATION_MEASUREMENT_CODE,
+      title: "AI 인용 측정",
+      description: "LLM 가시성 측정 원자료",
+      evidence: {
+        measurementKind: "llm_validation",
+        source: "llm_validation",
+        measurementLabel: "measured",
+        payload: output.llmValidation,
+      },
+      impactScore: null,
+      expectedEffect: null,
+      isAiGenerated: false,
+      relatedSnippetType: null,
+      recommendationText: null,
+      pageUrl: output.businessPresence.primaryUrl,
+      ruleVersion: "measurement.v1",
+    });
+  }
+  return rows;
 }
 
 // ---------------------------------------------------------------------------
@@ -412,8 +478,10 @@ export interface BuildPersistenceInput {
   reportId: string;
   websiteUrl: string;
   output: DiagnosisPipelineOutput;
-  /** GapAnalyzer 라이브 호출 — 수동/mock(실 SERP 자동발견 0, OQ-4 [OPEN]). */
+  /** GapAnalyzer 라이브 호출에 쓸 실제 경쟁사 리포트. 없으면 가정 갭을 만들지 않는다. */
   competitorUrls: string[];
+  /** 저장된/주입된 실제 경쟁사 리포트. 없으면 gap_rows/actions 는 비우고 unavailable 로 읽는다. */
+  competitorReports?: CompetitorReportLike[];
   /** 잡 핸들러가 주입한 실 GapAnalyzer(@boina/engine/v2/gap) 또는 테스트 mock. */
   analyzer: GapAnalyzerPort;
   /** 생성물 입력(business 프로필 + FAQ). 없으면 생성물 0. */
@@ -436,21 +504,23 @@ export interface PersistencePlan {
  * 파이프라인 산출 → 04 §4 5종 테이블 insert 값 묶음(순수 매퍼 — DB 접근 0).
  *
  * 일관 기록(04 §4): 한 진단의 engine_result·competitor·gap_row·snippet·action 을 함께 산출한다.
- * GapAnalyzer 라이브 배선(FR-012): self-report(items) + competitorUrls → CompetitorReport →
- * analyzer.analyze() → GapResult → gap_rows. competitorUrls 가 비면 gap_rows 0(추측 0).
+ * 경쟁사 갭은 "실제 경쟁사 리포트"가 있을 때만 계산한다. 리포트가 없으면 경쟁사 카드는 저장하되,
+ * gap_rows/actions 는 비워 읽기 경로가 measured-unavailable 상태를 정직하게 노출하게 한다.
  */
 export function buildPersistencePlan(input: BuildPersistenceInput): PersistencePlan {
   const { diagnosisId, reportId, websiteUrl, output } = input;
 
-  const engineResults = mapEngineResults(diagnosisId, output.items);
+  const engineResults = [
+    ...mapEngineResults(diagnosisId, output.items),
+    ...mapMeasurementEngineResults(diagnosisId, output),
+  ];
   const competitors = mapCompetitors(diagnosisId, {
     naverCompetitorTop: input.naverCompetitorTop,
     llm: output.llmValidation,
   });
 
-  // GapAnalyzer 라이브 호출 — self-report + 수동 competitorUrls → GapResult → gap_rows.
   const selfReport = buildSelfReport(reportId, websiteUrl, output.items);
-  const competitorReports = buildCompetitorReports(input.competitorUrls, selfReport);
+  const competitorReports = input.competitorReports ?? [];
   let gapRows: GapRowInsert[] = [];
   let gapItems: GapItem[] = [];
   if (input.competitorUrls.length > 0 && competitorReports.length > 0) {

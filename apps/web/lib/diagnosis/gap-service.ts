@@ -170,6 +170,10 @@ export interface GapItem {
   priority: 1 | 2 | 3 | 4 | 5;
   /** true = 유료 실행팩에서만 전체 노출(Top3 밖 경계). */
   isPaid: boolean;
+  source?: "naver_serp" | "gpt_grounded" | "manual" | "unavailable";
+  collectedAt?: string;
+  evidence?: unknown;
+  measurementLabel?: "measured" | "estimated" | "unavailable";
 }
 
 // ---------------------------------------------------------------------------
@@ -297,13 +301,16 @@ export function buildGapIntro(gapCount: number): string {
 //
 // 전체 GapResult(또는 영속화)이 있는 경로는 deriveGapItems / deriveGapItemsFromResult 를 쓴다.
 
-/** route(view) 폴백 결과 — 화면이 그대로 렌더(S4 gap_intro + gap_matrix_card). */
 export interface GapViewResult {
   items: GapItem[];
   /** S4 gap_intro 한 문장(빈 배열이면 응원). */
   intro: string;
   /** true=유료(전체) / false=무료(Top3). 화면 잠금 카드 분기용. */
   isPaid: boolean;
+  source?: "naver_serp" | "gpt_grounded" | "manual" | "unavailable";
+  collectedAt?: string;
+  evidence?: unknown;
+  measurementLabel?: "measured" | "estimated" | "unavailable";
 }
 
 /**
@@ -315,7 +322,14 @@ export interface GapViewResult {
  */
 export function deriveGapViewFromView(options: GapItemOptions = {}): GapViewResult {
   const items: GapItem[] = [];
-  return { items, intro: buildGapIntro(items.length), isPaid: options.isPaid === true };
+  return {
+    items,
+    intro: buildGapIntro(items.length),
+    isPaid: options.isPaid === true,
+    source: "unavailable",
+    evidence: { reason: "gap_not_measured" },
+    measurementLabel: "unavailable",
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -342,6 +356,9 @@ export interface PersistedGapRowLike {
    * 항상 저장값을 채워 4분류가 정확히 복원된다.
    */
   actionTier?: GapActionTier;
+  source?: "naver_serp" | "gpt_grounded" | "manual";
+  collectedAt?: string;
+  competitorName?: string | null;
 }
 
 /**
@@ -357,20 +374,34 @@ export function deriveGapViewFromPersisted(
   options: GapItemOptions = {},
 ): GapViewResult {
   const isPaid = options.isPaid === true;
-  // 내 갭(경쟁사 우위)만 노출 — isMyGap=true. 자기 우위/동률은 갭 아님(selfStrengths 영역).
   const myGaps = rows.filter((r) => r.isMyGap === true);
   const visible = isPaid ? myGaps : myGaps.slice(0, FREE_TOP_N);
   const items: GapItem[] = visible.map((r, idx) => ({
     id: makeUuidV4(),
-    label: r.item, // 이미 사장님 언어(코드값 0).
+    label: r.item,
     competitorHas: r.competitorHas,
     iHave: !r.isMyGap,
-    category: "노출", // 화면 묶음 중립 기본(코드값/점수 0).
-    actionTier: r.actionTier ?? "self_fix", // ★ 영속화 tier 복원(미지정이면 직접건 폴백).
+    category: "노출",
+    actionTier: r.actionTier ?? "self_fix",
     priority: clampRank(idx + 1),
     isPaid: idx >= FREE_TOP_N,
+    source: r.source,
+    collectedAt: r.collectedAt,
+    evidence: {
+      competitorName: r.competitorName ?? null,
+      competitorHas: r.competitorHas,
+    },
+    measurementLabel: "measured",
   }));
-  return { items, intro: buildGapIntro(items.length), isPaid };
+  return {
+    items,
+    intro: buildGapIntro(items.length),
+    isPaid,
+    source: visible[0]?.source,
+    collectedAt: visible[0]?.collectedAt,
+    evidence: items.map((item) => item.evidence),
+    measurementLabel: items.length > 0 ? "measured" : "unavailable",
+  };
 }
 
 // ---------------------------------------------------------------------------

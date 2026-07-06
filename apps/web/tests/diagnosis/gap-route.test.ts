@@ -14,6 +14,15 @@
 // 영속화하지 않으므로(FR-012 §5 영속화 [OPEN], 스키마 수정 금지), route 는 진단 view
 // (완료 여부)만으로 정직 폴백을 산출한다 — 추측 갭 0, 카드 생략 + 응원 인트로. 코드값 노출 0.
 
+vi.mock("next/server", () => ({
+  NextResponse: {
+    json: (body: unknown, init?: ResponseInit) =>
+      new Response(JSON.stringify(body), {
+        status: init?.status ?? 200,
+        headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
+      }),
+  },
+}));
 import { describe, expect, it, vi } from "vitest";
 import type { DiagnosisView } from "../../lib/diagnosis/diagnosis-service.js";
 import type { PlanTier } from "../../lib/diagnosis/plan-tier.js";
@@ -22,12 +31,22 @@ interface GapRowStub {
   item: string;
   competitorHas: boolean;
   isMyGap: boolean;
+  actionTier?: "self_fix" | "snippet" | "vendor" | "ongoing";
+  source?: "naver_serp" | "gpt_grounded" | "manual";
+  collectedAt?: string;
+  competitorName?: string | null;
 }
 
-const state: { view: DiagnosisView | null; tier: PlanTier; gapRows: GapRowStub[] } = {
+const state: {
+  view: DiagnosisView | null;
+  tier: PlanTier;
+  gapRows: GapRowStub[];
+  competitors: Array<{ name: string; source: "naver_serp" | "gpt_grounded" | "manual"; collectedAt: string }>;
+} = {
   view: null,
   tier: "free",
   gapRows: [],
+  competitors: [],
 };
 
 vi.mock("../../lib/diagnosis/diagnosis-repository.js", () => ({
@@ -43,6 +62,7 @@ vi.mock("../../lib/diagnosis/diagnosis-repository.js", () => ({
 vi.mock("../../lib/diagnosis/persistence-repository.js", () => ({
   getDefaultDb: () => ({}),
   getPersistedGapRows: vi.fn(async () => state.gapRows),
+  getPersistedCompetitors: vi.fn(async () => state.competitors),
 }));
 
 // ★ PlanTier 서버 판정 stub — 세션 account.plan 으로만 결정(클라 ?paid=1 무시) 검증용.
@@ -205,17 +225,48 @@ describe("GET /api/gap (P2-R4 / P3-R1)", () => {
     expect(body.data.paywall.lockedCount).toBe(0);
   });
 
+  it("경쟁사는 있지만 실제 competitor report 가 없으면 unavailable metadata 를 반환한다", async () => {
+    state.tier = "free";
+    state.view = completedView();
+    state.gapRows = [];
+    state.competitors = [
+      {
+        name: "옆집카페",
+        source: "naver_serp",
+        collectedAt: "2026-07-06T07:10:00.000Z",
+      },
+    ];
+    const res = await GET(req(`diagnosisId=${VALID_UUID}`));
+    const body = (await res.json()) as {
+      data: {
+        items: unknown[];
+        source?: string;
+        collectedAt?: string;
+        evidence?: { reason?: string; competitors?: Array<{ name: string }> };
+        measurementLabel?: string;
+      };
+    };
+    expect(body.data.items).toEqual([]);
+    expect(body.data.source).toBe("naver_serp");
+    expect(body.data.collectedAt).toBe("2026-07-06T07:10:00.000Z");
+    expect(body.data.measurementLabel).toBe("unavailable");
+    expect(body.data.evidence).toMatchObject({
+      reason: "competitor_reports_unavailable",
+      competitors: [{ name: "옆집카페" }],
+    });
+  });
+
   it("v1 폴백: 원자료 미영속화 → 추측 갭 0(빈 배열) + 응원 인트로(룰코드/인과/전문용어 0)", async () => {
     state.tier = "free";
     state.gapRows = [];
+    state.competitors = [];
     state.view = completedView();
     const res = await GET(req(`diagnosisId=${VALID_UUID}`));
     const body = (await res.json()) as {
-      data: { items: unknown[]; intro: string };
+      data: { items: unknown[]; intro: string; measurementLabel?: string };
     };
-    // 영속화 부재 → GapResult 없음 → 카드 생략(추측 0).
     expect(body.data.items).toEqual([]);
-    // 손실 단정 금지(없을 땐 응원), 룰 코드값/인과/전문용어 0.
+    expect(body.data.measurementLabel).toBe("unavailable");
     expect(body.data.intro).not.toMatch(/뒤처|졌|밀려/);
     expect(body.data.intro).not.toMatch(/1위|매출\s*↑|보장|따라하면|고치면/);
     expect(body.data.intro).not.toMatch(/SERP|grounded|점수|[A-Z]{2,}-[A-Z0-9-]*-?\d{2,}/);
