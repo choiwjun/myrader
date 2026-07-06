@@ -31,7 +31,7 @@ interface GapRowStub {
   item: string;
   competitorHas: boolean;
   isMyGap: boolean;
-  actionTier?: "self_fix" | "snippet" | "vendor" | "ongoing";
+  actionTier: "self_fix" | "snippet" | "vendor" | "ongoing";
   source?: "naver_serp" | "gpt_grounded" | "manual";
   collectedAt?: string;
   competitorName?: string | null;
@@ -183,11 +183,36 @@ describe("GET /api/gap (P2-R4 / P3-R1)", () => {
     state.tier = "free";
     state.view = completedView();
     state.gapRows = [
-      { item: "영업시간이 안 적혀 있어요", competitorHas: true, isMyGap: true },
-      { item: "가게 소개 문구가 없어요", competitorHas: true, isMyGap: true },
-      { item: "자주 묻는 질문 안내가 없어요", competitorHas: true, isMyGap: true },
-      { item: "리뷰 모음 안내가 없어요(잠금)", competitorHas: true, isMyGap: true },
-      { item: "첫 화면이 늦게 떠요(잠금)", competitorHas: true, isMyGap: true },
+      {
+        item: "영업시간이 안 적혀 있어요",
+        competitorHas: true,
+        isMyGap: true,
+        actionTier: "self_fix",
+      },
+      {
+        item: "가게 소개 문구가 없어요",
+        competitorHas: true,
+        isMyGap: true,
+        actionTier: "snippet",
+      },
+      {
+        item: "자주 묻는 질문 안내가 없어요",
+        competitorHas: true,
+        isMyGap: true,
+        actionTier: "snippet",
+      },
+      {
+        item: "리뷰 모음 안내가 없어요(잠금)",
+        competitorHas: true,
+        isMyGap: true,
+        actionTier: "ongoing",
+      },
+      {
+        item: "첫 화면이 늦게 떠요(잠금)",
+        competitorHas: true,
+        isMyGap: true,
+        actionTier: "vendor",
+      },
     ];
     // 클라가 ?paid=1 로 우회 시도해도 free 세션이라 무시.
     const res = await GET(req(`diagnosisId=${VALID_UUID}&paid=1`));
@@ -213,11 +238,31 @@ describe("GET /api/gap (P2-R4 / P3-R1)", () => {
     state.tier = "paid";
     state.view = completedView();
     state.gapRows = [
-      { item: "영업시간이 안 적혀 있어요", competitorHas: true, isMyGap: true },
-      { item: "가게 소개 문구가 없어요", competitorHas: true, isMyGap: true },
-      { item: "자주 묻는 질문 안내가 없어요", competitorHas: true, isMyGap: true },
-      { item: "리뷰 모음 안내가 없어요", competitorHas: true, isMyGap: true },
-      { item: "첫 화면이 늦게 떠요", competitorHas: true, isMyGap: true },
+      {
+        item: "영업시간이 안 적혀 있어요",
+        competitorHas: true,
+        isMyGap: true,
+        actionTier: "self_fix",
+      },
+      {
+        item: "가게 소개 문구가 없어요",
+        competitorHas: true,
+        isMyGap: true,
+        actionTier: "snippet",
+      },
+      {
+        item: "자주 묻는 질문 안내가 없어요",
+        competitorHas: true,
+        isMyGap: true,
+        actionTier: "snippet",
+      },
+      {
+        item: "리뷰 모음 안내가 없어요",
+        competitorHas: true,
+        isMyGap: true,
+        actionTier: "ongoing",
+      },
+      { item: "첫 화면이 늦게 떠요", competitorHas: true, isMyGap: true, actionTier: "vendor" },
     ];
     const res = await GET(req(`diagnosisId=${VALID_UUID}`));
     const body = (await res.json()) as {
@@ -246,7 +291,7 @@ describe("GET /api/gap (P2-R4 / P3-R1)", () => {
         items: unknown[];
         source?: string;
         collectedAt?: string;
-        evidence?: { reason?: string; competitors?: Array<{ name: string }> };
+        evidence?: Array<{ label: string; detail: string }>;
         measurementLabel?: string;
       };
     };
@@ -254,10 +299,12 @@ describe("GET /api/gap (P2-R4 / P3-R1)", () => {
     expect(body.data.source).toBe("naver_serp");
     expect(body.data.collectedAt).toBe("2026-07-06T07:10:00.000Z");
     expect(body.data.measurementLabel).toBe("unavailable");
-    expect(body.data.evidence).toMatchObject({
-      reason: "competitor_reports_unavailable",
-      competitors: [{ name: "옆집카페" }],
+    expect(Array.isArray(body.data.evidence)).toBe(true);
+    expect(body.data.evidence?.[0]).toEqual({
+      label: "출처",
+      detail: "네이버 검색",
     });
+    expect(JSON.stringify(body.data.evidence)).not.toMatch(/competitor_reports_unavailable|reason/);
   });
 
   it("v1 폴백: 원자료 미영속화 → 추측 갭 0(빈 배열) + 응원 인트로(룰코드/인과/전문용어 0)", async () => {

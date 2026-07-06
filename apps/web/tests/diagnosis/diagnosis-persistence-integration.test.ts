@@ -171,7 +171,15 @@ describeDb("진단 영속화 통합 (P2-PERSIST, mock 엔진, docker PG)", () =>
     const created = await repo.create({ businessId });
     diagnosisId = created.id;
 
-    const runPipeline = vi.fn().mockResolvedValue(mockOutput(82));
+    const selfOutput = mockOutput(82);
+    const competitorOutput: DiagnosisPipelineOutput = {
+      ...mockOutput(91),
+      items: selfOutput.items.slice(0, 1),
+    };
+    const runPipeline = vi
+      .fn()
+      .mockResolvedValueOnce(selfOutput)
+      .mockResolvedValueOnce(competitorOutput);
     const handler = buildDiagnosisHandler({ repo, runPipeline, db });
 
     const queue = new DbBackedJobQueue(db);
@@ -196,7 +204,7 @@ describeDb("진단 영속화 통합 (P2-PERSIST, mock 엔진, docker PG)", () =>
     });
     const processed = await queue.drain();
     expect(processed).toBe(1);
-    expect(runPipeline).toHaveBeenCalledTimes(1);
+    expect(runPipeline).toHaveBeenCalledTimes(2);
   });
 
   afterAll(async () => {

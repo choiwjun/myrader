@@ -23,13 +23,30 @@ describe("A0-3: Home feed IA route shell", () => {
   it("AppNav exposes the new primary menu and drops legacy funnel links", () => {
     const src = readSharedFile("AppNav.tsx");
 
-    for (const href of ["/home", "/status", "/rivals", "/write"]) {
+    for (const href of ["/home", "/status", "/rivals", "/write", "/settings"]) {
       expect(src).toContain(`href: "${href}"`);
     }
 
     for (const legacyHref of ["/compare", "/gap", "/actions"]) {
       expect(src).not.toContain(`href: "${legacyHref}"`);
     }
+  });
+  it("AppNav defines mobile bottom nav labels and preserves diagnosisId on carryId routes", () => {
+    const src = readSharedFile("AppNav.tsx");
+
+    for (const label of [
+      'mobileLabel: "홈"',
+      'mobileLabel: "상태"',
+      'mobileLabel: "라이벌"',
+      'mobileLabel: "문안"',
+      'mobileLabel: "설정"',
+    ]) {
+      expect(src).toContain(label);
+    }
+    expect(src).toContain("md:hidden");
+    expect(src).toContain("const hrefParams = new URLSearchParams();");
+    expect(src).toContain('hrefParams.set("diagnosisId", diagnosisId);');
+    expect(src).toContain("return `${s.href}?${hrefParams.toString()}`;");
   });
 
   it("find completion routes the first diagnosis to /home", () => {
@@ -50,8 +67,10 @@ describe("A0-3: Home feed IA route shell", () => {
   it("status continues to the rivals menu instead of the old compare page", () => {
     const status = readAppFile("status/page.tsx");
 
+    expect(status).toContain("const params = new URLSearchParams();");
+    expect(status).toContain('params.set("diagnosisId", diagnosisId);');
     expect(status).toContain(
-      'router.push(diagnosisId ? `/rivals?diagnosisId=${diagnosisId}` : "/rivals")',
+      'router.push(`/rivals${params.toString() ? `?${params.toString()}` : ""}`);',
     );
     expect(status).not.toContain(
       'router.push(diagnosisId ? `/compare?diagnosisId=${diagnosisId}` : "/compare")',

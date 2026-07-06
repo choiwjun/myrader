@@ -22,7 +22,7 @@ import {
 describe("signalToLabel (P1-S0 정직성 가드)", () => {
   it("green → 사장님 언어 한 줄 (전문용어 없음)", () => {
     const result = signalToLabel("green");
-    expect(result.emoji).toBe("🟢");
+    expect(result.emoji).toBe("good");
     expect(result.summary).toBeTruthy();
     // 전문용어 노출 금지
     expect(result.summary).not.toMatch(/SEO|AEO|GEO|snippet|스니펫/i);
@@ -32,7 +32,7 @@ describe("signalToLabel (P1-S0 정직성 가드)", () => {
 
   it("yellow → 사장님 언어 한 줄 (전문용어 없음)", () => {
     const result = signalToLabel("yellow");
-    expect(result.emoji).toBe("🟡");
+    expect(result.emoji).toBe("watch");
     expect(result.summary).toBeTruthy();
     expect(result.summary).not.toMatch(/SEO|AEO|GEO|snippet/i);
     expect(result.summary).not.toMatch(/1위|매출\s*↑/);
@@ -40,16 +40,19 @@ describe("signalToLabel (P1-S0 정직성 가드)", () => {
 
   it("red → 사장님 언어 한 줄 (전문용어 없음)", () => {
     const result = signalToLabel("red");
-    expect(result.emoji).toBe("🔴");
+    expect(result.emoji).toBe("wait");
     expect(result.summary).toBeTruthy();
     expect(result.summary).not.toMatch(/SEO|AEO|GEO|snippet/i);
     expect(result.summary).not.toMatch(/1위|매출\s*↑/);
   });
 
-  it("SIGNAL_EMOJI 맵이 green/yellow/red 모두 포함한다", () => {
-    expect(SIGNAL_EMOJI.green).toBe("🟢");
-    expect(SIGNAL_EMOJI.yellow).toBe("🟡");
-    expect(SIGNAL_EMOJI.red).toBe("🔴");
+  it("SIGNAL_EMOJI 맵이 green/yellow/red 텍스트 토큰으로 포함한다", () => {
+    expect(SIGNAL_EMOJI.green).toBe("good");
+    expect(SIGNAL_EMOJI.yellow).toBe("watch");
+    expect(SIGNAL_EMOJI.red).toBe("wait");
+    for (const value of Object.values(SIGNAL_EMOJI)) {
+      expect(value).not.toMatch(/\p{Emoji_Presentation}/u);
+    }
   });
 });
 
@@ -97,24 +100,25 @@ describe("channelToLabel (P1-S0)", () => {
 describe("actionTierToLabel (P1-S0)", () => {
   it("green_self → 직접 5분 무료 (전문용어 없음)", () => {
     const result = actionTierToLabel("green_self");
-    expect(result.emoji).toBe("🟢");
+    expect(result.emoji).toBe("self");
     expect(result.label).not.toMatch(/SEO|AEO|snippet/i);
   });
 
   it("yellow_copy → 복붙 계열 (전문용어 없음)", () => {
     const result = actionTierToLabel("yellow_copy");
-    expect(result.emoji).toBe("🟡");
+    expect(result.emoji).toBe("copy");
     expect(result.label).not.toMatch(/SEO|snippet/i);
   });
 
-  it("red_vendor → 업체 계열", () => {
+  it("red_vendor → 도움 받기 계열", () => {
     const result = actionTierToLabel("red_vendor");
-    expect(result.emoji).toBe("🔴");
+    expect(result.emoji).toBe("help");
+    expect(result.label).toBe("업체 도움 받기");
   });
 
   it("gray_ongoing → 꾸준히 계열", () => {
     const result = actionTierToLabel("gray_ongoing");
-    expect(result.emoji).toBe("⏳");
+    expect(result.emoji).toBe("ongoing");
   });
 });
 

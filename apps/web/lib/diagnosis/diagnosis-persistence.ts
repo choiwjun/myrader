@@ -24,7 +24,7 @@ import type { DiagnosisPipelineOutput } from "@boina/engine";
  */
 interface LlmValidationSignal {
   grounded: boolean;
-  competitors?: { name: string; mentionedInQueries: number; sampleQuery?: string }[];
+  competitors?: { name: string; mentionedInQueries: number; sampleQuery?: string; url?: string }[];
 }
 
 // DB enum 미러(스키마 pgEnum 값과 1:1 — packages/db 수정 0, insert 값 타입 안전성용).
@@ -216,6 +216,8 @@ export interface NaverCompetitorTop {
   rank: number;
   query: string;
   source: "naver_serp";
+  /** Optional real SERP target URL when the discovery provider measured one. */
+  url?: string;
 }
 
 /**
@@ -228,40 +230,69 @@ export interface NaverCompetitorTop {
  */
 export function mapCompetitors(
   diagnosisId: string,
-  input: { naverCompetitorTop?: NaverCompetitorTop[]; llm?: LlmValidationSignal },
+  input: {
+    naverCompetitorTop?: NaverCompetitorTop[];
+    llm?: LlmValidationSignal;
+    competitorUrls?: string[];
+    competitorReports?: CompetitorReportLike[];
+  },
 ): CompetitorInsert[] {
-  const out: CompetitorInsert[] = [];
+  const out = new Map<string, CompetitorInsert>();
 
-  // naver_serp 실측 — rank 오름차순.
+  const add = (row: CompetitorInsert) => {
+    const key = row.url.trim();
+    if (!key || out.has(key)) return;
+    out.set(key, { ...row, url: key });
+  };
+
+  // naver_serp 실측 — rank 오름차순. 실 URL 이 있으면 보존, 없으면 안정 placeholder.
   const naverTop = [...(input.naverCompetitorTop ?? [])].sort((a, b) => a.rank - b.rank);
   for (const c of naverTop) {
     const name = (c.name ?? "").trim();
     if (!name) continue;
-    out.push({
+    add({
       diagnosisId,
-      url: competitorUrlPlaceholder("naver_serp", name),
+      url: c.url?.trim() || competitorUrlPlaceholder("naver_serp", name),
       name,
       serpRank: c.rank,
       source: "naver_serp",
     });
   }
 
-  // gpt_grounded — grounded=true 일 때만(게이팅).
+  // gpt_grounded — grounded=true 일 때만(게이팅). URL 이 있으면 보존, 없으면 안정 placeholder.
   const grounded = input.llm?.grounded === true;
   const llmComps = grounded ? (input.llm?.competitors ?? []) : [];
   for (const c of llmComps) {
     const name = (c.name ?? "").trim();
     if (!name) continue;
-    out.push({
+    const targetUrl = "url" in c && typeof c.url === "string" ? c.url.trim() : "";
+    add({
       diagnosisId,
-      url: competitorUrlPlaceholder("gpt_grounded", name),
+      url: targetUrl || competitorUrlPlaceholder("gpt_grounded", name),
       name,
       serpRank: null,
       source: "gpt_grounded",
     });
   }
 
-  return out;
+  // manual/explicit URLs — measured naver/gpt rows above win on duplicate URLs.
+  const reportByUrl = new Map(
+    (input.competitorReports ?? []).map((report) => [report.competitorUrl, report]),
+  );
+  for (const rawUrl of input.competitorUrls ?? []) {
+    const url = rawUrl.trim();
+    if (!url) continue;
+    const report = reportByUrl.get(url);
+    add({
+      diagnosisId,
+      url,
+      name: report?.competitorName?.trim() || competitorNameFromUrl(url),
+      serpRank: typeof report?.serpRank === "number" ? report.serpRank : null,
+      source: "manual",
+    });
+  }
+
+  return [...out.values()];
 }
 
 /**
@@ -270,6 +301,14 @@ export function mapCompetitors(
  */
 function competitorUrlPlaceholder(source: CompetitorSource, name: string): string {
   return `${source}:${name}`;
+}
+
+function competitorNameFromUrl(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -301,26 +340,65 @@ export function buildSelfReport(
   };
 }
 
-/**
- * GapAnalyzer 입력 경쟁사 리포트 구성 — 측정된 경쟁사 식별자마다 1건.
- *
- * v1에는 경쟁사별 전체 크롤 리포트가 아직 별도 테이블로 저장되지 않는다. 대신 신뢰 출처
- * (grounded LLM/SERP/dev-sample)로 확인된 경쟁사 식별자에 한해, 내 미통과 항목을 경쟁사가
- * 보유한 것으로 보는 보수 리포트를 만든다. 출처가 없으면 이 함수는 빈 배열을 반환한다.
- */
-export function buildCompetitorReports(
-  competitorUrls: string[],
+interface CompetitorReportCoverage {
+  partialResult: boolean;
+  measuredPageCount: number;
+  measuredSurfaceCount: number;
+}
+
+type CompetitorReportWithCoverage = CompetitorReportLike & {
+  coverage?: CompetitorReportCoverage;
+};
+
+function competitorCoverageFromOutput(output: DiagnosisPipelineOutput): CompetitorReportCoverage {
+  return {
+    partialResult: output.partialResult || output.crawlResult.partialResult,
+    measuredPageCount: output.crawlResult.pages.length,
+    measuredSurfaceCount: output.businessPresence.surfaces.filter(
+      (surface) => surface.status === "fetched",
+    ).length,
+  };
+}
+
+function hasCompetitorReportCoverage(report: CompetitorReportLike): boolean {
+  const coverage = (report as CompetitorReportWithCoverage).coverage;
+  if (!coverage) return true;
+  if (coverage.partialResult) return false;
+  return coverage.measuredPageCount > 0 || coverage.measuredSurfaceCount > 0;
+}
+
+export function buildCompetitorReportFromOutput(
+  competitorUrl: string,
+  output: DiagnosisPipelineOutput,
   selfReport: SelfReportLike,
-): CompetitorReportLike[] {
-  if (competitorUrls.length === 0) return [];
-  return competitorUrls.map((url) => ({
-    competitorUrl: url,
-    diagnosisItems: selfReport.diagnosisItems.map((d) => ({
-      ruleId: d.ruleId,
-      category: d.category,
-      passed: true, // 경쟁사는 통과 가정 → 내 미통과 항목이 경쟁사 우위 갭으로 드러남.
-    })),
-  }));
+  meta: { competitorName?: string; serpRank?: number } = {},
+): CompetitorReportLike {
+  const failedRuleIds = new Set(output.items.map((item) => item.code));
+  const coverage = competitorCoverageFromOutput(output);
+  const hasCoverage =
+    !coverage.partialResult &&
+    (coverage.measuredPageCount > 0 || coverage.measuredSurfaceCount > 0);
+  const report: CompetitorReportWithCoverage = {
+    competitorUrl,
+    diagnosisItems: hasCoverage
+      ? selfReport.diagnosisItems.map((item) => ({
+          ruleId: item.ruleId,
+          category: item.category,
+          passed: !failedRuleIds.has(item.ruleId),
+        }))
+      : [],
+    coverage,
+  };
+  if (hasCoverage) {
+    report.seoScore = output.scores.seoScore;
+    report.aeoScore = output.scores.aeoScore;
+    report.geoScore = output.scores.geoScore;
+    if (typeof output.scores.perfScore === "number") report.perfScore = output.scores.perfScore;
+    report.overallScore = output.scores.overallScore;
+  }
+  if (meta.competitorName) report.competitorName = meta.competitorName;
+  if (typeof meta.serpRank === "number") report.serpRank = meta.serpRank;
+  return report;
 }
 
 /** gap_rows insert 값 — competitor_id 는 repository 가 채운다(여기선 행 내용만). */
@@ -480,7 +558,7 @@ export interface BuildPersistenceInput {
   output: DiagnosisPipelineOutput;
   /** GapAnalyzer 리포트 구성에 쓸 측정 경쟁사 식별자. 비면 gap_rows/actions 는 비운다. */
   competitorUrls: string[];
-  /** 저장된/주입된 경쟁사 리포트. 없으면 측정 경쟁사 식별자에서 v1 보수 리포트를 구성한다. */
+  /** 저장된/주입된 경쟁사 리포트. 없으면 gap_rows/actions 는 비우고 measured-unavailable 로 읽는다. */
   competitorReports?: CompetitorReportLike[];
   /** 잡 핸들러가 주입한 실 GapAnalyzer(@boina/engine/v2/gap) 또는 테스트 mock. */
   analyzer: GapAnalyzerPort;
@@ -504,8 +582,8 @@ export interface PersistencePlan {
  * 파이프라인 산출 → 04 §4 5종 테이블 insert 값 묶음(순수 매퍼 — DB 접근 0).
  *
  * 일관 기록(04 §4): 한 진단의 engine_result·competitor·gap_row·snippet·action 을 함께 산출한다.
- * 경쟁사 갭은 저장/주입된 competitorReports 를 우선 사용하고, 없으면 측정 경쟁사 식별자에서
- * v1 보수 리포트를 구성한다. 식별자도 없으면 gap_rows/actions 는 비운다.
+ * 경쟁사 갭은 저장/주입된 competitorReports 가 있을 때만 계산한다. 리포트가 없으면
+ * gap_rows/actions 는 비워 읽기 경로가 measured-unavailable 상태를 정직하게 노출한다.
  */
 export function buildPersistencePlan(input: BuildPersistenceInput): PersistencePlan {
   const { diagnosisId, reportId, websiteUrl, output } = input;
@@ -515,13 +593,14 @@ export function buildPersistencePlan(input: BuildPersistenceInput): PersistenceP
     ...mapMeasurementEngineResults(diagnosisId, output),
   ];
   const competitors = mapCompetitors(diagnosisId, {
+    competitorUrls: input.competitorUrls,
+    competitorReports: input.competitorReports,
     naverCompetitorTop: input.naverCompetitorTop,
     llm: output.llmValidation,
   });
 
   const selfReport = buildSelfReport(reportId, websiteUrl, output.items);
-  const competitorReports =
-    input.competitorReports ?? buildCompetitorReports(input.competitorUrls, selfReport);
+  const competitorReports = (input.competitorReports ?? []).filter(hasCompetitorReportCoverage);
   let gapRows: GapRowInsert[] = [];
   let gapItems: GapItem[] = [];
   if (input.competitorUrls.length > 0 && competitorReports.length > 0) {

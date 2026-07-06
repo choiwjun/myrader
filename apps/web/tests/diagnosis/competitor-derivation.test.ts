@@ -76,6 +76,19 @@ describe("hasRealCompetitorSignal", () => {
     expect(hasRealCompetitorSignal(o)).toBe(true);
   });
 
+  it("grounded=true 이라도 이름이 공백뿐이면 false", () => {
+    const o = baseOutput();
+    o.llmValidation = {
+      provider: "x",
+      grounded: true,
+      disclaimer: "d",
+      geo: null,
+      aeo: null,
+      competitors: [{ name: "   ", mentionedInQueries: 2, source: "gpt_grounded" }],
+    };
+    expect(hasRealCompetitorSignal(o)).toBe(false);
+  });
+
   it("grounded=false 면 false(학습기억 모드는 근거 아님)", () => {
     const o = baseOutput();
     o.llmValidation = {
@@ -170,5 +183,53 @@ describe("deriveCompetitorInput", () => {
     expect(derived.competitorUrls).toContain("gpt_grounded:진짜경쟁사");
     // grounded 신호가 있으면 SERP 발견을 시도하지 않는다(불필요한 외부 호출 0).
     expect(serpCalled).toBe(false);
+  });
+  it("production + grounded 경쟁사 URL 근거가 있으면 diagnosable URL 을 보존한다", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const o = baseOutput();
+    o.llmValidation = {
+      provider: "x",
+      grounded: true,
+      disclaimer: "d",
+      geo: null,
+      aeo: null,
+      competitors: [
+        {
+          name: "URL있는경쟁사",
+          mentionedInQueries: 1,
+          source: "gpt_grounded",
+          url: "https://rival.example",
+        } as never,
+      ],
+    };
+
+    const derived = await deriveCompetitorInput(o, PROFILE, {
+      discoverSerp: async () => {
+        throw new Error("SERP should not be called for grounded URL evidence");
+      },
+    });
+
+    expect(derived.hasNoCompetitorData).toBe(false);
+    expect(derived.competitorUrls).toEqual(["https://rival.example"]);
+  });
+
+  it("production + grounded 경쟁사 이름이 공백뿐이면 실 신호로 보지 않고 fail-fast 후보가 된다", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const o = baseOutput();
+    o.llmValidation = {
+      provider: "x",
+      grounded: true,
+      disclaimer: "d",
+      geo: null,
+      aeo: null,
+      competitors: [{ name: "   ", mentionedInQueries: 1, source: "gpt_grounded" }],
+    };
+
+    const derived = await deriveCompetitorInput(o, PROFILE, {
+      discoverSerp: async () => [],
+    });
+
+    expect(derived.hasNoCompetitorData).toBe(true);
+    expect(derived.competitorUrls).toEqual([]);
   });
 });

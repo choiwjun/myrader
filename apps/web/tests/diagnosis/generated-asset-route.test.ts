@@ -229,7 +229,7 @@ describe("GET /api/generated-asset (P2-R6 / P3-R1)", () => {
     expect(body.data.paywall.lockedCount).toBe(1);
   });
 
-  it("actionId와 keyword가 있으면 생성물에 근거와 sourceKeywords를 붙인다", async () => {
+  it("actionId가 있으면 저장된 gap 근거만 붙이고 caller keyword는 근거로 쓰지 않는다", async () => {
     state.tier = "paid";
     state.view = completedView();
     state.assets = [
@@ -261,11 +261,35 @@ describe("GET /api/generated-asset (P2-R6 / P3-R1)", () => {
         }>;
       };
     };
-    expect(body.data.assets[0]?.sourceKeywords).toEqual(["마포 한식"]);
+    expect(body.data.assets[0]?.sourceKeywords).toBeUndefined();
     expect(body.data.assets[0]?.evidence?.[0]).toEqual({
-      label: "연결된 할 일",
+      label: "확인한 할 일",
       detail: "가게 소개 문구가 부족해요",
     });
+    expect(body.data.assets[0]?.evidence?.[1]).toEqual({
+      label: "옆집 확인 내용",
+      detail: "옆집가게 보유",
+    });
+    expect(body.data.assets[0]?.evidence?.map((item) => item.label)).not.toContain("evidence");
+    expect(body.data.assets[0]?.evidence?.map((item) => item.label)).not.toContain(
+      "sourceKeywords",
+    );
+  });
+
+  it("stale actionId linkage fails closed instead of returning empty evidence", async () => {
+    state.tier = "paid";
+    state.view = completedView();
+    state.assets = [
+      { type: "LOCAL_BUSINESS", code: "우리 가게는 마포의 한식당이에요. 편하게 들러 주세요." },
+    ];
+    state.gapRows = [];
+
+    const res = await GET(req(`diagnosisId=${VALID_UUID}&type=place_intro&actionId=missing-gap`));
+    const body = (await res.json()) as { success: boolean; code?: string };
+
+    expect(res.status).toBe(404);
+    expect(body.success).toBe(false);
+    expect(body.code).toBe("ACTION_NOT_FOUND");
   });
 
   it("v1 폴백: 원자료 미영속화 → 추측 생성물 0(빈 배열) + 응원 인트로(인과·중개 0)", async () => {

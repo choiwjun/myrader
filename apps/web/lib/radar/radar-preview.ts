@@ -17,6 +17,7 @@ export interface RadarPreviewRow {
   readonly status: RadarPreviewStatus;
   readonly locked: boolean;
   readonly actionHref?: string;
+  readonly scanId?: string | null;
 }
 
 export interface RadarHomePreview {
@@ -34,6 +35,7 @@ export type UnsubscribedRadarPreview = RadarHomePreview;
 
 export interface SubscribedRadarKeyword {
   readonly id: string;
+  readonly scanId?: string | null;
   readonly text: string;
   readonly verdict: string;
   readonly naverEvidence: {
@@ -89,24 +91,33 @@ export async function buildUnsubscribedRadarPreview(
 
   try {
     const expanded = await expand(seed, { limit: 3 });
-    const rows = expanded.keywords.slice(0, 3).map((keyword, index): RadarPreviewRow => {
-      const fallback = EXAMPLE_ROWS[index] ?? FIRST_EXAMPLE_ROW;
-      return {
-        text: keyword.text || fallback.text,
-        reason: REASONS[index] ?? REASONS[0],
-        status: index === 2 ? "mid" : "good",
-        locked: index > 0,
-      };
-    });
+    if (expanded.status === "fallback") return examplePreview();
+
+    const rows = expanded.keywords
+      .filter((keyword) => !keyword.fallback)
+      .map((keyword, index): RadarPreviewRow | null => {
+        const text = keyword.text.trim();
+        if (!text) return null;
+        return {
+          text,
+          reason: REASONS[index] ?? REASONS[0],
+          status: index === 2 ? "mid" : "good",
+          locked: index > 0,
+        };
+      })
+      .filter((row): row is RadarPreviewRow => row !== null)
+      .slice(0, 3);
+
+    if (rows.length === 0) return examplePreview();
 
     return {
       mode: "unsubscribed",
       source: "measured",
       fallbackLabel: null,
-      rows: completeRows(rows),
+      rows,
       ctaLabel: CTA_LABEL,
       priceLine: PRICE_LINE,
-      caption: PRICE_LINE,
+      caption: rows.length >= 3 ? PRICE_LINE : "실제 검색어가 모인 만큼만 먼저 보여드려요.",
       sheetEnabled: true,
     };
   } catch {
@@ -128,6 +139,7 @@ export function buildSubscribedRadarPreview(
     if (options.diagnosisId) params.set("diagnosisId", options.diagnosisId);
     return {
       id: keyword.id,
+      scanId: keyword.scanId ?? null,
       text: keyword.text,
       reason: reasonForKeyword(keyword),
       status: statusForVerdict(keyword.verdict),
@@ -192,11 +204,6 @@ function seedForBusiness(business: RadarPreviewBusiness): string {
     .map((value) => value?.trim() ?? "")
     .filter(Boolean)
     .join(" ");
-}
-
-function completeRows(rows: readonly RadarPreviewRow[]): readonly RadarPreviewRow[] {
-  if (rows.length >= 3) return rows;
-  return [...rows, ...EXAMPLE_ROWS.slice(rows.length)].slice(0, 3);
 }
 
 function examplePreview(): UnsubscribedRadarPreview {

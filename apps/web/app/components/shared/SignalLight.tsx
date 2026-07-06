@@ -27,14 +27,14 @@ export interface SignalLightProps {
 /**
  * 신호등 컴포넌트.
  *
- * Signal enum → 이모지 + 사장님 언어 한 줄.
+ * Signal enum → 색 점 + 사장님 언어 한 줄.
  * 점수 숫자는 표시하지 않는다.
  */
 export function SignalLight({ signal, channelName }: SignalLightProps) {
   const label = signalToLabel(signal);
 
   const dotColor =
-    signal === "green" ? "bg-green-500" : signal === "yellow" ? "bg-yellow-400" : "bg-red-500";
+    signal === "green" ? "bg-[#10B981]" : signal === "yellow" ? "bg-[#F59E0B]" : "bg-[#94A3B8]";
 
   return (
     <div
@@ -52,10 +52,8 @@ export function SignalLight({ signal, channelName }: SignalLightProps) {
         {channelName ? (
           <p className="text-base font-bold text-gray-900 leading-tight">{channelName}</p>
         ) : null}
-        {/* 이모지 + 사장님 언어 한 줄 */}
-        <p className="text-sm font-medium text-gray-600 mt-0.5 leading-snug">
-          {label.emoji} {label.summary}
-        </p>
+        {/* 사장님 언어 한 줄 */}
+        <p className="text-sm font-medium text-gray-600 mt-0.5 leading-snug">{label.summary}</p>
       </div>
     </div>
   );

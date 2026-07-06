@@ -9,14 +9,14 @@ import {
 } from "../../lib/radar/radar-preview.js";
 
 describe("buildUnsubscribedRadarPreview", () => {
-  it("builds one measured preview keyword and blurred teasers from business context", async () => {
+  it("uses honest example rows when keyword expansion only has fallback candidates", async () => {
     const preview = await buildUnsubscribedRadarPreview({
       businessName: "비건빵집",
       region: "성수동",
       category: "베이커리",
     });
 
-    expect(preview.source).toBe("measured");
+    expect(preview.source).toBe("example");
     expect(preview.rows).toHaveLength(3);
     expect(preview.rows[0]).toMatchObject({
       locked: false,
@@ -26,7 +26,7 @@ describe("buildUnsubscribedRadarPreview", () => {
     expect(preview.rows.slice(1).every((row) => row.locked)).toBe(true);
     expect(preview.ctaLabel).toBe("매주 검색어 받아보기");
     expect(preview.priceLine).toBe("결제 없이 홈에서 먼저 받아볼 수 있어요");
-    expect(preview.fallbackLabel).toBeNull();
+    expect(preview.fallbackLabel).toBe("예시 미리보기");
   });
 
   it("uses an honest example label when business context is missing", async () => {

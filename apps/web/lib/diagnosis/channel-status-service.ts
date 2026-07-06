@@ -25,10 +25,12 @@ import type { HealthBand } from "@boina/contracts/enums";
 import type { Channel, Signal } from "../shared/ui-labels.js";
 import {
   BUSINESS_PRESENCE_MEASUREMENT_CODE,
+  type EvidenceItem,
   LLM_VALIDATION_MEASUREMENT_CODE,
   type MeasurementLabel,
   getBusinessPresenceMeasurement,
   getLlmValidationMeasurement,
+  normalizeEvidenceItems,
   pickLatestTimestamp,
 } from "./measurement.js";
 
@@ -47,12 +49,12 @@ export interface ChannelStatus {
   found?: boolean;
   /** 맛보기·게이팅 등 부가 안내 (선택). */
   note?: string;
-  /** evidence sheet 용 출처 라벨(정직 표기). */
+  /** 근거 보기용 출처 라벨(정직 표기). */
   source?: string;
-  /** evidence sheet 용 수집 시각(ISO 8601). */
+  /** 근거 보기용 수집 시각(ISO 8601). */
   collectedAt?: string;
-  /** evidence sheet 용 원근거(raw/structured). */
-  evidence?: unknown;
+  /** 근거 보기용 정규화 근거 행. */
+  evidence?: EvidenceItem[];
   /** measured | estimated | unavailable */
   measurementLabel?: MeasurementLabel;
 }
@@ -410,7 +412,7 @@ function notMeasuredChannel(channel: Channel): ChannelStatus {
     note: "진단이 끝나면 채널별로 더 정확히 알려드릴게요.",
     source: "unavailable",
     measurementLabel: "unavailable",
-    evidence: { reason: "not_measured" },
+    evidence: normalizeEvidenceItems({ reason: "not_measured" }),
   };
 }
 
@@ -421,6 +423,39 @@ function gapDensityToSignal(rows: PersistedEngineResultLike[]): Signal {
   if (high === 0) return rows.length <= 2 ? "green" : "yellow";
   if (high <= 2) return "yellow";
   return "red";
+}
+
+function naverPersistedSignal(
+  rows: PersistedEngineResultLike[],
+  measurement: ReturnType<typeof getBusinessPresenceMeasurement>,
+): Signal {
+  const signal = gapDensityToSignal(rows);
+  if (signal !== "green" || rows.length > 0) return signal;
+  if (measurement?.measurementLabel === "measured" && measurement.found === true) return "green";
+  return measurement?.found === false ? "red" : "yellow";
+}
+
+function evidenceMeasurementLabel(row: PersistedEngineResultLike): MeasurementLabel | null {
+  const evidence = row.evidence;
+  if (!evidence || typeof evidence !== "object") return null;
+  const label = (evidence as Record<string, unknown>).measurementLabel;
+  return label === "measured" || label === "estimated" || label === "unavailable" ? label : null;
+}
+
+function persistedReadinessSignal(rows: PersistedEngineResultLike[]): Signal {
+  if (rows.length === 0) return "yellow";
+  const signal = gapDensityToSignal(rows);
+  if (signal === "green" && rows.some((row) => evidenceMeasurementLabel(row) === "unavailable")) {
+    return "yellow";
+  }
+  return signal;
+}
+
+function persistedReadinessMeasurementLabel(rows: PersistedEngineResultLike[]): MeasurementLabel {
+  if (rows.length === 0) return "unavailable";
+  return rows.some((row) => evidenceMeasurementLabel(row) === "unavailable")
+    ? "unavailable"
+    : "estimated";
 }
 
 export function deriveChannelStatusesFromPersisted(
@@ -446,8 +481,8 @@ export function deriveChannelStatusesFromPersisted(
   const businessPresence = getBusinessPresenceMeasurement(measurementRows);
   const llmValidation = getLlmValidationMeasurement(measurementRows);
 
-  const naverSignal = gapDensityToSignal(naverRows);
-  const googleSignal = gapDensityToSignal(googleRows);
+  const naverSignal = naverPersistedSignal(naverRows, businessPresence);
+  const googleSignal = persistedReadinessSignal(googleRows);
   const aiRaw = gapDensityToSignal(aiRows);
   const aiSignal: Signal = aiRaw === "green" ? "yellow" : aiRaw;
 
@@ -461,9 +496,10 @@ export function deriveChannelStatusesFromPersisted(
       collectedAt:
         businessPresence?.collectedAt ??
         pickLatestTimestamp(naverRows.map((row) => row.collectedAt)),
-      evidence:
-        businessPresence?.payload ??
-        naverRows.map((row) => row.evidence).filter((evidence) => evidence !== null),
+      evidence: normalizeEvidenceItems(
+        businessPresence?.evidence ??
+          naverRows.map((row) => row.evidence).filter((evidence) => evidence !== null),
+      ),
       measurementLabel:
         businessPresence?.measurementLabel ?? (naverRows.length > 0 ? "estimated" : "unavailable"),
       ...(businessPresence
@@ -477,15 +513,17 @@ export function deriveChannelStatusesFromPersisted(
       note: GOOGLE_PREVIEW_NOTE,
       source: googleRows.length > 0 ? "engine_results" : "unavailable",
       collectedAt: pickLatestTimestamp(googleRows.map((row) => row.collectedAt)),
-      evidence: googleRows.map((row) => row.evidence).filter((evidence) => evidence !== null),
-      measurementLabel: googleRows.length > 0 ? "estimated" : "unavailable",
+      evidence: normalizeEvidenceItems(
+        googleRows.map((row) => row.evidence).filter((evidence) => evidence !== null),
+      ),
+      measurementLabel: persistedReadinessMeasurementLabel(googleRows),
     },
     llmValidation
       ? {
           ...deriveAiChannelStatus(llmValidation.payload),
           source: llmValidation.source,
           collectedAt: llmValidation.collectedAt,
-          evidence: llmValidation.payload,
+          evidence: normalizeEvidenceItems(llmValidation.evidence),
           measurementLabel: llmValidation.measurementLabel,
         }
       : {
@@ -496,7 +534,9 @@ export function deriveChannelStatusesFromPersisted(
           note: "AI 실인용 측정이 없어 준비도 기준으로만 보여드려요.",
           source: aiRows.length > 0 ? "engine_results" : "unavailable",
           collectedAt: pickLatestTimestamp(aiRows.map((row) => row.collectedAt)),
-          evidence: aiRows.map((row) => row.evidence).filter((evidence) => evidence !== null),
+          evidence: normalizeEvidenceItems(
+            aiRows.map((row) => row.evidence).filter((evidence) => evidence !== null),
+          ),
           measurementLabel: aiRows.length > 0 ? "estimated" : "unavailable",
         },
   ];

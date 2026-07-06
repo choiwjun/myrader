@@ -24,19 +24,29 @@ import { type CostGate, type CostGateContext, defaultCostGate } from "@boina/job
 import { isMockFallbackAllowed } from "../shared/runtime-env.js";
 import {
   type CompetitorBusinessProfile,
+  type DerivedCompetitorInput,
   type SerpCompetitorDiscoverer,
   deriveCompetitorInput,
 } from "./competitor-derivation.js";
 import { mapCrawlFailureToReason } from "./crawl-failure.js";
 import type { DiagnosisJobPayload } from "./job-payload.js";
 export type { DiagnosisJobPayload } from "./job-payload.js";
-import { buildPersistencePlan } from "./diagnosis-persistence.js";
+import {
+  buildCompetitorReportFromOutput,
+  buildPersistencePlan,
+  buildSelfReport,
+} from "./diagnosis-persistence.js";
 import {
   type DiagnosisRepository,
   markDiagnosisFailed,
   reflectDiagnosisResult,
 } from "./diagnosis-service.js";
-import type { GapAnalyzerPort, GapInputLike, GapResultLike } from "./gap-service.js";
+import type {
+  CompetitorReportLike,
+  GapAnalyzerPort,
+  GapInputLike,
+  GapResultLike,
+} from "./gap-service.js";
 import { MockGapAnalyzer, buildMockAssetFaqs, buildMockDiagnosisOutput } from "./mock-pipeline.js";
 import { persistDiagnosisArtifacts } from "./persistence-repository.js";
 import { DEFAULT_DIAGNOSIS_TIMEOUT_MS, withTimeout } from "./with-timeout.js";
@@ -191,6 +201,87 @@ function buildSummaryText(output: DiagnosisPipelineOutput): string {
   return `개선할 항목 ${issueCount}개를 찾았어요.`;
 }
 
+function isHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function competitorNameFromTarget(target: string): string {
+  try {
+    return new URL(target).hostname;
+  } catch {
+    return target;
+  }
+}
+
+function hasCompetitorCoverage(output: DiagnosisPipelineOutput): boolean {
+  if (output.partialResult || output.crawlResult.partialResult) return false;
+  if (output.crawlResult.pages.length > 0) return true;
+  return output.businessPresence.surfaces.some((surface) => surface.status === "fetched");
+}
+
+async function buildCompetitorReportsFromDiagnostics(
+  runPipeline: RunDiagnosisPipeline,
+  payload: DiagnosisJobPayload,
+  output: DiagnosisPipelineOutput,
+  competitorUrls: string[],
+  derived: DerivedCompetitorInput,
+): Promise<CompetitorReportLike[]> {
+  const selfReport = buildSelfReport(payload.diagnosisId, payload.target, output.items);
+  const metaByTarget = new Map<string, { competitorName?: string; serpRank?: number }>();
+
+  for (const c of derived.naverCompetitorTop) {
+    const target = c.url?.trim() || `naver_serp:${c.name}`;
+    metaByTarget.set(target, { competitorName: c.name, serpRank: c.rank });
+  }
+  if (output.llmValidation?.grounded === true) {
+    for (const c of output.llmValidation.competitors ?? []) {
+      const name = c.name.trim();
+      if (!name) continue;
+      const targetUrl = "url" in c && typeof c.url === "string" ? c.url.trim() : "";
+      const target = targetUrl || `gpt_grounded:${name}`;
+      metaByTarget.set(target, { competitorName: name });
+    }
+  }
+
+  const reports: CompetitorReportLike[] = [];
+  const seen = new Set<string>();
+  for (const target of competitorUrls) {
+    if (seen.has(target)) continue;
+    seen.add(target);
+
+    const canDiagnose = isHttpUrl(target) || isMockFallbackAllowed();
+    if (!canDiagnose) continue;
+
+    const meta = metaByTarget.get(target) ?? {
+      competitorName: isHttpUrl(target) ? competitorNameFromTarget(target) : undefined,
+    };
+    try {
+      const competitorOutput = await runPipeline({
+        startUrl: target,
+        sourceType: isHttpUrl(target) ? "website" : (payload.sourceType ?? "website"),
+        businessProfile: {
+          ...payload.businessProfile,
+          businessName: meta.competitorName ?? payload.businessProfile.businessName,
+        },
+        modules: payload.modules,
+        scoringMode: "graded",
+        enableAiRecommendation: false,
+        enableLlmValidation: false,
+      });
+      if (!hasCompetitorCoverage(competitorOutput)) continue;
+      reports.push(buildCompetitorReportFromOutput(target, competitorOutput, selfReport, meta));
+    } catch {
+      // 경쟁사 개별 진단 실패는 전체 진단을 깨지 않는다. 해당 경쟁사 갭만 정직하게 생략한다.
+    }
+  }
+  return reports;
+}
+
 /**
  * 진단 산출(DiagnosisPipelineOutput)을 04 §4 5종 테이블에 영속화한다(매퍼 → repository).
  *
@@ -223,7 +314,10 @@ async function persistArtifacts(
     selfUrl: payload.target,
     discoverSerp: deps.discoverSerp,
   });
-  if (derived.hasNoCompetitorData) {
+  if (
+    derived.hasNoCompetitorData &&
+    (!payload.competitorUrls || payload.competitorUrls.length === 0)
+  ) {
     // production 에서 신뢰 경쟁사 0(SERP 미구성/발견 0) → 가짜 데이터 노출 대신 fail-fast.
     throw new NoCompetitorDataInProductionError();
   }
@@ -233,6 +327,13 @@ async function persistArtifacts(
     payload.competitorUrls && payload.competitorUrls.length > 0
       ? payload.competitorUrls
       : derived.competitorUrls;
+  const competitorReports = await buildCompetitorReportsFromDiagnostics(
+    deps.runPipeline ?? defaultRunPipeline,
+    payload,
+    output,
+    competitorUrls,
+    derived,
+  );
 
   const plan = buildPersistencePlan({
     diagnosisId: payload.diagnosisId,
@@ -242,6 +343,7 @@ async function persistArtifacts(
     competitorUrls,
     // naver_serp 실측/샘플 경쟁사 → competitors 테이블(gpt_grounded 는 매퍼가 output.llmValidation 에서 별도 추출).
     naverCompetitorTop: derived.naverCompetitorTop,
+    competitorReports,
     analyzer,
     assetInput: {
       businessName: bp.businessName,

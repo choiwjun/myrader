@@ -336,7 +336,7 @@ function RivalsPageInner() {
         <div className="mb-4">
           <p className="text-[14px] font-bold text-[var(--boina-ink-3)]">비교 근거</p>
           <h2 className="mt-1 text-[22px] font-extrabold leading-[30px] text-[var(--boina-ink)]">
-            evidence sheet
+            확인한 비교 근거
           </h2>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
@@ -395,8 +395,7 @@ function RivalsPageInner() {
                   </ul>
                 ) : (
                   <p className="mt-2 text-[12px] leading-[18px] text-[#64748B]">
-                    measured/unavailable/estimated 라벨과 함께 원본 근거가 쌓이면 여기에서
-                    보여드릴게요.
+                    확인한 자료가 더 쌓이면 여기에서 보여드릴게요.
                   </p>
                 )}
               </div>

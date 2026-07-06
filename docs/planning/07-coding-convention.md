@@ -9,7 +9,7 @@
 | 항목 | 규칙 |
 |------|------|
 | 프레임워크 | Next.js (App Router) 단일 풀스택. 페이지 + Route Handler / Server Action |
-| 언어 | TypeScript strict. 엔진 경계 타입은 x-sag `packages/contracts`에서 가져옴 |
+| 언어 | TypeScript strict. 엔진 경계 타입은 현재 모노레포 workspace 패키지 `packages/contracts`에서 가져옴 |
 | 데이터 | Postgres + Drizzle (x-sag 재사용 가능) |
 | 비동기 | 느린 분석은 동기 처리 금지 → 백그라운드 잡(02-trd, 인프라 OQ-5) |
 | 명명 | 리소스/엔티티 명명은 04-database-design 개념 모델과 1:1 |
@@ -20,7 +20,7 @@
 |------|------|
 | 경계 고정 | 엔진과의 모든 입출력은 `packages/contracts` 타입을 통해서만. 앱 코드가 엔진 내부 구현에 직접 의존 금지 |
 | 재사용 범위 | core-engine(크롤·파서·analyzers·scoring·v2 gap/competitor/serp/geo-validator/nlp), contracts, naver-presence, llm-provider, snippet |
-| 재사용 방식 | **[OPEN] OQ-6** — 패키지 그대로 import vs 추출/복사. 결정 전까지 import 전제로 코드 작성, 결정 후 본 절에 명문화 |
+| 재사용 방식 | **OQ-6 해소(현재 SME v1)** — `packages/*`는 private workspace-only TS 소스 패키지로 import한다. GitHub Packages 발행은 dist build·package exports·버전 태그·release workflow가 의도적으로 추가된 뒤 별도 결정으로 유예한다 |
 | 비용 게이팅 | grounded llmValidation·SERP 호출은 게이팅 함수를 거쳐야 함(무분별 호출 금지, 02-trd) |
 | 점수 처리 | 엔진이 반환한 점수는 내부 저장만. **UI로 전달하는 레이어에서 신호등으로 변환 강제**(05·다음 4절) |
 
@@ -66,7 +66,7 @@
 | 데이터 계약 단일 진실 | 데이터 계약은 `packages/contracts` 단일 진실. 변경은 **additive optional만**(파괴적 변경·스키마 major 금지) |
 | 레지스트리화 | 진단 룰·행동타입(`ActionType`)·생성물타입(`AssetType`)은 레지스트리(데이터/핸들러 등록)로. `switch` 하드코딩 금지 |
 | feature flag 게이팅 | 신규 기능은 feature flag로 게이팅(다크 출시) |
-| 페이월/가격 config화 | 페이월·가격·무료/유료 경계는 config 모듈. **화면 컴포넌트에 금액·경계 하드코딩 금지** |
+| 페이월/가격 config화 | 페이월·가격·무료/유료 경계는 config 모듈. **화면 컴포넌트에 금액·경계 하드코딩 금지**. 현재 제외된 "구독"은 Toss/Kakao/SMS/유료 과금이며, Radar `radar_subscriptions`는 무료 `trialing/active` 스캔 예약 리소스라 현재 범위에 포함 |
 | 카피 중앙 사전 | 카피는 중앙 사전(i18n식)에서 관리. 화면에 카피 산재 금지. 전문용어 0·인과 금지 규율(4절) 유지 |
 | 잡·스토리지 추상화 | 잡 큐·스토리지는 인터페이스 뒤로 추상화(OQ-5 흡수, 인프라 교체 가능) |
 | API 버저닝 | API는 `/v1` 버저닝, 응답은 additive(미래 B2B/연동·웹훅 대비) |
@@ -80,7 +80,7 @@
 
 - **Upstream docs**: 02-trd.md(아키텍처·엔진 재사용·잡 + 확장성 아키텍처 원칙 6절), 04-database-design.md(모델·UUID), 05-design-system.md(카피 가드)
 - **Downstream docs**: 구현 단계(tasks-generator → 구현 스킬), code-review·trinity 품질 게이트
-- **Open questions**: OQ-6(엔진 재사용 방식 import vs 추출), OQ-5(잡 인프라 → 비동기 패턴 확정), OQ-4(구글 SERP 키 → 게이팅 함수 구현)
-- **Assumptions**: x-sag contracts 타입을 그대로 사용 / 헌법(.claude/constitutions) 5종이 본 스택에 적용 가능 / Tailwind v4 사용
+- **Open questions**: OQ-5(잡 인프라 → 비동기 패턴 확정), OQ-4(구글 SERP 키 → 게이팅 함수 구현). OQ-6은 현재 SME v1 기준 workspace-only 패키지 import로 해소됨(외부 발행 유예).
+- **Assumptions**: x-sag contracts 타입을 현재 모노레포 workspace 패키지로 사용 / 헌법(.claude/constitutions) 5종이 본 스택에 적용 가능 / Tailwind v4 사용
 - **Validation criteria**: 점수가 UI에 직접 노출되는 경로 0건 / 인과·전문용어 카피 0건(린트/리뷰) / 대행연결 코드 0건 / 헌법 위반 0건 / **서비스·UI의 외부 API 직접 호출 0건(전부 어댑터 경유) / contracts 파괴적 변경 0건(additive only) / 룰·타입 switch 하드코딩 0건(전부 레지스트리)**(6절)
-- **Risks**: 엔진 결합 강도(OQ-6) 미정으로 경계 누수 / 카피 가드를 코드로 강제하기 어려움(휴먼 리뷰 의존) / 헌법과 x-sag 관행 충돌
+- **Risks**: workspace-only 엔진 경계가 앱 내부로 새는 위험 / 카피 가드를 코드로 강제하기 어려움(휴먼 리뷰 의존) / 헌법과 x-sag 관행 충돌

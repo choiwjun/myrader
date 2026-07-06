@@ -109,28 +109,8 @@ function buildWriteHref(
   return `/write${qs ? `?${qs}` : ""}`;
 }
 
-function recommendedAssetKeywords(asset: GeneratedAsset, keyword: string | null) {
-  if (asset.sourceKeywords && asset.sourceKeywords.length > 0) return asset.sourceKeywords;
-  return keyword ? [keyword] : [];
-}
-
-function fallbackAssetEvidence(
-  asset: GeneratedAsset,
-  selectedAction: ActionItem | null,
-): EvidenceItem[] {
-  const typeLabel = assetTypeToLabel(asset.type);
-  return [
-    {
-      label: "근거",
-      detail: selectedAction
-        ? `${selectedAction.title}에 맞춰 ${typeLabel.label} 초안을 준비했어요.`
-        : "진단 결과를 바탕으로 바로 쓸 초안을 준비했어요.",
-    },
-    {
-      label: "출처",
-      detail: typeLabel.description,
-    },
-  ];
+function recommendedAssetKeywords(asset: GeneratedAsset) {
+  return asset.sourceKeywords ?? [];
 }
 
 function WritePageInner() {
@@ -168,7 +148,6 @@ function WritePageInner() {
         assetUrl.searchParams.set("diagnosisId", diagnosisId ?? "");
         if (focusType) assetUrl.searchParams.set("type", focusType);
         if (actionId) assetUrl.searchParams.set("actionId", actionId);
-        if (keyword) assetUrl.searchParams.set("keyword", keyword);
 
         const [actionRes, assetRes] = await Promise.all([
           fetch(actionUrl.toString()),
@@ -191,7 +170,7 @@ function WritePageInner() {
     }
 
     load();
-  }, [actionId, diagnosisId, focusTier, focusType, keyword]);
+  }, [actionId, diagnosisId, focusTier, focusType]);
 
   const visibleActions = actionData?.actions ?? [];
   const visibleAssets = (assetData?.assets ?? []).filter(
@@ -298,7 +277,7 @@ function WritePageInner() {
       {keyword ? (
         <section className="mb-5 rounded-[20px] border border-[var(--boina-line)] bg-[var(--boina-brand-soft)] p-5">
           <p className="text-[14px] font-bold text-[var(--boina-brand-deep)]">
-            이번 주 검색어로 시작
+            선택한 검색어로 시작
           </p>
           <h2 className="mt-1 text-[20px] font-extrabold leading-[28px] text-[var(--boina-ink)]">
             {keyword}
@@ -308,7 +287,7 @@ function WritePageInner() {
           </p>
           {radarKeywordId ? (
             <p className="mt-2 text-[12px] font-medium text-[var(--boina-ink-3)]">
-              문안 근거: 주간 검색어 카드에서 넘어온 키워드
+              화면 출발점: 주간 검색어 카드에서 이동
             </p>
           ) : null}
         </section>
@@ -495,10 +474,8 @@ function WritePageInner() {
             {visibleAssets.map((asset) => {
               const typeLabel = assetTypeToLabel(asset.type);
               const highlighted = focusType === asset.type;
-              const sourceKeywords = recommendedAssetKeywords(asset, keyword);
-              const evidence = asset.evidence?.length
-                ? asset.evidence
-                : fallbackAssetEvidence(asset, selectedAction);
+              const sourceKeywords = recommendedAssetKeywords(asset);
+              const evidence = asset.evidence ?? [];
               return (
                 <article
                   key={asset.id}
@@ -519,7 +496,7 @@ function WritePageInner() {
                         {typeLabel.label}
                       </h3>
                       <p className="text-[12px] font-medium text-[var(--boina-ink-3)]">
-                        문안 근거와 sourceKeywords를 함께 확인해요.
+                        문안에 쓴 근거와 함께 본 검색어를 확인해요.
                       </p>
                     </div>
                   </div>
@@ -533,19 +510,29 @@ function WritePageInner() {
                     {asset.content}
                   </div>
                   <div className="mb-4 rounded-[14px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-[13px] leading-[19px] text-[#475569]">
-                    <p className="font-bold text-[var(--boina-ink)]">evidence</p>
-                    <ul className="mt-2 grid gap-1">
-                      {evidence.map((item) => (
-                        <li key={`${asset.id}-${item.label}`}>
-                          {item.label}: {item.detail}
-                        </li>
-                      ))}
-                    </ul>
+                    <p className="font-bold text-[var(--boina-ink)]">문안에 쓴 근거</p>
+                    {evidence.length > 0 ? (
+                      <ul className="mt-2 grid gap-1">
+                        {evidence.map((item) => (
+                          <li key={`${asset.id}-${item.label}`}>
+                            {item.label}: {item.detail}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-2 text-[13px] text-[#64748B]">
+                        아직 서버에서 확인한 문안 근거가 없어요.
+                      </p>
+                    )}
                     {sourceKeywords.length > 0 ? (
                       <p className="mt-2 text-[12px] text-[#64748B]">
-                        sourceKeywords: {sourceKeywords.join(", ")}
+                        함께 본 검색어: {sourceKeywords.join(", ")}
                       </p>
-                    ) : null}
+                    ) : (
+                      <p className="mt-2 text-[12px] text-[#64748B]">
+                        함께 본 검색어는 아직 확인되지 않았어요.
+                      </p>
+                    )}
                   </div>
                   {asset.copyable ? (
                     <BigCopyButton content={asset.content} label={`${typeLabel.label} 복사하기`} />

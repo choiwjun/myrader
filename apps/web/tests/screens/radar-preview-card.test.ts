@@ -17,7 +17,12 @@ describe("A3-1 radar unsubscribed home card", () => {
     expect(source).toContain("글감 만들기");
     expect(source).toContain("매주 검색어 받아보기");
     expect(source).toContain("결제 없이 홈에서 먼저 받아볼 수 있어요");
-    expect(source).toContain('data-testid="radar-interest-sheet"');
+    expect(source).toContain("/api/radar/subscription");
+    expect(source).toContain("/api/radar/feedback");
+    expect(source).toContain("썼어요");
+    expect(source).toContain("아직요");
+    expect(source).toContain("저장됨");
+    expect(source).toContain("저장 실패");
     expect(source).toContain("문안 만들기");
     expect(source).toContain("다음 주에도 지켜볼게요");
     expect(source).toContain("다시 시도");
@@ -43,6 +48,8 @@ describe("A3-1 radar unsubscribed home card", () => {
 
     expect(homeSource).toContain("RadarPreviewCard");
     expect(homeSource).toContain("/api/radar/preview");
+    expect(homeSource).toContain("onPreviewChange={setRadarPreview}");
+    expect(homeSource).toContain("onRetry={loadSummary}");
     expect(homeSource).toContain("이번 주 사람들이 찾는 말");
     expect(statusSource).not.toContain("<RadarPreviewCard");
   });

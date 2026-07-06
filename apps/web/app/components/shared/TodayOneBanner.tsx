@@ -38,8 +38,8 @@ export function TodayOneBanner({
   return (
     <section
       aria-label="오늘 딱 하나"
-      className="relative overflow-hidden rounded-3xl bg-[#4F46E5] p-8 text-white md:p-10"
-      style={{ boxShadow: "0 20px 48px rgba(79,70,229,0.25)" }}
+      className="relative overflow-hidden rounded-3xl bg-[var(--boina-brand)] p-8 text-white md:p-10"
+      style={{ boxShadow: "0 20px 48px rgba(11,122,85,0.24)" }}
     >
       {/* 장식 글로우 */}
       <div
@@ -54,16 +54,11 @@ export function TodayOneBanner({
       <div className="relative z-10 max-w-2xl">
         {/* 태그 */}
         <span className="mb-5 inline-block rounded-full bg-white/20 px-4 py-1.5 text-sm font-semibold backdrop-blur-md">
-          오늘 딱 하나 👆
+          오늘 딱 하나
         </span>
 
         {/* 행동 제목 — 큰 글씨 */}
-        <h2
-          className="mb-3 text-[26px] font-bold leading-tight md:text-[34px]"
-          style={{ fontFamily: "'Plus Jakarta Sans', 'Pretendard', sans-serif" }}
-        >
-          {title}
-        </h2>
+        <h2 className="mb-3 text-[26px] font-bold leading-tight md:text-[34px]">{title}</h2>
 
         {/* 부제목 */}
         {subtitle ? (
@@ -72,9 +67,7 @@ export function TodayOneBanner({
 
         {/* 분류 표시 */}
         {tierLabel ? (
-          <p className="mb-6 text-sm font-semibold text-white/85">
-            {tierLabel.emoji} {tierLabel.label}
-          </p>
+          <p className="mb-6 text-sm font-semibold text-white/85">{tierLabel.label}</p>
         ) : null}
 
         {/* 시작 버튼 */}
@@ -82,7 +75,7 @@ export function TodayOneBanner({
           <button
             type="button"
             onClick={onStart}
-            className="flex items-center gap-2 rounded-xl bg-white px-7 py-4 text-[17px] font-bold text-[#4338CA] shadow-lg transition-transform active:scale-[0.98]"
+            className="flex items-center gap-2 rounded-xl bg-white px-7 py-4 text-[17px] font-bold text-[var(--boina-brand-deep)] shadow-lg transition-transform active:scale-[0.98]"
             aria-label={startLabel}
           >
             {startLabel}

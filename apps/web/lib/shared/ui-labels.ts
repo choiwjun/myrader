@@ -27,12 +27,13 @@ export type DiagnosisStatus = "queued" | "running" | "done" | "failed";
 // ── Signal ────────────────────────────────────────────────────────────────
 
 export const SIGNAL_EMOJI: Record<Signal, string> = {
-  green: "🟢",
-  yellow: "🟡",
-  red: "🔴",
+  green: "good",
+  yellow: "watch",
+  red: "wait",
 };
 
 export interface SignalLabel {
+  /** Stable legacy field; values are text tokens, not rendered emoji. */
   emoji: string;
   summary: string;
 }
@@ -47,18 +48,18 @@ export function signalToLabel(signal: Signal): SignalLabel {
   switch (signal) {
     case "green":
       return {
-        emoji: "🟢",
+        emoji: "good",
         summary: "잘 되고 있어요. 지금처럼만 해요!",
       };
     case "yellow":
       return {
-        emoji: "🟡",
+        emoji: "watch",
         summary: "조금만 더 채우면 훨씬 잘 보여요.",
       };
     case "red":
       return {
-        emoji: "🔴",
-        summary: "아직 잘 안 보여요. 같이 고쳐봐요.",
+        emoji: "wait",
+        summary: "아직 준비 중이에요. 같이 채워봐요.",
       };
   }
 }
@@ -97,6 +98,7 @@ export function channelToLabel(channel: Channel): ChannelLabel {
 // ── ActionTier ───────────────────────────────────────────────────────────────
 
 export interface ActionTierLabel {
+  /** Stable legacy field; values are text tokens, not rendered emoji. */
   emoji: string;
   label: string;
   description: string;
@@ -106,45 +108,39 @@ export interface ActionTierLabel {
  * ActionTier enum → 사장님 언어 4분류.
  * 가드: 누가-하나 표기. 전문용어 0. 부담 수준 정직.
  *
- * 방어(런타임 크래시 0): 알 수 없는 값(타입 밖 — 예: 변환 누락된 도메인 actionTier 가
- * 직접 유입)이 와도 undefined 를 반환하지 않는다. 호출부가 .emoji/.label 에 안전하게
- * 접근할 수 있도록 중립 폴백을 돌려준다(화면 전체 크래시 방지). 올바른 라벨은 호출 전
- * gapActionTierToClass 등으로 enum 정합을 맞추는 것이 1차이며, 폴백은 2차 안전망이다.
+ * 경계: 도메인 actionTier 는 호출 전에 gapActionTierToClass 등으로 UI enum 으로 변환해야 한다.
+ * 타입 밖 값이 여기까지 오면 잘못된 호출이므로 숨기지 않고 실패시킨다.
  */
 export function actionTierToLabel(tier: ActionTier): ActionTierLabel {
   switch (tier) {
     case "green_self":
       return {
-        emoji: "🟢",
+        emoji: "self",
         label: "직접 (5분·무료)",
         description: "사장님이 직접 5분이면 할 수 있어요.",
       };
     case "yellow_copy":
       return {
-        emoji: "🟡",
+        emoji: "copy",
         label: "복붙",
         description: "아래 글을 복사해서 붙여넣으면 돼요.",
       };
     case "red_vendor":
       return {
-        emoji: "🔴",
-        label: "업체에 맡기기",
+        emoji: "help",
+        label: "업체 도움 받기",
         description: "전문 업체에 맡기는 게 편해요. 처방전 이메일을 드릴게요.",
       };
     case "gray_ongoing":
       return {
-        emoji: "⏳",
+        emoji: "ongoing",
         label: "꾸준히",
         description: "리뷰·사진 등 시간을 들일수록 좋아져요.",
       };
-    default:
-      // 타입 밖 값(런타임 방어) — 사장님 언어 중립 라벨. 크래시 0.
-      return {
-        emoji: "📌",
-        label: "할 일",
-        description: "어떻게 하면 좋을지 안내해 드릴게요.",
-      };
   }
+
+  const exhaustive: never = tier;
+  throw new Error(`Unknown action tier: ${String(exhaustive)}`);
 }
 
 // ── AssetType ────────────────────────────────────────────────────────────────

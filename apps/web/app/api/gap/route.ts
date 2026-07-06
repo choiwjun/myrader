@@ -20,6 +20,7 @@
 import { getDefaultDiagnosisRepository } from "@/lib/diagnosis/diagnosis-repository";
 import { getDiagnosisView } from "@/lib/diagnosis/diagnosis-service";
 import { deriveGapViewFromPersisted, deriveGapViewFromView } from "@/lib/diagnosis/gap-service";
+import { normalizeEvidenceItems } from "@/lib/diagnosis/measurement";
 import {
   getDefaultDb,
   getPersistedCompetitors,
@@ -67,14 +68,11 @@ export async function GET(request: Request) {
         ? {
             source: competitors[0]?.source ?? "unavailable",
             collectedAt: competitors[0]?.collectedAt,
-            evidence: {
+            evidence: normalizeEvidenceItems({
               reason: "competitor_reports_unavailable",
-              competitors: competitors.map((competitor) => ({
-                name: competitor.name,
-                source: competitor.source,
-                collectedAt: competitor.collectedAt,
-              })),
-            },
+              source: competitors[0]?.source ?? "unavailable",
+              collectedAt: competitors[0]?.collectedAt,
+            }),
             measurementLabel: "unavailable" as const,
           }
         : null;

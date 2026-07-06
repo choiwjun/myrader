@@ -38,9 +38,39 @@ type ScreenPhase = "search" | "candidates" | "confirm" | "progress";
 
 const POLL_INTERVAL_MS = 2000;
 const POLL_MAX_ATTEMPTS = 30;
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+export function diagnosisIdFromEnqueueSuccess(json: unknown): string | null {
+  if (typeof json !== "object" || json === null) return null;
+  const data = "data" in json ? (json as { data?: unknown }).data : null;
+  if (typeof data !== "object" || data === null) return null;
+  const diagnosisId =
+    "diagnosisId" in data ? (data as { diagnosisId?: unknown }).diagnosisId : null;
+  return typeof diagnosisId === "string" && UUID_V4.test(diagnosisId) ? diagnosisId : null;
+}
+
+export function diagnosisStatusFromPollSuccess(json: unknown): DiagnosisStatus | null {
+  if (typeof json !== "object" || json === null) return null;
+  const data = "data" in json ? (json as { data?: unknown }).data : null;
+  if (typeof data !== "object" || data === null) return null;
+  const status = "status" in data ? (data as { status?: unknown }).status : null;
+
+  switch (status) {
+    case "queued":
+      return "queued";
+    case "running":
+      return "running";
+    case "completed":
+    case "partial":
+      return "done";
+    case "failed":
+      return "failed";
+    default:
+      return null;
+  }
+}
 const inputCls =
-  "w-full min-h-[52px] rounded-xl border border-[#E2E8F0] bg-white px-4 py-3 text-base text-[#0F172A] placeholder:text-[#94A3B8] transition focus:border-[#4F46E5] focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/20";
+  "w-full min-h-[52px] rounded-xl border border-[#E2E8F0] bg-white px-4 py-3 text-base text-[#0F172A] placeholder:text-[#94A3B8] transition focus:border-[var(--boina-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--boina-brand)]/20";
 
 // ── 메인 페이지 ──────────────────────────────────────────────────────────────
 
@@ -183,13 +213,16 @@ export default function FindPage() {
       return;
     }
 
-    const id: string = json.data?.diagnosisId;
-    if (id) {
-      setDiagnosisId(id);
-      setDiagnosisStatus("queued");
-      setPhase("progress");
-      startPolling(id);
+    const id = diagnosisIdFromEnqueueSuccess(json);
+    if (!id) {
+      setStartError("결과를 시작하지 못했어요. 잠깐 후 다시 시도해 볼까요?");
+      return;
     }
+
+    setDiagnosisId(id);
+    setDiagnosisStatus("queued");
+    setPhase("progress");
+    startPolling(id);
   }
 
   function startPolling(id: string) {
@@ -208,19 +241,12 @@ export default function FindPage() {
         const json = await res.json();
         if (!res.ok || !json.success) return;
 
-        const status: string = json.data?.status;
-        const mappedStatus: DiagnosisStatus =
-          status === "queued"
-            ? "queued"
-            : status === "running"
-              ? "running"
-              : status === "completed"
-                ? "done"
-                : status === "partial"
-                  ? "done"
-                  : status === "failed"
-                    ? "failed"
-                    : "running";
+        const mappedStatus = diagnosisStatusFromPollSuccess(json);
+        if (!mappedStatus) {
+          if (pollRef.current) clearInterval(pollRef.current);
+          setDiagnosisStatus("failed");
+          return;
+        }
 
         setDiagnosisStatus(mappedStatus);
 
@@ -292,7 +318,7 @@ export default function FindPage() {
 // ── 서브 컴포넌트 ─────────────────────────────────────────────────────────────
 
 const headingCls = "leading-snug text-[#0F172A]";
-const displayFont = "'Plus Jakarta Sans', 'Pretendard', sans-serif";
+const displayFont = "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif";
 
 /** store_search_form — 이름 한 칸 + 지역 (입력 최소) */
 function StoreSearchForm({
@@ -387,8 +413,8 @@ function StoreSearchForm({
         <button
           type="submit"
           disabled={!name.trim() || isLoading}
-          className="flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-[#4F46E5] text-lg font-bold text-white transition-all hover:bg-[#4338CA] active:scale-[0.98] disabled:opacity-40"
-          style={{ boxShadow: "0 8px 24px rgba(79,70,229,0.2)" }}
+          className="flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-[var(--boina-brand)] text-lg font-bold text-white transition-all hover:bg-[var(--boina-brand-deep)] active:scale-[0.98] disabled:opacity-40"
+          style={{ boxShadow: "0 8px 24px rgba(11,122,85,0.18)" }}
           aria-busy={isLoading}
         >
           {isLoading ? (
@@ -446,7 +472,7 @@ function CandidateList({
               type="button"
               onClick={() => onSelect(c)}
               aria-label={`${c.name} — ${c.address}`}
-              className="flex min-h-[72px] w-full items-center justify-between gap-3 rounded-2xl border border-[#E2E8F0] bg-white px-5 py-4 text-left transition-all hover:-translate-y-0.5 hover:border-[#C7D2FE] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/40"
+              className="flex min-h-[72px] w-full items-center justify-between gap-3 rounded-2xl border border-[#E2E8F0] bg-white px-5 py-4 text-left transition-all hover:-translate-y-0.5 hover:border-[#9BD8BB] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[var(--boina-brand)]/40"
             >
               <div className="min-w-0">
                 <p className="mb-0.5 truncate text-[16px] font-bold leading-tight text-[#0F172A]">
@@ -455,7 +481,7 @@ function CandidateList({
                 <p className="truncate text-sm leading-snug text-[#64748B]">{c.address}</p>
                 {c.category && <p className="mt-1 text-xs text-[#94A3B8]">{c.category}</p>}
               </div>
-              <span className="material-symbols-outlined shrink-0 text-[#4F46E5]">
+              <span className="material-symbols-outlined shrink-0 text-[var(--boina-brand)]">
                 chevron_right
               </span>
             </button>
@@ -501,7 +527,7 @@ function ConfirmStep({
         이 가게 맞나요?
       </h1>
 
-      <div className="mb-6 rounded-2xl border-2 border-[#C7D2FE] bg-[#EEF2FF] px-5 py-5">
+      <div className="mb-6 rounded-2xl border-2 border-[#CFEADD] bg-[var(--boina-brand-soft)] px-5 py-5">
         <p className="mb-0.5 text-[18px] font-bold text-[#0F172A]">{selected.name}</p>
         <p className="text-sm text-[#64748B]">{selected.address}</p>
         {selected.category && <p className="mt-1 text-xs text-[#94A3B8]">{selected.category}</p>}
@@ -536,11 +562,11 @@ function ConfirmStep({
         type="button"
         onClick={onStart}
         disabled={isStarting}
-        className="mb-3 min-h-[60px] w-full rounded-2xl bg-[#4F46E5] text-xl font-bold text-white transition-all hover:bg-[#4338CA] active:scale-[0.98] disabled:opacity-40"
-        style={{ boxShadow: "0 8px 24px rgba(79,70,229,0.2)" }}
+        className="mb-3 min-h-[60px] w-full rounded-2xl bg-[var(--boina-brand)] text-xl font-bold text-white transition-all hover:bg-[var(--boina-brand-deep)] active:scale-[0.98] disabled:opacity-40"
+        style={{ boxShadow: "0 8px 24px rgba(11,122,85,0.18)" }}
         aria-busy={isStarting}
       >
-        {isStarting ? "준비하는 중..." : "가게 살펴볼게요 👀"}
+        {isStarting ? "준비하는 중..." : "가게 살펴볼게요"}
       </button>
 
       <button
@@ -565,8 +591,14 @@ function ProgressIndicator({
   onRetry?: () => void;
 }) {
   const statusLabel = diagnosisStatusToLabel(status);
-  const stepEmoji =
-    status === "queued" ? "⏳" : status === "running" ? "🔍" : status === "done" ? "✅" : "💛";
+  const stepIcon =
+    status === "queued"
+      ? "hourglass_empty"
+      : status === "running"
+        ? "search"
+        : status === "done"
+          ? "check_circle"
+          : "refresh";
 
   return (
     <section
@@ -575,8 +607,11 @@ function ProgressIndicator({
       aria-atomic="true"
       className="flex flex-col items-center justify-center py-20 text-center"
     >
-      <span className="mb-6 text-6xl" aria-hidden="true">
-        {stepEmoji}
+      <span
+        className="material-symbols-outlined mb-6 text-6xl text-[var(--boina-brand)]"
+        aria-hidden="true"
+      >
+        {stepIcon}
       </span>
 
       <h1 className="mb-3 text-[26px] font-bold text-[#0F172A]" style={{ fontFamily: displayFont }}>
@@ -591,7 +626,7 @@ function ProgressIndicator({
           {[0, 1, 2].map((i) => (
             <span
               key={i}
-              className="h-2.5 w-2.5 rounded-full bg-[#4F46E5] opacity-60"
+              className="h-2.5 w-2.5 rounded-full bg-[var(--boina-brand)] opacity-60"
               style={{
                 animationName: "pulse",
                 animationDuration: "1.5s",
@@ -607,7 +642,7 @@ function ProgressIndicator({
         <button
           type="button"
           onClick={onRetry}
-          className="min-h-[56px] w-full max-w-[300px] rounded-2xl bg-[#4F46E5] text-lg font-bold text-white transition-all hover:bg-[#4338CA] active:scale-[0.98]"
+          className="min-h-[56px] w-full max-w-[300px] rounded-2xl bg-[var(--boina-brand)] text-lg font-bold text-white transition-all hover:bg-[var(--boina-brand-deep)] active:scale-[0.98]"
         >
           다시 해볼게요
         </button>

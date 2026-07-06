@@ -4,6 +4,10 @@
     {
       "path": "/api/jobs/process",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/radar/scans/process",
+      "schedule": "0 21 * * 0"
     }
   ]
 }

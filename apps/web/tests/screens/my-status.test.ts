@@ -12,13 +12,26 @@
 //   S2-T6: AI 카드 — 실인용일 때만 green, 인과 단정 금지
 //   S2-T7: 정직성 가드 — 점수(숫자) 0 / 전문용어 0
 
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { normalizeDisplayChannels, sourceToText } from "../../app/(app)/status/page";
 import {
   type Channel,
   type Signal,
   channelToLabel,
   signalToLabel,
 } from "../../lib/shared/ui-labels";
+
+const statusPageSource = readFileSync(
+  new URL("../../app/(app)/status/page.tsx", import.meta.url),
+  "utf8",
+);
+
+function sourceAround(source: string, marker: string, before = 120, after = 160) {
+  const start = source.indexOf(marker);
+  expect(start).toBeGreaterThanOrEqual(0);
+  return source.slice(Math.max(0, start - before), start + marker.length + after);
+}
 
 // ── overall_summary 계약 ────────────────────────────────────────────────────
 
@@ -34,10 +47,11 @@ describe("P2-S2: 내 상태 — overall_summary", () => {
     }
   });
 
-  it("신호등 신호 3종 모두 emoji 있음", () => {
+  it("신호등 신호 3종 모두 텍스트 토큰 있음", () => {
     for (const signal of signals) {
       const result = signalToLabel(signal);
-      expect(result.emoji).toMatch(/[🟢🟡🔴]/u);
+      expect(result.emoji).toMatch(/good|watch|wait/);
+      expect(result.emoji).not.toMatch(/\p{Emoji_Presentation}/u);
     }
   });
 
@@ -99,6 +113,27 @@ describe("P2-S2: 내 상태 — 채널별 카드", () => {
       expect(result.description).not.toMatch(/\d+점|\d+%/);
     }
   });
+
+  it("빈/부분 채널 응답은 같은 표시 배열에서 근거 부족 상태로 보강된다", () => {
+    const empty = normalizeDisplayChannels([]);
+    expect(empty.map((channel) => channel.channel)).toEqual(["naver", "google", "ai"]);
+    expect(empty.every((channel) => channel.signal === "red")).toBe(true);
+    expect(empty.every((channel) => channel.summaryLine.includes("근거가 아직 부족"))).toBe(true);
+
+    const partial = normalizeDisplayChannels([
+      {
+        channel: "naver",
+        signal: "green",
+        summaryLine: "",
+        found: false,
+      },
+    ] as Parameters<typeof normalizeDisplayChannels>[0]);
+
+    expect(partial.find((channel) => channel.channel === "naver")?.signal).toBe("red");
+    expect(partial.find((channel) => channel.channel === "naver")?.summaryLine).toContain(
+      "조금 더 살펴보는 중",
+    );
+  });
 });
 
 // ── AC-8: 인과 단정 0 ───────────────────────────────────────────────────────
@@ -138,57 +173,84 @@ describe("P2-S2: 내 상태 — AC-8 인과 단정 0", () => {
 // ── 구글 맛보기 안내 ────────────────────────────────────────────────────────
 
 describe("P2-S2: 내 상태 — 구글 맛보기 안내", () => {
-  it("google 채널 note: '자세한 순위는 다음 단계' 안내 텍스트 상수 정의됨", () => {
-    // note 텍스트는 컴포넌트에서 상수로 관리 — 여기서는 텍스트 형식 계약 확인
-    const GOOGLE_PREVIEW_NOTE = "자세한 순위는 다음 단계에서 확인할 수 있어요.";
-    expect(GOOGLE_PREVIEW_NOTE).not.toMatch(/SEO|SERP|ranking|algorithm/i);
-    expect(GOOGLE_PREVIEW_NOTE).not.toMatch(/\d+점|\d+%/);
-    expect(GOOGLE_PREVIEW_NOTE).not.toMatch(/반드시|보장/);
+  it("google 채널 note: 실제 status/page 상수는 전문용어/점수/보장 표현을 쓰지 않는다", () => {
+    const noteBlock = sourceAround(statusPageSource, "GOOGLE_PREVIEW_NOTE");
+    expect(noteBlock).toContain("자세한 순위는 다음 단계에서 확인할 수 있어요.");
+    expect(noteBlock).not.toMatch(/SEO|SERP|ranking|algorithm/i);
+    expect(noteBlock).not.toMatch(/\d+점|\d+%/);
+    expect(noteBlock).not.toMatch(/반드시|보장/);
   });
 
-  it("구글 맛보기 note에 전문용어 없음", () => {
-    const notes = [
-      "자세한 순위는 다음 단계에서 확인할 수 있어요.",
-      "구글 쪽 상태를 맛보기로 보여드려요.",
-    ];
-    for (const note of notes) {
-      expect(note).not.toMatch(/SEO|SERP|GEO|AEO|ranking/i);
-      expect(note).not.toMatch(/\d+점|\d+%/);
-    }
+  it("구글 맛보기 note는 실제 렌더 경로에 연결되어 있고 전문용어가 없다", () => {
+    const googleNoteUsage = sourceAround(
+      statusPageSource,
+      'note={channel.channel === "google" ? GOOGLE_PREVIEW_NOTE : undefined}',
+    );
+    expect(googleNoteUsage).toContain("GOOGLE_PREVIEW_NOTE");
+    expect(googleNoteUsage).not.toMatch(/SEO|SERP|GEO|AEO|ranking/i);
+    expect(googleNoteUsage).not.toMatch(/\d+점|\d+%/);
   });
 });
 
 // ── AI 카드 정직성 게이팅 ───────────────────────────────────────────────────
 
 describe("P2-S2: 내 상태 — AI 카드 실인용 게이팅", () => {
-  it("AI signal green: 실인용일 때만 (grounded 전용)", () => {
-    // signal=green 이 되려면 grounded 실인용 근거 필요
-    // 컴포넌트에서 channel-status API가 grounded 없으면 green 반환 불가
-    // 여기서는 Signal 타입 계약만 확인
-    const greenResult = signalToLabel("green");
-    expect(greenResult.emoji).toBe("🟢");
-    // green 이라도 "AI가 반드시 추천해요" 같은 단정 없음
-    expect(greenResult.summary).not.toMatch(/반드시|무조건|보장/);
+  it("AI green은 grounded 출처와 근거가 함께 있을 때만 유지된다", () => {
+    const displayChannels = normalizeDisplayChannels([
+      {
+        channel: "ai",
+        signal: "green",
+        summaryLine: "AI가 실제 인용 근거로 가게를 확인했어요.",
+        found: true,
+        source: "gpt_grounded",
+        evidence: [{ label: "확인 문장", detail: "AI 응답에 가게명이 포함됨" }],
+      },
+    ] as Parameters<typeof normalizeDisplayChannels>[0]);
+
+    const ai = displayChannels.find((channel) => channel.channel === "ai");
+    expect(ai?.signal).toBe("green");
+    expect(sourceToText(ai as NonNullable<typeof ai>)).toBe("AI 직접 확인");
   });
 
-  it("AI signal yellow/red: 정직한 상태 표현 (부정적 비난 없음)", () => {
-    for (const signal of ["yellow", "red"] as Signal[]) {
-      const result = signalToLabel(signal);
-      expect(result.summary).not.toMatch(/못|부족|나쁨|최악/);
-    }
+  it("AI green이라도 출처나 근거가 없으면 확인 전 출처와 근거 부족 상태로 낮춘다", () => {
+    const displayChannels = normalizeDisplayChannels([
+      {
+        channel: "ai",
+        signal: "green",
+        summaryLine: "AI가 우리 가게를 알고 있어요.",
+        found: true,
+        source: null,
+        evidence: [],
+      },
+    ] as Parameters<typeof normalizeDisplayChannels>[0]);
+
+    const ai = displayChannels.find((channel) => channel.channel === "ai");
+    expect(ai?.signal).toBe("red");
+    expect(ai?.summaryLine).toContain("AI 추천 근거가 아직 부족");
+    expect(sourceToText(ai as NonNullable<typeof ai>)).toBe("출처 확인 전");
   });
 
-  it("AI note: 인과 단정 없이 정직한 안내만", () => {
-    // AI 카드 note 텍스트 예시 (실제 렌더 텍스트 계약)
-    const aiNotes = [
-      "실제로 AI가 추천할 때만 초록불이 켜져요.",
-      "아직 AI에서 가게가 확인되지 않았어요.",
-    ];
-    for (const note of aiNotes) {
-      expect(note).not.toMatch(/반드시|무조건|보장|확실히/);
-      expect(note).not.toMatch(/AEO|GEO|LLM|grounded/i);
-      expect(note).not.toMatch(/\d+점|\d+%/);
-    }
+  it("상태 근거 출처는 확인된 소유자 라벨만 쓰고 unknown/null은 확정처럼 보이지 않는다", () => {
+    const channel = {
+      channel: "naver",
+      signal: "green",
+      summaryLine: "네이버 근거 확인",
+      found: true,
+    } as Parameters<typeof sourceToText>[0];
+
+    expect(sourceToText({ ...channel, source: "engine_results" })).toBe("살펴보기 결과");
+    expect(sourceToText({ ...channel, source: "naver_serp" })).toBe("네이버 확인");
+    expect(sourceToText({ ...channel, source: "manual" })).toBe("직접 입력");
+    expect(sourceToText({ ...channel, source: null })).toBe("출처 확인 전");
+    expect(sourceToText({ ...channel, source: "unknown-source" })).toBe("출처 확인 전");
+  });
+
+  it("AI note: 실제 status/page 안내는 인과 단정 없이 정직한 안내만 쓴다", () => {
+    const aiNoteBlock = sourceAround(statusPageSource, "AI_NOT_YET_NOTE");
+    expect(aiNoteBlock).toContain("실제로 AI가 추천할 때만 초록불이 켜져요.");
+    expect(aiNoteBlock).not.toMatch(/반드시|무조건|보장|확실히/);
+    expect(aiNoteBlock).not.toMatch(/AEO|GEO|LLM|grounded/i);
+    expect(aiNoteBlock).not.toMatch(/\d+점|\d+%/);
   });
 });
 
@@ -212,45 +274,42 @@ describe("P2-S2: 내 상태 — 점수 숫자 완전 0 (AC-2 강화)", () => {
 // ── R2-B: AI HERO 슬롯 — 05-design-system §1-A (출시 차단 수정) ─────────────
 
 describe("R2-B: S2 AI HERO 슬롯 — channels 배열 순서와 무관 최상단 렌더", () => {
-  // channels 배열에서 ai 를 뽑아 HERO로 분리하는 계약 검증
-  // (실제 DOM 렌더는 브라우저 환경 필요 — 여기서는 분리 로직 계약만 검증)
-
-  function findAiChannel(
-    channels: { channel: string; signal: Signal; summaryLine: string; found: boolean }[],
-  ) {
-    return channels.find((c) => c.channel === "ai");
-  }
+  // channels 배열에서 ai 를 뽑아 HERO로 분리하는 실제 status/page 로직을 검증한다.
 
   it("S2-HERO-1: ai 채널은 배열 끝에 있어도 분리 추출됨", () => {
-    const channels = [
+    const channels: Parameters<typeof normalizeDisplayChannels>[0] = [
       { channel: "naver", signal: "yellow" as Signal, summaryLine: "네이버 중간", found: true },
       { channel: "google", signal: "yellow" as Signal, summaryLine: "구글 미흡", found: false },
       { channel: "ai", signal: "red" as Signal, summaryLine: "AI 아직 몰라요", found: false },
     ];
-    const ai = findAiChannel(channels);
-    expect(ai).toBeDefined();
+    const displayChannels = normalizeDisplayChannels(channels);
+    const ai = displayChannels.find((channel) => channel.channel === "ai");
     expect(ai?.channel).toBe("ai");
+    expect(ai?.summaryLine).toContain("AI 추천 근거가 아직 부족");
   });
 
   it("S2-HERO-2: ai 채널이 없으면 HERO 는 red signal 기본값(fallback)", () => {
-    const channels = [
+    const channels: Parameters<typeof normalizeDisplayChannels>[0] = [
       { channel: "naver", signal: "yellow" as Signal, summaryLine: "네이버", found: true },
     ];
-    const ai = findAiChannel(channels);
-    // ai 없으면 undefined → 컴포넌트는 signal 기본값 "red" 사용
-    expect(ai).toBeUndefined();
+    const displayChannels = normalizeDisplayChannels(channels);
+    const ai = displayChannels.find((channel) => channel.channel === "ai");
+    expect(ai?.signal).toBe("red");
+    expect(ai?.summaryLine).toContain("AI 추천 근거가 아직 부족");
   });
 
   it("S2-HERO-3: HERO 맥락 헤드라인 전문용어 0", () => {
-    const headline = "요즘 손님은 AI한테 물어봐요";
-    expect(headline).not.toMatch(/AEO|GEO|LLM|grounded|SERP/i);
-    expect(headline).not.toMatch(/\d+점|\d+%/);
+    const headlineBlock = sourceAround(statusPageSource, "요즘 손님은 AI한테 물어봐요");
+    expect(headlineBlock).not.toMatch(/AEO|GEO|LLM|grounded|SERP/i);
+    expect(headlineBlock).not.toMatch(/\d+점|\d+%/);
   });
 
   it("S2-HERO-4: 미래지향 박스 카피 인과 단정 0", () => {
-    const forwardBox =
-      "괜찮아요 — 아직 대부분 가게가 그래요. 지금 준비하는 가게가 AI 시대에 먼저 잡혀요.";
-    expect(forwardBox).not.toMatch(/반드시|무조건|보장|확실히/);
-    expect(forwardBox).not.toMatch(/\d+점|\d+%/);
+    const forwardBoxBlock = sourceAround(
+      statusPageSource,
+      "지금 준비하는 가게가 AI 시대에 먼저 잡혀요",
+    );
+    expect(forwardBoxBlock).not.toMatch(/반드시|무조건|보장|확실히/);
+    expect(forwardBoxBlock).not.toMatch(/\d+점|\d+%/);
   });
 });

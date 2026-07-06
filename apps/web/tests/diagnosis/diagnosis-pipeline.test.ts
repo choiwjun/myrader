@@ -8,6 +8,7 @@
 // 실외부호출 0: runDiagnosisPipeline 을 mock 으로 주입한다(엔진 export 시그니처는
 // engine-integration 스모크가 별도로 보장). 비용 게이팅은 차단 게이트 주입으로 검증.
 
+import type { DbClient } from "@boina/db/client";
 import type { DiagnosisPipelineOutput } from "@boina/engine";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -18,6 +19,7 @@ import type {
   DiagnosisRecord,
   DiagnosisRepository,
 } from "../../lib/diagnosis/diagnosis-service.js";
+import { MockGapAnalyzer } from "../../lib/diagnosis/mock-pipeline.js";
 
 function makeFakeRepo(): DiagnosisRepository & { rows: Map<string, DiagnosisRecord> } {
   const rows = new Map<string, DiagnosisRecord>();
@@ -93,6 +95,61 @@ function mockPipelineOutput(overall: number): DiagnosisPipelineOutput {
       limitations: [],
     },
   };
+}
+
+const SAMPLE_ITEMS: DiagnosisPipelineOutput["items"] = [
+  {
+    id: "00000000-0000-4000-8000-000000000101",
+    code: "GEO_OPENING_HOURS_MISSING",
+    category: "geo",
+    actionType: "self_fix",
+    priority: "high",
+    title: "영업시간 미기재",
+    description: "영업시간이 안 적혀 있어요",
+    evidence: { url: "https://example.com", expected: "영업시간" },
+    impactScore: 30,
+    difficulty: "easy",
+    expectedEffect: "검색 노출에 도움",
+    isAiGenerated: false,
+    recommendationText: null,
+    relatedSnippetType: null,
+    pageUrl: "https://example.com",
+    ruleVersion: "1.0.0",
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000102",
+    code: "SEO_TITLE_MISSING",
+    category: "seo",
+    actionType: "snippet_action",
+    priority: "medium",
+    title: "제목 누락",
+    description: "가게 이름표가 빠져 있어요",
+    evidence: { url: "https://example.com" },
+    impactScore: 20,
+    difficulty: "medium",
+    expectedEffect: "소개에 도움",
+    isAiGenerated: false,
+    recommendationText: null,
+    relatedSnippetType: "FAQ_HTML",
+    pageUrl: "https://example.com",
+    ruleVersion: "1.0.0",
+  },
+];
+
+function makeFakeInsertDb(inserted: unknown[][]): DbClient {
+  return {
+    insert: () => ({
+      values(values: unknown[] | unknown) {
+        const rows = Array.isArray(values) ? values : [values];
+        inserted.push(rows);
+        return {
+          async returning() {
+            return rows.map((_, i) => ({ id: `inserted-${inserted.length}-${i}` }));
+          },
+        };
+      },
+    }),
+  } as unknown as DbClient;
 }
 
 const PAYLOAD: DiagnosisJobPayload = {
@@ -217,5 +274,77 @@ describe("진단 파이프라인 배선 (P1-R2, mock 엔진)", () => {
 
     const passedInput = runPipeline.mock.calls[0]?.[0] as { enableLlmValidation?: boolean };
     expect(passedInput.enableLlmValidation).toBe(false);
+  });
+  it("경쟁사 재진단은 LLM 검증을 끄고 실패한 경쟁사는 건너뛰며 성공한 리포트로 gap/action 을 저장한다", async () => {
+    const repo = makeFakeRepo();
+    const inserted: unknown[][] = [];
+    const db = makeFakeInsertDb(inserted);
+    const selfOutput: DiagnosisPipelineOutput = {
+      ...mockPipelineOutput(82),
+      items: SAMPLE_ITEMS,
+    };
+    const competitorOutput: DiagnosisPipelineOutput = {
+      ...mockPipelineOutput(91),
+      items: SAMPLE_ITEMS.slice(0, 1),
+    };
+    const runPipeline = vi
+      .fn()
+      .mockResolvedValueOnce(selfOutput)
+      .mockRejectedValueOnce(new Error("competitor failed"))
+      .mockResolvedValueOnce(competitorOutput);
+    const allowGate = vi.fn().mockResolvedValue({ allowed: true, reason: "ok" });
+
+    const handler = buildDiagnosisHandler({
+      repo,
+      runPipeline,
+      costGate: allowGate,
+      db,
+      gapAnalyzer: new MockGapAnalyzer(),
+    });
+    await handler(
+      fakeJob({
+        ...PAYLOAD,
+        requestLlmValidation: true,
+        competitorUrls: ["https://bad.example", "https://good.example"],
+      }),
+    );
+
+    expect(runPipeline).toHaveBeenCalledTimes(3);
+    expect(
+      (runPipeline.mock.calls[0]?.[0] as { enableLlmValidation?: boolean }).enableLlmValidation,
+    ).toBe(true);
+    expect(
+      (runPipeline.mock.calls[1]?.[0] as { enableLlmValidation?: boolean }).enableLlmValidation,
+    ).toBe(false);
+    expect(
+      (runPipeline.mock.calls[2]?.[0] as { enableLlmValidation?: boolean }).enableLlmValidation,
+    ).toBe(false);
+    expect(inserted.some((rows) => rows.some((row) => "isTodayOne" in (row as object)))).toBe(true);
+    const row = await repo.findById("diag-1");
+    expect(row?.status).toBe("completed");
+  });
+
+  it("production 에서 신뢰 경쟁사도 수동 경쟁사도 없으면 fake gap 없이 failed 로 전이한다", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    try {
+      const repo = makeFakeRepo();
+      const inserted: unknown[][] = [];
+      const runPipeline = vi.fn().mockResolvedValue(mockPipelineOutput(72));
+      const handler = buildDiagnosisHandler({
+        repo,
+        runPipeline,
+        db: makeFakeInsertDb(inserted),
+        gapAnalyzer: new MockGapAnalyzer(),
+        discoverSerp: async () => [],
+      });
+
+      await expect(handler(fakeJob(PAYLOAD))).rejects.toThrow(/no trusted competitor signal/);
+      expect(runPipeline).toHaveBeenCalledTimes(1);
+      expect(inserted).toHaveLength(0);
+      const row = await repo.findById("diag-1");
+      expect(row?.status).toBe("failed");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

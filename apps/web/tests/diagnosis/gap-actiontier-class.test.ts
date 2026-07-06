@@ -37,15 +37,19 @@ describe("gapActionTierToClass — 도메인 actionTier → UI 4분류(green_sel
   });
 });
 
-describe("actionTierToLabel — 알 수 없는 값 방어 폴백(런타임 크래시 0)", () => {
-  it("enum 밖 값(도메인 self_fix 등 직접 유입)이 와도 undefined 를 던지지 않는다", () => {
-    // S4 가 도메인값을 직접 넘기던 회귀를 방어: 라벨이 없어도 emoji/label 필드는 안전.
+describe("actionTierToLabel — enum 밖 값은 라벨링하지 않고 경계에서 걸러낸다", () => {
+  it("도메인 actionTier를 직접 넘기면 조용한 할 일 라벨 대신 오류로 드러난다", () => {
     const unknowns = ["self_fix", "snippet", "vendor", "ongoing", "???"];
     for (const u of unknowns) {
-      const label = actionTierToLabel(u as ActionTier);
-      expect(label).toBeDefined();
-      expect(typeof label.emoji).toBe("string");
-      expect(typeof label.label).toBe("string");
+      expect(() => actionTierToLabel(u as ActionTier)).toThrow(/Unknown action tier/);
     }
+  });
+
+  it("도메인 actionTier는 gapActionTierToClass 경계를 통과한 뒤에만 라벨링된다", () => {
+    const domain: GapActionTier = "snippet";
+    const uiTier = gapActionTierToClass(domain);
+
+    expect(uiTier).toBe("yellow_copy");
+    expect(actionTierToLabel(uiTier).label).toBe("복붙");
   });
 });

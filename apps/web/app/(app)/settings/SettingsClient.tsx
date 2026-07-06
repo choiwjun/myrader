@@ -9,7 +9,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface BusinessSettings {
   businessId: string;
@@ -25,7 +25,7 @@ interface SettingsClientProps {
 }
 
 const inputCls =
-  "h-12 w-full rounded-xl border border-[#CBD5E1]/60 bg-[#EEF2FF] px-4 text-[16px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] transition-all focus:border-[#4F46E5] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/15";
+  "h-12 w-full rounded-xl border border-[#CBD5E1]/60 bg-[var(--boina-brand-soft)] px-4 text-[16px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] transition-all focus:border-[var(--boina-brand)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--boina-brand)]/15";
 
 export default function SettingsClient({ email }: SettingsClientProps) {
   const router = useRouter();
@@ -34,6 +34,7 @@ export default function SettingsClient({ email }: SettingsClientProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showRediagnosePlaceholder, setShowRediagnosePlaceholder] = useState(false);
 
   // 폼 상태
@@ -42,32 +43,48 @@ export default function SettingsClient({ email }: SettingsClientProps) {
   const [region, setRegion] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/settings");
-        const json = await res.json();
-        if (res.ok && json.success && json.data.businessSettings) {
-          const biz: BusinessSettings = json.data.businessSettings;
-          setBusiness(biz);
-          setName(biz.name ?? "");
-          setCategory(biz.category ?? "");
-          setRegion(biz.region ?? "");
-          setWebsiteUrl(biz.websiteUrl ?? "");
-        }
-      } catch {
-        // 로드 실패는 무시 — 빈 폼으로 표시
-      } finally {
-        setLoading(false);
+  const loadSettings = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    setSaveMessage(null);
+    try {
+      const res = await fetch("/api/settings");
+      const json = await res.json();
+      if (res.ok && json.success && json.data.businessSettings) {
+        const biz: BusinessSettings = json.data.businessSettings;
+        setBusiness(biz);
+        setName(biz.name ?? "");
+        setCategory(biz.category ?? "");
+        setRegion(biz.region ?? "");
+        setWebsiteUrl(biz.websiteUrl ?? "");
+        return;
       }
+
+      setBusiness(null);
+      setLoadError("가게 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } catch {
+      setBusiness(null);
+      setLoadError("연결이 잠깐 끊겼어요. 다시 시도해 주세요.");
+    } finally {
+      setLoading(false);
     }
-    load();
   }, []);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    if (!business?.businessId) return;
+    if (!business?.businessId) {
+      setSaveMessage("가게 정보를 먼저 불러온 뒤 저장해 주세요.");
+      return;
+    }
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setSaveMessage("가게 이름을 입력해 주세요.");
+      return;
+    }
 
     setSaving(true);
     setSaveMessage(null);
@@ -77,10 +94,10 @@ export default function SettingsClient({ email }: SettingsClientProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           businessId: business.businessId,
-          name: name || undefined,
-          category: category || null,
-          region: region || null,
-          websiteUrl: websiteUrl || null,
+          name: trimmedName,
+          category: category.trim() || null,
+          region: region.trim() || null,
+          websiteUrl: websiteUrl.trim() || null,
         }),
       });
       const json = await res.json();
@@ -102,10 +119,7 @@ export default function SettingsClient({ email }: SettingsClientProps) {
       {/* ── 헤더 ── */}
       <header className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1
-            className="text-[28px] font-bold tracking-tight text-[#0F172A] md:text-[32px]"
-            style={{ fontFamily: "'Plus Jakarta Sans', 'Pretendard', sans-serif" }}
-          >
+          <h1 className="text-[28px] font-bold tracking-tight text-[#0F172A] md:text-[32px]">
             내 가게 관리
           </h1>
           <p className="mt-1 text-[15px] text-[#64748B]">
@@ -116,7 +130,7 @@ export default function SettingsClient({ email }: SettingsClientProps) {
           type="button"
           onClick={() => router.push("/find")}
           aria-label="다른 가게로 바꾸기 — 가게 찾기로 이동"
-          className="flex items-center gap-1.5 self-start rounded-xl px-4 py-2.5 font-semibold text-[#4F46E5] transition-all hover:bg-[#EEF2FF] active:scale-95 sm:self-auto"
+          className="flex items-center gap-1.5 self-start rounded-xl px-4 py-2.5 font-semibold text-[var(--boina-brand)] transition-all hover:bg-[var(--boina-brand-soft)] active:scale-95 sm:self-auto"
         >
           <span className="material-symbols-outlined text-[20px]">store</span>
           <span className="text-sm">다른 가게 보기</span>
@@ -131,7 +145,7 @@ export default function SettingsClient({ email }: SettingsClientProps) {
             style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)" }}
           >
             <div className="mb-6 flex items-center gap-4 border-b border-[#E2E8F0] pb-5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#4F46E5] text-white">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--boina-brand)] text-white">
                 <span
                   className="material-symbols-outlined"
                   style={{ fontVariationSettings: "'FILL' 1" }}
@@ -140,12 +154,7 @@ export default function SettingsClient({ email }: SettingsClientProps) {
                 </span>
               </div>
               <div>
-                <h2
-                  className="text-[20px] font-bold text-[#0F172A]"
-                  style={{ fontFamily: "'Plus Jakarta Sans', 'Pretendard', sans-serif" }}
-                >
-                  가게 기본 정보
-                </h2>
+                <h2 className="text-[20px] font-bold text-[#0F172A]">가게 기본 정보</h2>
                 <p className="text-sm text-[#64748B]">정확한 정보일수록 더 잘 살펴봐 드려요.</p>
               </div>
             </div>
@@ -153,21 +162,39 @@ export default function SettingsClient({ email }: SettingsClientProps) {
             {loading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-12 animate-pulse rounded-xl bg-[#EEF2FF]" />
+                  <div
+                    key={i}
+                    className="h-12 animate-pulse rounded-xl bg-[var(--boina-brand-soft)]"
+                  />
                 ))}
+              </div>
+            ) : loadError ? (
+              <div className="rounded-2xl border border-[#F59E0B]/40 bg-[#FFFBEB] p-5 text-center">
+                <p className="text-base font-bold text-[#B45309]">가게 정보를 불러오지 못했어요</p>
+                <p className="mt-2 text-sm leading-relaxed text-[#92400E]">{loadError}</p>
+                <button
+                  type="button"
+                  onClick={loadSettings}
+                  className="mt-4 min-h-[52px] rounded-xl bg-white px-5 font-bold text-[#B45309] shadow-sm transition-colors hover:bg-[#FEF3C7]"
+                  aria-label="가게 정보 다시 불러오기"
+                >
+                  다시 불러오기
+                </button>
               </div>
             ) : (
               <form onSubmit={handleSave} noValidate className="flex flex-col gap-5">
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                   <div className="flex flex-col gap-1.5">
                     <label htmlFor="store-name" className="px-1 text-sm font-medium text-[#434654]">
-                      가게 이름
+                      가게 이름 <span className="text-[#B45309]">(필수)</span>
                     </label>
                     <input
                       id="store-name"
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
+                      required
+                      aria-required="true"
                       placeholder="예) 맛있는 한식당"
                       className={inputCls}
                       aria-label="가게 이름 입력"
@@ -246,7 +273,7 @@ export default function SettingsClient({ email }: SettingsClientProps) {
                     <output
                       aria-live="polite"
                       className={`text-sm font-semibold ${
-                        saveMessage.includes("저장됐") ? "text-[#047857]" : "text-[#DC2626]"
+                        saveMessage.includes("저장됐") ? "text-[#047857]" : "text-[#B45309]"
                       }`}
                     >
                       {saveMessage}
@@ -254,9 +281,11 @@ export default function SettingsClient({ email }: SettingsClientProps) {
                   )}
                   <button
                     type="submit"
-                    disabled={saving}
-                    className="h-12 rounded-xl bg-[#4F46E5] px-8 font-bold text-white shadow-sm transition-all hover:bg-[#4338CA] active:scale-95 disabled:opacity-60"
-                    aria-label={saving ? "저장 중..." : "저장하기"}
+                    disabled={saving || !business?.businessId}
+                    className="min-h-[52px] rounded-xl bg-[var(--boina-brand)] px-8 font-bold text-white shadow-sm transition-all hover:bg-[var(--boina-brand-deep)] active:scale-95 disabled:opacity-60"
+                    aria-label={
+                      saving ? "저장 중..." : business?.businessId ? "저장하기" : "가게 정보 없음"
+                    }
                   >
                     {saving ? "저장하는 중..." : "저장하기"}
                   </button>
@@ -277,7 +306,7 @@ export default function SettingsClient({ email }: SettingsClientProps) {
               <span className="material-symbols-outlined text-[#64748B]">account_circle</span>
               <h2 className="text-[16px] font-bold text-[#0F172A]">계정 정보</h2>
             </div>
-            <div className="rounded-xl bg-[#EEF2FF] px-4 py-3">
+            <div className="rounded-xl bg-[var(--boina-brand-soft)] px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
                 현재 로그인 계정
               </p>
@@ -295,7 +324,7 @@ export default function SettingsClient({ email }: SettingsClientProps) {
                 <span className="material-symbols-outlined text-[#64748B]">autorenew</span>
                 <h2 className="text-[16px] font-bold text-[#0F172A]">다시 살펴보기</h2>
               </div>
-              <span className="rounded-full bg-[#E0E7FF] px-2 py-0.5 text-xs font-semibold text-[#4338CA]">
+              <span className="rounded-full bg-[var(--boina-brand-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--boina-brand-deep)]">
                 곧 제공돼요
               </span>
             </div>
@@ -303,10 +332,12 @@ export default function SettingsClient({ email }: SettingsClientProps) {
             {showRediagnosePlaceholder ? (
               <output
                 aria-live="polite"
-                className="block rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] px-4 py-4 text-center"
+                className="block rounded-xl border border-[#CFEADD] bg-[var(--boina-brand-soft)] px-4 py-4 text-center"
               >
-                <p className="mb-1 text-base font-bold text-[#4338CA]">곧 제공돼요</p>
-                <p className="text-sm leading-relaxed text-[#4F46E5]">
+                <p className="mb-1 text-base font-bold text-[var(--boina-brand-deep)]">
+                  곧 제공돼요
+                </p>
+                <p className="text-sm leading-relaxed text-[var(--boina-brand)]">
                   다시 살펴보기 기능은 곧 추가될 예정이에요. 기대해 주세요!
                 </p>
               </output>
@@ -318,10 +349,10 @@ export default function SettingsClient({ email }: SettingsClientProps) {
                 <button
                   type="button"
                   onClick={() => setShowRediagnosePlaceholder(true)}
-                  className="h-12 w-full rounded-xl border border-[#E2E8F0] bg-white font-bold text-[#434654] transition-colors hover:bg-[#F8FAFC]"
+                  className="min-h-[52px] w-full rounded-xl border border-[#E2E8F0] bg-white font-bold text-[#434654] transition-colors hover:bg-[#F8FAFC]"
                   aria-label="다시 살펴보기 (곧 제공 예정)"
                 >
-                  🔄 다시 살펴보기
+                  다시 살펴보기
                 </button>
               </>
             )}

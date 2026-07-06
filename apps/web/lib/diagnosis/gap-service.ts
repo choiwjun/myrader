@@ -32,6 +32,7 @@
 // FR-012 §4.4 의 contracts CompetitorGap Zod(additive) 영속화도 오케스트레이터 [OPEN].
 
 import type { ActionTier } from "../shared/ui-labels.js";
+import { type EvidenceItem, type MeasurementLabel, normalizeEvidenceItems } from "./measurement.js";
 
 // ---------------------------------------------------------------------------
 // 엔진 gap 타입 미러링 (boundary types) — deep import 없이 구조 동일
@@ -172,8 +173,8 @@ export interface GapItem {
   isPaid: boolean;
   source?: "naver_serp" | "gpt_grounded" | "manual" | "unavailable";
   collectedAt?: string;
-  evidence?: unknown;
-  measurementLabel?: "measured" | "estimated" | "unavailable";
+  evidence?: EvidenceItem[];
+  measurementLabel?: MeasurementLabel;
 }
 
 // ---------------------------------------------------------------------------
@@ -306,8 +307,8 @@ export interface GapViewResult {
   isPaid: boolean;
   source?: "naver_serp" | "gpt_grounded" | "manual" | "unavailable";
   collectedAt?: string;
-  evidence?: unknown;
-  measurementLabel?: "measured" | "estimated" | "unavailable";
+  evidence?: EvidenceItem[];
+  measurementLabel?: MeasurementLabel;
 }
 
 /**
@@ -323,7 +324,7 @@ export function deriveGapViewFromView(options: GapItemOptions = {}): GapViewResu
     intro: buildGapIntro(items.length),
     isPaid: options.isPaid === true,
     source: "unavailable",
-    evidence: { reason: "gap_not_measured" },
+    evidence: normalizeEvidenceItems({ reason: "gap_not_measured" }),
     measurementLabel: "unavailable",
   };
 }
@@ -349,22 +350,25 @@ export interface PersistedGapRowLike {
   /**
    * ★ 영속화된 action 4분류 tier(self_fix/snippet/vendor/ongoing). 4분류(🟢🟡🔴⏳) 복원의 핵심.
    *
-   * 선택적(레거시/테스트 stub 하위호환): 미지정이면 self_fix(직접건)로 본다 — 컬럼이 추가되기
-   * 전 데이터나 actionTier 를 주지 않는 호출자도 안전. 실 읽기 경로(getPersistedGapRows)는
-   * 항상 저장값을 채워 4분류가 정확히 복원된다.
+   * 실 읽기 경로(getPersistedGapRows)는 항상 저장값을 채운다. 이 값이 없거나 알 수 없는
+   * 레거시/테스트 행은 조용히 self_fix 로 바꾸지 않고 미측정으로 제외해 green 수렴을 막는다.
    */
-  actionTier?: GapActionTier;
+  actionTier: GapActionTier;
   source?: "naver_serp" | "gpt_grounded" | "manual";
   collectedAt?: string;
   competitorName?: string | null;
+}
+
+function isGapActionTier(value: unknown): value is GapActionTier {
+  return value === "self_fix" || value === "snippet" || value === "vendor" || value === "ongoing";
 }
 
 /**
  * 영속화된 gap_rows → S4 gapItem(실데이터 경로 — 추측 0).
  *
  * 정직성: gap_rows 는 사장님 언어 label 만 담는다(코드값/점수 0). actionTier 는 영속화 컬럼
- * (gap_action_tier)에서 복원해 S5 4분류가 green 으로 수렴하지 않게 한다(#1 수정 — 미지정이면
- * self_fix 폴백). category 는 화면 묶음 "노출" 기본(코드값 노출 0 보장).
+ * (gap_action_tier)에서 복원해 S5 4분류가 green 으로 수렴하지 않게 한다(#1 수정).
+ * 미지정/알 수 없는 tier 는 self_fix 로 바꾸지 않고 미측정으로 제외한다.
  * priority 는 저장 순서(영속화 시 priority 정렬)대로 1~5 clamp. 무료는 Top3, 유료는 전체.
  */
 export function deriveGapViewFromPersisted(
@@ -372,7 +376,7 @@ export function deriveGapViewFromPersisted(
   options: GapItemOptions = {},
 ): GapViewResult {
   const isPaid = options.isPaid === true;
-  const myGaps = rows.filter((r) => r.isMyGap === true);
+  const myGaps = rows.filter((r) => r.isMyGap === true && isGapActionTier(r.actionTier));
   const visible = isPaid ? myGaps : myGaps.slice(0, FREE_TOP_N);
   const items: GapItem[] = visible.map((r, idx) => ({
     id: r.id ?? makeUuidV4(),
@@ -380,15 +384,17 @@ export function deriveGapViewFromPersisted(
     competitorHas: r.competitorHas,
     iHave: !r.isMyGap,
     category: "노출",
-    actionTier: r.actionTier ?? "self_fix",
+    actionTier: r.actionTier,
     priority: clampRank(idx + 1),
     isPaid: idx >= FREE_TOP_N,
     source: r.source,
     collectedAt: r.collectedAt,
-    evidence: {
+    evidence: normalizeEvidenceItems({
       competitorName: r.competitorName ?? null,
       competitorHas: r.competitorHas,
-    },
+      source: r.source,
+      collectedAt: r.collectedAt,
+    }),
     measurementLabel: "measured",
   }));
   return {
@@ -397,7 +403,7 @@ export function deriveGapViewFromPersisted(
     isPaid,
     source: visible[0]?.source,
     collectedAt: visible[0]?.collectedAt,
-    evidence: items.map((item) => item.evidence),
+    evidence: items.flatMap((item) => item.evidence ?? []),
     measurementLabel: items.length > 0 ? "measured" : "unavailable",
   };
 }

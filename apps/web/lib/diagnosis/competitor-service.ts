@@ -24,6 +24,7 @@
 // contracts 타입(DiagnosisJson)만 의존한다(P2-R2 channel-status-service 와 동형).
 
 import type { DiagnosisJson, LlmValidation, NaverPresence } from "@boina/contracts/diagnosis";
+import { type EvidenceItem, type MeasurementLabel, normalizeEvidenceItems } from "./measurement.js";
 
 /** 경쟁사 출처(실측 채널) — contracts 의 신뢰 소스 리터럴과 1:1. */
 export type CompetitorSource = "naver_serp" | "gpt_grounded";
@@ -48,12 +49,12 @@ export interface Competitor {
   rank?: number;
   /** naver_serp | gpt_grounded — 실측 출처(정직 표기용). */
   source: CompetitorSource;
-  /** evidence sheet 용 수집 시각(ISO 8601). */
+  /** 근거 보기용 수집 시각(ISO 8601). */
   collectedAt?: string;
-  /** evidence sheet 용 원근거(raw/structured). */
-  evidence?: unknown;
+  /** 근거 보기용 정규화 근거 행. */
+  evidence?: EvidenceItem[];
   /** measured | estimated | unavailable */
-  measurementLabel?: "measured" | "estimated" | "unavailable";
+  measurementLabel?: MeasurementLabel;
 }
 
 /** 변환 옵션 — 익명화 등 노출 정책(resources.yaml/05 규율). */
@@ -273,7 +274,11 @@ export function deriveCompetitorViewFromPersisted(
       beatsMe: true,
       source: "naver_serp",
       collectedAt: r.collectedAt,
-      evidence: { serpRank: r.serpRank },
+      evidence: normalizeEvidenceItems({
+        serpRank: r.serpRank,
+        source: r.source,
+        collectedAt: r.collectedAt,
+      }),
       measurementLabel: "measured",
     };
     if (r.serpRank !== null) c.rank = r.serpRank;
@@ -283,9 +288,6 @@ export function deriveCompetitorViewFromPersisted(
   for (const r of ai) {
     const name = cleanName(r.name);
     if (!name) continue;
-    const matchedEvidence = options.llmMeasurement?.competitors?.find(
-      (candidate) => cleanName(candidate.name) === name,
-    );
     competitors.push({
       id: makeUuidV4(),
       name: anonymize ? anonName("ai", aiIdx) : name,
@@ -293,7 +295,7 @@ export function deriveCompetitorViewFromPersisted(
       beatsMe: true,
       source: "gpt_grounded",
       collectedAt: r.collectedAt,
-      evidence: matchedEvidence ?? { name },
+      evidence: normalizeEvidenceItems({ name, source: r.source, collectedAt: r.collectedAt }),
       measurementLabel: "measured",
     });
     aiIdx += 1;

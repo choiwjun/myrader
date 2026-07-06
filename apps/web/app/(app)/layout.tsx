@@ -19,7 +19,7 @@ export default async function AppLayout({
 }: {
   children: ReactNode;
 }) {
-  // P1-R1 getCurrentUser — 미인증이면 null. 빌드/런타임 에러 분기 처리.
+  // P1-R1 getCurrentUser — 미인증이면 null. 빌드타임 DATABASE_URL 미설정만 내비 null 허용.
   // #2 내비 칩 = 가게명(이메일 금지). 인증 사용자의 최신 가게명, 없으면 null.
   let storeName: string | null = null;
   const isBuildTime = !process.env.DATABASE_URL;
@@ -31,9 +31,9 @@ export default async function AppLayout({
         storeName = business?.name ?? null;
       }
     } catch (err) {
-      // 런타임 에러(DB 장애·세션 오류 등) — 내비는 미인증 상태로 graceful 처리.
+      // 런타임 에러(DB 장애·세션 오류 등)는 미인증처럼 숨기지 않고 에러 경계로 올린다.
       console.error("[app-layout] getCurrentUser/가게명 조회 런타임 에러:", err);
-      storeName = null;
+      throw err;
     }
   }
   // isBuildTime(DATABASE_URL 미설정): 빌드타임 정상 상황 — 조용히 null 유지.
@@ -43,11 +43,8 @@ export default async function AppLayout({
       {/* useSearchParams(퍼널 diagnosisId 이어주기) 사용 → Suspense 경계 필수 */}
       <Suspense
         fallback={
-          <div className="sticky top-0 z-50 w-full border-b border-[#CBD5E1]/40 bg-[#F8FAFC]/80 px-6 py-4 backdrop-blur-md">
-            <span
-              className="text-[22px] font-extrabold tracking-tight text-[#4338CA]"
-              style={{ fontFamily: "'Plus Jakarta Sans', 'Pretendard', sans-serif" }}
-            >
+          <div className="sticky top-0 z-50 w-full border-b border-[#D8E5DD] bg-[#F6F7F5]/90 px-6 py-4 backdrop-blur-md">
+            <span className="text-[22px] font-extrabold tracking-tight text-[var(--boina-brand-deep)]">
               보이나
             </span>
           </div>
@@ -56,7 +53,7 @@ export default async function AppLayout({
         <AppNav storeName={storeName} />
       </Suspense>
 
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 pb-24 md:pb-0">{children}</main>
 
       <SiteFooter />
     </div>

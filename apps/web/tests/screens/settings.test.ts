@@ -1,263 +1,121 @@
 // @TASK P2-S7 - 설정 (/settings) 화면 TDD
 // @SPEC specs/screens/settings.yaml (S7: REQ-001/007)
 // @SPEC .claude/constitutions/nextjs/auth.md (requireAuth — 미인증 차단)
-//
-// RED→GREEN:
-//   S7-T1: 미인증 차단 — requireAuth → /login 리다이렉트
-//   S7-T2: business_info_form — 가게 정보 표시/저장
-//   S7-T3: account_info — 로그인 이메일 표시
-//   S7-T4: rediagnose_placeholder — "곧 제공돼요" 안내만 (동작 0)
-//   S7-T5: change_store_button — /find 이동
-//   S7-T6: 정직성 가드 — 전문용어 0 / 응원 톤
 
-import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
 
-// ── businessSettings 타입 계약 ───────────────────────────────────────────────
+const settingsPageSource = readFileSync(
+  new URL("../../app/(app)/settings/page.tsx", import.meta.url),
+  "utf8",
+);
+const settingsClientSource = readFileSync(
+  new URL("../../app/(app)/settings/SettingsClient.tsx", import.meta.url),
+  "utf8",
+);
 
-interface BusinessSettings {
-  businessId: string;
-  name: string;
-  category: string | null;
-  region: string | null;
-  placeUrl: string | null;
-  websiteUrl: string | null;
+function sourceBlock(source: string, marker: string, terminator = "/>") {
+  const start = source.indexOf(marker);
+  expect(start).toBeGreaterThanOrEqual(0);
+  const end = source.indexOf(terminator, start);
+  expect(end).toBeGreaterThan(start);
+  return source.slice(start, end);
 }
 
-interface Account {
-  id: string;
-  email: string;
-}
-
-const MOCK_BUSINESS: BusinessSettings = {
-  businessId: "biz-001",
-  name: "맛있는 한식당",
-  category: "한식",
-  region: "서울 마포구",
-  placeUrl: "https://place.naver.com/restaurant/1234567",
-  websiteUrl: null,
-};
-
-const MOCK_ACCOUNT: Account = {
-  id: "acc-001",
-  email: "sajangnim@example.com",
-};
-
-// ── S7-T1: 미인증 차단 ──────────────────────────────────────────────────────
-
-describe("P2-S7: 설정 — 미인증 차단 (requireAuth)", () => {
-  it("S7-T1-a: requireAuth가 null 반환 시 /login 리다이렉트 (S7 auth:true)", () => {
-    // requireAuth 계약: user=null → redirect('/login')
-    // 실제 구현은 @/lib/auth.ts requireAuth 사용
-    const loginPath = "/login";
-    expect(loginPath).toBe("/login");
-    expect(loginPath).not.toBe("/settings");
-  });
-
-  it("S7-T1-b: 인증된 사용자는 설정 화면 진입 가능", () => {
-    const user = MOCK_ACCOUNT;
-    expect(user).not.toBeNull();
-    expect(user.email).toBeTruthy();
-  });
-
-  it("S7-T1-c: 설정 화면은 auth:true — 미인증 차단 필수", () => {
-    const screenAuth = true; // specs/screens/settings.yaml auth: true
-    expect(screenAuth).toBe(true);
-  });
-
-  it("S7-T1-d: getCurrentUser null → 401/리다이렉트 경로 검증", () => {
-    // 설정 화면 서버 컴포넌트 패턴: requireAuth() → null이면 redirect('/login')
-    async function mockRequireAuth(user: Account | null): Promise<Account | never> {
-      if (!user) {
-        // redirect('/login') 시뮬레이션
-        throw new Error("REDIRECT:/login");
-      }
-      return user;
-    }
-
-    const checkRedirect = async () => {
-      try {
-        await mockRequireAuth(null);
-        return false; // 리다이렉트 안 됨 — 테스트 실패
-      } catch (e) {
-        return (e as Error).message === "REDIRECT:/login";
-      }
-    };
-
-    return checkRedirect().then((redirected) => {
-      expect(redirected).toBe(true);
-    });
+describe("P2-S7: 설정 — auth gate", () => {
+  it("server page는 requireAuth를 호출하고 인증 이메일만 클라이언트에 넘긴다", () => {
+    expect(settingsPageSource).toContain('import { requireAuth } from "@/lib/auth"');
+    expect(settingsPageSource).toContain("const user = await requireAuth();");
+    expect(settingsPageSource).toContain("<SettingsClient email={user.email} />");
+    expect(settingsPageSource).not.toContain("getCurrentUser()");
   });
 });
 
-// ── S7-T2: business_info_form ────────────────────────────────────────────────
-
-describe("P2-S7: 설정 — business_info_form (가게 정보)", () => {
-  it("S7-T2-a: 가게 정보가 폼에 초기값으로 채워짐", () => {
-    const formValues = {
-      name: MOCK_BUSINESS.name,
-      category: MOCK_BUSINESS.category,
-      region: MOCK_BUSINESS.region,
-      placeUrl: MOCK_BUSINESS.placeUrl,
-      websiteUrl: MOCK_BUSINESS.websiteUrl,
-    };
-    expect(formValues.name).toBe("맛있는 한식당");
-    expect(formValues.category).toBe("한식");
-    expect(formValues.region).toBe("서울 마포구");
-    expect(formValues.placeUrl).toMatch(/place\.naver\.com/);
+describe("P2-S7: 설정 — business_info_form", () => {
+  it("초기 로드는 settings API의 businessSettings를 폼 상태에 반영한다", () => {
+    expect(settingsClientSource).toContain('fetch("/api/settings")');
+    expect(settingsClientSource).toContain("json.data.businessSettings");
+    expect(settingsClientSource).toContain('setName(biz.name ?? "")');
+    expect(settingsClientSource).toContain('setCategory(biz.category ?? "")');
+    expect(settingsClientSource).toContain('setRegion(biz.region ?? "")');
+    expect(settingsClientSource).toContain('setWebsiteUrl(biz.websiteUrl ?? "")');
   });
 
-  it("S7-T2-b: 필드 라벨 — 사장님 언어 (전문용어 0)", () => {
-    const FIELD_LABELS = ["가게 이름", "업종", "지역", "네이버 플레이스 주소", "홈페이지"];
-    const TECHNICAL_FORBIDDEN = ["API", "URL", "ID", "placeUrl", "homepageUrl", "naverPlaceId"];
-    for (const label of FIELD_LABELS) {
-      for (const term of TECHNICAL_FORBIDDEN) {
-        expect(label).not.toMatch(new RegExp(term, "i"));
-      }
+  it("초기 로드 실패는 빈 폼으로 숨기지 않고 오류/재시도 패널을 렌더한다", () => {
+    expect(settingsClientSource).toContain("loadError");
+    expect(settingsClientSource).toContain("setLoadError");
+    expect(settingsClientSource).toContain("가게 정보를 불러오지 못했어요");
+    expect(settingsClientSource).toContain("다시 불러오기");
+    expect(settingsClientSource).toContain("onClick={loadSettings}");
+    expect(settingsClientSource).toContain(") : loadError ? (");
+  });
+
+  it("저장은 PUT /api/settings와 businessId를 사용하고 businessId 없이는 오류를 노출한다", () => {
+    expect(settingsClientSource).toContain('method: "PUT"');
+    expect(settingsClientSource).toContain('fetch("/api/settings"');
+    expect(settingsClientSource).toContain("businessId: business.businessId");
+    expect(settingsClientSource).toContain("가게 정보를 먼저 불러온 뒤 저장해 주세요.");
+    expect(settingsClientSource).toContain("disabled={saving || !business?.businessId}");
+    expect(settingsClientSource).not.toContain("if (!business?.businessId) return;");
+  });
+
+  it("visible form labels are owner-facing Korean, not API field names", () => {
+    for (const label of ["가게 이름", "업종", "지역", "네이버 플레이스 연결", "홈페이지"]) {
+      expect(settingsClientSource).toContain(label);
     }
-  });
-
-  it("S7-T2-c: 저장 버튼 사장님 언어 ('저장하기' 등)", () => {
-    const saveLabel = "저장하기";
-    expect(saveLabel).not.toMatch(/POST|PUT|PATCH|submit|save/i);
-    expect(saveLabel).toBeTruthy();
-  });
-
-  it("S7-T2-d: 저장 후 반영됨 — businessSettings 업데이트 계약", () => {
-    // PUT /api/settings/business 또는 /api/business?id= 계약 확인
-    // 실제 저장: 폼 submit → fetch PUT → 성공 시 토스트
-    const updateAction = "PUT /api/settings/business";
-    expect(updateAction).toContain("PUT");
-    expect(updateAction).toContain("/api/settings/business");
+    for (const technical of ["homepageUrl", "naverPlaceId"]) {
+      expect(sourceBlock(settingsClientSource, "<form", "</form>")).not.toContain(technical);
+    }
+    expect(settingsClientSource).not.toContain('aria-label="placeUrl');
   });
 });
 
-// ── S7-T3: account_info ─────────────────────────────────────────────────────
-
-describe("P2-S7: 설정 — account_info (로그인 이메일)", () => {
-  it("S7-T3-a: 로그인 이메일이 표시됨", () => {
-    expect(MOCK_ACCOUNT.email).toBeTruthy();
-    expect(MOCK_ACCOUNT.email).toMatch(/@/);
+describe("P2-S7: 설정 — account, rediagnose, change-store", () => {
+  it("계정 영역은 이메일만 보여주고 민감정보 필드를 렌더하지 않는다", () => {
+    expect(settingsClientSource).toContain("현재 로그인 계정");
+    expect(settingsClientSource).toContain("{email}");
+    expect(settingsClientSource).not.toContain("password");
+    expect(settingsClientSource).not.toContain("sessionToken");
   });
 
-  it("S7-T3-b: 이메일 표시 라벨 사장님 언어", () => {
-    const label = "로그인 이메일";
-    expect(label).not.toMatch(/account|Account|accountId|id/i);
+  it("다시 살펴보기는 v1 placeholder 안내만 보여준다", () => {
+    expect(settingsClientSource).toContain("setShowRediagnosePlaceholder(true)");
+    expect(settingsClientSource).toContain("곧 제공돼요");
+    expect(settingsClientSource).toContain("다시 살펴보기 기능은 곧 추가될 예정이에요");
+    expect(settingsClientSource).not.toContain("/api/diagnosis/retry");
   });
 
-  it("S7-T3-c: 비밀번호 등 민감정보 노출 없음", () => {
-    const displayData = { email: MOCK_ACCOUNT.email };
-    const obj = displayData as Record<string, unknown>;
-    expect(obj.password).toBeUndefined();
-    expect(obj.token).toBeUndefined();
-    expect(obj.sessionToken).toBeUndefined();
-  });
-});
-
-// ── S7-T4: rediagnose_placeholder ────────────────────────────────────────────
-
-describe("P2-S7: 설정 — rediagnose_placeholder (v1 placeholder)", () => {
-  it("S7-T4-a: '다시 살펴보기' 버튼 클릭 시 '곧 제공돼요' 안내만", () => {
-    const placeholderMessage = "곧 제공돼요";
-    expect(placeholderMessage).toBeTruthy();
-    expect(placeholderMessage).not.toMatch(/v1\.5|version|업데이트/i);
-  });
-
-  it("S7-T4-b: 클릭 시 실제 재진단 동작 없음 (v1 한계)", () => {
-    const diagnosed = false;
-    const onRediagnoseClick = () => {
-      // v1: 동작 없음. 안내만 표시.
-      // diagnosed = true ← 절대 실행 안 됨
-    };
-    onRediagnoseClick();
-    expect(diagnosed).toBe(false);
-  });
-
-  it("S7-T4-c: placeholder 메시지에 인과 단정 없음", () => {
-    const messages = ["곧 제공돼요", "다시 살펴보기는 곧 추가될 예정이에요"];
-    const CAUSAL_FORBIDDEN = ["반드시", "확실히", "보장", "무조건"];
-    for (const msg of messages) {
-      for (const claim of CAUSAL_FORBIDDEN) {
-        expect(msg).not.toContain(claim);
-      }
-    }
+  it("다른 가게 보기 버튼은 /find로 이동하고 diagnosisId를 carry하지 않는다", () => {
+    expect(settingsClientSource).toContain('router.push("/find")');
+    expect(settingsClientSource).toContain("다른 가게 보기");
+    const changeStoreBlock = sourceBlock(settingsClientSource, "다른 가게 보기", "</button>");
+    expect(changeStoreBlock).not.toContain("diagnosisId");
   });
 });
 
-// ── S7-T5: change_store_button ──────────────────────────────────────────────
+describe("P2-S7: 설정 — honesty copy", () => {
+  it("주요 visible copy는 SettingsClient 실제 소스에 존재하며 순위/매출 보장과 기술 용어를 쓰지 않는다", () => {
+    const expectedVisibleCopies = [
+      "내 가게 관리",
+      "가게의 소중한 정보를 안전하게 관리하세요.",
+      "정확한 정보일수록 더 잘 살펴봐 드려요.",
+      "저장하기",
+      "다른 가게 보기",
+      "곧 제공돼요",
+    ];
 
-describe("P2-S7: 설정 — change_store_button (/find 이동)", () => {
-  it("S7-T5-a: 다른 가게로 바꾸기 → /find 이동", () => {
-    const nextPath = "/find";
-    expect(nextPath).toBe("/find");
-    expect(nextPath).not.toBe("/settings");
-    expect(nextPath).not.toBe("/gap");
-  });
-
-  it("S7-T5-b: 버튼 라벨이 사장님 언어", () => {
-    const label = "다른 가게로 바꾸기";
-    expect(label).not.toMatch(/change|store|find|search/i);
-    expect(label).toBeTruthy();
-  });
-
-  it("S7-T5-c: 버튼 클릭 시 /find로 이동하는 핸들러", () => {
-    let navigatedTo = "";
-    const mockRouter = {
-      push: vi.fn((path: string) => {
-        navigatedTo = path;
-      }),
-    };
-    mockRouter.push("/find");
-    expect(navigatedTo).toBe("/find");
-    expect(mockRouter.push).toHaveBeenCalledWith("/find");
-  });
-});
-
-// ── S7-T6: 정직성 가드 ──────────────────────────────────────────────────────
-
-describe("P2-S7: 설정 — 정직성 가드 (AC-7)", () => {
-  const UI_TEXTS = [
-    "가게 이름",
-    "업종",
-    "지역",
-    "네이버 플레이스 주소",
-    "홈페이지",
-    "로그인 이메일",
-    "다시 살펴보기",
-    "곧 제공돼요",
-    "다른 가게로 바꾸기",
-    "저장하기",
-  ];
-
-  const TECHNICAL_FORBIDDEN = [
-    "SEO",
-    "AEO",
-    "GEO",
-    "SERP",
-    "snippet",
-    "algorithm",
-    "placeUrl",
-    "businessId",
-  ];
-  const CAUSAL_FORBIDDEN = ["1위", "1등", "매출", "반드시", "확실히", "보장", "무조건"];
-
-  it("S7-T6-a: 모든 UI 텍스트에 전문용어 없음", () => {
-    for (const text of UI_TEXTS) {
-      for (const term of TECHNICAL_FORBIDDEN) {
-        expect(text).not.toMatch(new RegExp(term, "i"));
-      }
+    for (const expectedCopy of expectedVisibleCopies) {
+      const sourceIndex = settingsClientSource.indexOf(expectedCopy);
+      expect(sourceIndex).toBeGreaterThanOrEqual(0);
+      const actualCopy = settingsClientSource.slice(sourceIndex, sourceIndex + expectedCopy.length);
+      expect(actualCopy).toBe(expectedCopy);
+      expect(actualCopy).not.toMatch(/SEO|AEO|GEO|SERP|snippet|algorithm|businessId|placeUrl/i);
+      expect(actualCopy).not.toMatch(/1위|1등|매출|반드시|확실히|보장|무조건/);
     }
   });
 
-  it("S7-T6-b: 모든 UI 텍스트에 인과 단정 없음", () => {
-    for (const text of UI_TEXTS) {
-      for (const claim of CAUSAL_FORBIDDEN) {
-        expect(text).not.toContain(claim);
-      }
-    }
-  });
-
-  it("S7-T6-c: 응원 톤 — 모바일 큰 버튼 패턴 (min-h-[52px] 이상)", () => {
-    const minTouchTarget = 52; // px — 사장님 모바일 최소 터치 영역
-    expect(minTouchTarget).toBeGreaterThanOrEqual(44); // iOS HIG
+  it("모바일 버튼은 52px 이상 터치 타겟을 유지한다", () => {
+    expect(settingsClientSource).toContain("h-12 w-full");
+    expect(settingsClientSource).toContain("min-h-[52px]");
   });
 });

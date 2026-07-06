@@ -56,13 +56,19 @@ export function buildSampleNaverCompetitors(
   ];
 }
 
+function optionalCompetitorUrl(c: unknown): string | undefined {
+  if (!c || typeof c !== "object" || !("url" in c)) return undefined;
+  const url = (c as { url?: unknown }).url;
+  return typeof url === "string" && url.trim().length > 0 ? url.trim() : undefined;
+}
+
 /**
  * 파이프라인 산출(grounded llmValidation.competitors)에서 신뢰 경쟁사 보유 여부를 본다.
  * grounded=true + competitors 1건 이상이면 "실 경쟁사 신호 있음".
  */
 export function hasRealCompetitorSignal(output: DiagnosisPipelineOutput): boolean {
   const llm = output.llmValidation;
-  return llm?.grounded === true && (llm.competitors?.length ?? 0) > 0;
+  return llm?.grounded === true && (llm.competitors ?? []).some((c) => c.name.trim().length > 0);
 }
 
 /**
@@ -109,6 +115,7 @@ export const defaultSerpCompetitorDiscoverer: SerpCompetitorDiscoverer = async (
         rank: typeof c.rank === "number" ? c.rank : i + 1,
         query,
         source: "naver_serp" as const,
+        url: (c.url ?? "").trim() || undefined,
       }))
       .filter((c) => c.name.length > 0);
   } catch {
@@ -135,14 +142,18 @@ export async function deriveCompetitorInput(
   profile: CompetitorBusinessProfile,
   opts: { selfUrl?: string; discoverSerp?: SerpCompetitorDiscoverer } = {},
 ): Promise<DerivedCompetitorInput & { hasNoCompetitorData: boolean }> {
-  // (1) 실 grounded 경쟁사 신호: naver_serp 샘플 없이, GapAnalyzer 트리거만 그 이름으로 채운다.
+  // (1) 실 grounded 경쟁사 신호: URL 근거가 있으면 보존하고, 없으면 이름 기반 식별자를 쓴다.
   if (hasRealCompetitorSignal(output)) {
-    const names = (output.llmValidation?.competitors ?? [])
-      .map((c) => c.name.trim())
-      .filter((n) => n.length > 0);
+    const competitorUrls = (output.llmValidation?.competitors ?? [])
+      .map((c) => {
+        const name = c.name.trim();
+        if (!name) return null;
+        return optionalCompetitorUrl(c) ?? `gpt_grounded:${name}`;
+      })
+      .filter((target): target is string => target !== null);
     return {
       naverCompetitorTop: [],
-      competitorUrls: names.map((n) => `gpt_grounded:${n}`),
+      competitorUrls,
       hasNoCompetitorData: false,
     };
   }
@@ -164,7 +175,7 @@ export async function deriveCompetitorInput(
   if (discovered.length > 0) {
     return {
       naverCompetitorTop: discovered,
-      competitorUrls: discovered.map((c) => `naver_serp:${c.name}`),
+      competitorUrls: discovered.map((c) => c.url?.trim() || `naver_serp:${c.name}`),
       hasNoCompetitorData: false,
     };
   }

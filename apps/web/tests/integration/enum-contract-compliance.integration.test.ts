@@ -50,7 +50,7 @@ describe("P1-S0-V: 공통 컴포넌트 enum 계약 준수 (변환 함수 경유)
       // 이는 타입 시스템으로 강제되며, 여기서는 함수 서명으로 확인.
       const signal: Signal = "green";
       const result = signalToLabel(signal);
-      expect(result.emoji).toBe("🟢");
+      expect(result.emoji).toBe("good");
       // 반환값에도 score 필드 없음
       const resultObj = result as unknown as Record<string, unknown>;
       expect(resultObj.score).toBeUndefined();

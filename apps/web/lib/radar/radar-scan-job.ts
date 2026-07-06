@@ -57,6 +57,16 @@ export interface RadarScanJobResult {
   readonly skipped: number;
   readonly failed: number;
 }
+type RadarScanRunStatus = "done" | "partial" | "skipped" | "failed";
+
+interface SignalCollectionAttempt {
+  readonly collected: Awaited<ReturnType<typeof collectSignals>>;
+  readonly retryAttempted: boolean;
+  readonly adapterUnavailable: boolean;
+}
+
+const RETRYABLE_SIGNAL_FAILURE_STAGE = "signal_retry_once";
+const ADAPTER_UNAVAILABLE_TOKEN = "adapter_unavailable";
 
 export async function processDueRadarScans(
   repository: RadarScanRepository,
@@ -83,7 +93,7 @@ async function runRadarScan(
   repository: RadarScanRepository,
   options: RadarScanJobOptions,
   now: Date,
-): Promise<"done" | "partial" | "skipped" | "failed"> {
+): Promise<RadarScanRunStatus> {
   const scan = await repository.createScan({
     subscriptionId: target.subscriptionId,
     businessId: target.businessId,
@@ -101,13 +111,34 @@ async function runRadarScan(
     const expanded = await expand(seedForTarget(target), {
       limit: options.keywordLimit ?? 30,
     });
-    await repository.updateScanStatus(scan.id, { status: "scoring", stageDetail: "scoring" });
+    await repository.updateScanStatus(scan.id, {
+      status: "scoring",
+      stageDetail: stageWithFallback("scoring", expanded.status),
+    });
 
     const signalCandidates = expanded.keywords.slice(0, options.signalLimit ?? 30);
-    const collected = await collectSignals(signalCandidates, {
-      ...options.signalOptions,
+    const signalAttempt = await collectSignalsWithRetry(
+      scan.id,
+      signalCandidates,
+      repository,
+      options,
       now,
-    });
+    );
+    const { collected } = signalAttempt;
+    const signalStatus = signalRunStatus(collected.status);
+    if (signalStatus === "failed") {
+      await repository.updateScanStatus(scan.id, {
+        status: "failed",
+        stageDetail: finalStageDetail("failed", {
+          retryAttempted: signalAttempt.retryAttempted,
+          adapterUnavailable: signalAttempt.adapterUnavailable,
+          fallbackUsed: expanded.status === "fallback",
+        }),
+        finishedAt: new Date(),
+        ...errorMessagePatch("failed", collected, signalAttempt.adapterUnavailable, "skipped"),
+      });
+      return "failed";
+    }
     const scored = collected.signals.map(signalToKeywordRow(scan.id));
     const { keywords, probeStatus } = await attachAiProbeEvidence({
       target,
@@ -120,19 +151,17 @@ async function runRadarScan(
 
     await repository.insertKeywords(keywords);
 
-    const signalStatus =
-      collected.status === "complete"
-        ? "done"
-        : collected.status === "failed"
-          ? "failed"
-          : collected.status;
     const finalStatus =
       signalStatus === "done" && probeStatus === "failed" ? "partial" : signalStatus;
     await repository.updateScanStatus(scan.id, {
       status: finalStatus,
-      stageDetail: finalStatus,
+      stageDetail: finalStageDetail(finalStatus, {
+        retryAttempted: signalAttempt.retryAttempted,
+        adapterUnavailable: signalAttempt.adapterUnavailable,
+        fallbackUsed: expanded.status === "fallback",
+      }),
       finishedAt: new Date(),
-      ...(finalStatus === "failed" ? { errorMessage: "radar signal collection failed" } : {}),
+      ...errorMessagePatch(finalStatus, collected, signalAttempt.adapterUnavailable, probeStatus),
     });
     await repository.upsertSubscription({
       id: target.subscriptionId,
@@ -151,6 +180,108 @@ async function runRadarScan(
     });
     return "failed";
   }
+}
+async function collectSignalsWithRetry(
+  scanId: string,
+  signalCandidates: readonly KeywordCandidate[],
+  repository: RadarScanRepository,
+  options: RadarScanJobOptions,
+  now: Date,
+): Promise<SignalCollectionAttempt> {
+  const first = await collectSignals(signalCandidates, {
+    ...options.signalOptions,
+    now,
+  });
+  const adapterUnavailable = hasAdapterUnavailableError(first);
+
+  if (first.status !== "failed" || adapterUnavailable) {
+    return { collected: first, retryAttempted: false, adapterUnavailable };
+  }
+
+  await repository.updateScanStatus(scanId, {
+    status: "scoring",
+    stageDetail: RETRYABLE_SIGNAL_FAILURE_STAGE,
+  });
+
+  const retry = await collectSignals(signalCandidates, {
+    ...options.signalOptions,
+    now,
+  });
+
+  return {
+    collected: retry,
+    retryAttempted: true,
+    adapterUnavailable: hasAdapterUnavailableError(retry),
+  };
+}
+
+function signalRunStatus(
+  status: Awaited<ReturnType<typeof collectSignals>>["status"],
+): RadarScanRunStatus {
+  return status === "complete" ? "done" : status;
+}
+
+function finalStageDetail(
+  status: RadarScanRunStatus,
+  metadata: {
+    readonly retryAttempted: boolean;
+    readonly adapterUnavailable: boolean;
+    readonly fallbackUsed: boolean;
+  },
+): string {
+  const tokens: string[] = [status];
+  if (metadata.retryAttempted) tokens.push("retry_once");
+  if (metadata.adapterUnavailable) tokens.push(ADAPTER_UNAVAILABLE_TOKEN);
+  if (metadata.fallbackUsed) tokens.push("fallback");
+  return tokens.join("_");
+}
+
+function stageWithFallback(
+  stage: string,
+  expansionStatus: Awaited<ReturnType<typeof expand>>["status"],
+): string {
+  return expansionStatus === "fallback" ? `${stage}_fallback` : stage;
+}
+
+function errorMessagePatch(
+  finalStatus: RadarScanRunStatus,
+  collected: Awaited<ReturnType<typeof collectSignals>>,
+  adapterUnavailable: boolean,
+  probeStatus: "skipped" | "done" | "failed",
+): Pick<NewRadarScan, "errorMessage"> {
+  if (finalStatus === "done") {
+    return { errorMessage: null };
+  }
+  if (probeStatus === "failed") {
+    return {};
+  }
+  if (finalStatus !== "failed" && finalStatus !== "partial") {
+    return {};
+  }
+
+  const message = adapterUnavailable
+    ? "radar signal adapter unavailable"
+    : signalCollectionMessage(collected);
+
+  return { errorMessage: message };
+}
+
+function signalCollectionMessage(collected: Awaited<ReturnType<typeof collectSignals>>): string {
+  const errors = Object.entries(collected.channelStatus)
+    .filter(([, status]) => status.status === "failed" && status.error)
+    .map(([channel, status]) => `${channel}=${status.error}`);
+
+  return errors.length > 0
+    ? `radar signal collection ${collected.status}: ${errors.join("; ")}`
+    : `radar signal collection ${collected.status}`;
+}
+
+function hasAdapterUnavailableError(
+  collected: Awaited<ReturnType<typeof collectSignals>>,
+): boolean {
+  return Object.values(collected.channelStatus).some((status) =>
+    status.error?.includes("RADAR_SIGNAL_ADAPTER_UNAVAILABLE"),
+  );
 }
 
 function seedForTarget(target: RadarScanTarget): string {

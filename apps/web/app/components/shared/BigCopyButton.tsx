@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 export interface BigCopyButtonProps {
   /** 복사할 텍스트 */
@@ -17,32 +17,65 @@ export interface BigCopyButtonProps {
   label?: string;
 }
 
+export async function copyTextWithFallback(content: string): Promise<boolean> {
+  try {
+    const clipboard = globalThis.navigator?.clipboard;
+    if (!clipboard?.writeText) {
+      throw new Error("navigator.clipboard.writeText unavailable");
+    }
+    await clipboard.writeText(content);
+    return true;
+  } catch {
+    if (typeof document === "undefined" || typeof document.execCommand !== "function") {
+      return false;
+    }
+
+    const el = document.createElement("textarea");
+    el.value = content;
+    el.style.position = "fixed";
+    el.style.opacity = "0";
+    document.body.appendChild(el);
+    el.focus();
+    el.select();
+
+    try {
+      return document.execCommand("copy") === true;
+    } catch {
+      return false;
+    } finally {
+      document.body.removeChild(el);
+    }
+  }
+}
+
 /**
  * 큰 복사 버튼.
  * 클립보드 복사 성공 시 "복사됐어요" 피드백 2초 표시.
  */
 export function BigCopyButton({ content, label = "복사하기" }: BigCopyButtonProps) {
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function markCopied() {
+    setCopied(true);
+    setCopyError(null);
+    if (resetTimerRef.current) {
+      clearTimeout(resetTimerRef.current);
+    }
+    resetTimerRef.current = setTimeout(() => setCopied(false), 2000);
+  }
 
   async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(content);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // 클립보드 API 불가 환경 폴백 (구형 iOS 등)
-      const el = document.createElement("textarea");
-      el.value = content;
-      el.style.position = "fixed";
-      el.style.opacity = "0";
-      document.body.appendChild(el);
-      el.focus();
-      el.select();
-      document.execCommand("copy");
-      document.body.removeChild(el);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+    setCopyError(null);
+    const didCopy = await copyTextWithFallback(content);
+    if (didCopy) {
+      markCopied();
+      return;
     }
+
+    setCopied(false);
+    setCopyError("복사에 실패했어요. 다시 시도하거나 직접 복사해 주세요.");
   }
 
   return (
@@ -52,17 +85,21 @@ export function BigCopyButton({ content, label = "복사하기" }: BigCopyButton
         onClick={handleCopy}
         aria-label={copied ? "복사됐어요" : label}
         className={`w-full min-h-[56px] rounded-2xl text-white text-lg font-bold px-6 active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-2 ${
-          copied ? "bg-[#10B981]" : "bg-[#4F46E5] hover:bg-[#4338CA]"
+          copied ? "bg-[#10B981]" : "bg-[var(--boina-brand)] hover:bg-[var(--boina-brand-deep)]"
         }`}
       >
         {copied ? (
           <>
-            <span aria-hidden="true">✅</span>
+            <span className="material-symbols-outlined text-[22px]" aria-hidden="true">
+              check_circle
+            </span>
             복사됐어요
           </>
         ) : (
           <>
-            <span aria-hidden="true">📋</span>
+            <span className="material-symbols-outlined text-[22px]" aria-hidden="true">
+              content_copy
+            </span>
             {label}
           </>
         )}
@@ -70,8 +107,11 @@ export function BigCopyButton({ content, label = "복사하기" }: BigCopyButton
 
       {/* 스크린 리더용 토스트 알림 — output 요소가 role="status" + aria-live 내재 */}
       <output aria-live="polite" aria-atomic="true" className="sr-only">
-        {copied ? "클립보드에 복사됐어요." : ""}
+        {copied ? "클립보드에 복사됐어요." : copyError ? copyError : ""}
       </output>
+      {copyError && (
+        <p className="mt-2 text-center text-sm font-semibold text-[#B45309]">{copyError}</p>
+      )}
     </div>
   );
 }

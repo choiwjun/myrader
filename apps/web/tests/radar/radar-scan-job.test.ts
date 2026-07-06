@@ -45,6 +45,7 @@ describe("processDueRadarScans", () => {
     expect(repo.keywords).toHaveLength(2);
     expect(repo.keywords[0]?.naverScore).toBeGreaterThan(70);
     expect(repo.scanUpdates.at(-1)?.status).toBe("done");
+    expect(repo.subscriptions.at(-1)?.nextScanAt?.toISOString()).toBe("2026-07-05T21:00:00.000Z");
   });
 
   it("stores AI citation probe evidence for the top scored keywords", async () => {
@@ -116,9 +117,13 @@ describe("processDueRadarScans", () => {
         (patch) => patch.status === "partial" && patch.stageDetail === "probing_failed",
       ),
     ).toBe(true);
+    expect(repo.scanUpdates.find((patch) => patch.stageDetail === "probing_failed")).toMatchObject({
+      errorMessage: "probe down",
+    });
+    expect(repo.scanUpdates.at(-1)?.errorMessage).toBeUndefined();
     expect(repo.scanUpdates.at(-1)).toMatchObject({
       status: "partial",
-      stageDetail: "partial",
+      stageDetail: "partial_fallback",
     });
   });
 
@@ -150,6 +155,105 @@ describe("processDueRadarScans", () => {
     expect(result).toMatchObject({ processed: 1, partial: 1, failed: 0 });
     expect(repo.scanUpdates.at(-1)?.status).toBe("partial");
     expect(repo.keywords[0]?.naverEvidence?.trend7d).toBeNull();
+  });
+
+  it("records one retry attempt before failing a transient signal collection", async () => {
+    const repo = new FakeRadarRepo([
+      {
+        subscriptionId: "11111111-1111-4111-8111-111111111111",
+        businessId: "22222222-2222-4222-8222-222222222222",
+        businessName: "비건빵집",
+        region: "성수동",
+        category: "베이커리",
+      },
+    ]);
+
+    const result = await processDueRadarScans(repo, {
+      now: new Date("2026-07-05T00:00:00.000Z"),
+      keywordLimit: 2,
+      signalLimit: 1,
+      signalOptions: { client: alwaysFailingClient("network reset") },
+    });
+
+    expect(result).toMatchObject({ processed: 1, completed: 0, failed: 1 });
+    expect(repo.keywords).toHaveLength(0);
+    expect(repo.scanUpdates.some((patch) => patch.stageDetail === "signal_retry_once")).toBe(true);
+    const retryUpdate = repo.scanUpdates.find((patch) => patch.stageDetail === "signal_retry_once");
+    expect(retryUpdate).toMatchObject({
+      status: "scoring",
+      stageDetail: "signal_retry_once",
+    });
+    expect(retryUpdate?.errorMessage).toBeUndefined();
+    expect(repo.scanUpdates.at(-1)).toMatchObject({
+      status: "failed",
+      stageDetail: "failed_retry_once_fallback",
+    });
+    expect(repo.scanUpdates.at(-1)?.errorMessage).toContain("network reset");
+  });
+
+  it("clears a transient retry error when the retry succeeds", async () => {
+    const repo = new FakeRadarRepo([
+      {
+        subscriptionId: "11111111-1111-4111-8111-111111111111",
+        businessId: "22222222-2222-4222-8222-222222222222",
+        businessName: "비건빵집",
+        region: "성수동",
+        category: "베이커리",
+      },
+    ]);
+
+    const result = await processDueRadarScans(repo, {
+      now: new Date("2026-07-05T00:00:00.000Z"),
+      keywordLimit: 2,
+      signalLimit: 1,
+      signalOptions: { client: failFirstCollectionClient() },
+    });
+
+    expect(result).toMatchObject({ processed: 1, completed: 1, failed: 0 });
+    expect(repo.scanUpdates.some((patch) => patch.stageDetail === "signal_retry_once")).toBe(true);
+    const retryUpdate = repo.scanUpdates.find((patch) => patch.stageDetail === "signal_retry_once");
+    expect(retryUpdate).toMatchObject({
+      status: "scoring",
+      stageDetail: "signal_retry_once",
+    });
+    expect(retryUpdate?.errorMessage).toBeUndefined();
+    expect(repo.scanUpdates.at(-1)).toMatchObject({
+      status: "done",
+      errorMessage: null,
+    });
+    expect(repo.keywords).toHaveLength(1);
+  });
+
+  it("does not retry unavailable production adapters or write fake measured keywords", async () => {
+    const repo = new FakeRadarRepo([
+      {
+        subscriptionId: "11111111-1111-4111-8111-111111111111",
+        businessId: "22222222-2222-4222-8222-222222222222",
+        businessName: "비건빵집",
+        region: "성수동",
+        category: "베이커리",
+      },
+    ]);
+
+    const result = await processDueRadarScans(repo, {
+      now: new Date("2026-07-05T00:00:00.000Z"),
+      keywordLimit: 2,
+      signalLimit: 1,
+      signalOptions: {
+        client: alwaysFailingClient(
+          "RADAR_SIGNAL_ADAPTER_UNAVAILABLE: Naver radar signal credentials are not configured",
+        ),
+      },
+    });
+
+    expect(result).toMatchObject({ processed: 1, completed: 0, failed: 1 });
+    expect(repo.keywords).toHaveLength(0);
+    expect(repo.scanUpdates.some((patch) => patch.stageDetail === "signal_retry_once")).toBe(false);
+    expect(repo.scanUpdates.at(-1)).toMatchObject({
+      status: "failed",
+      stageDetail: "failed_adapter_unavailable_fallback",
+      errorMessage: "radar signal adapter unavailable",
+    });
   });
 
   it("isolates failures per subscription", async () => {
@@ -192,6 +296,45 @@ function completeClient(): KeywordSignalClient {
       return { monthlySearches: 1800, checkedAt: "2026-07-05T00:00:00.000Z" };
     },
     async fetchDatalab() {
+      return { trend7d: 0.18, checkedAt: "2026-07-05T00:00:00.000Z" };
+    },
+  };
+}
+
+function alwaysFailingClient(message: string): KeywordSignalClient {
+  return {
+    async fetchBlog() {
+      throw new Error(message);
+    },
+    async fetchSearchAd() {
+      throw new Error(message);
+    },
+    async fetchDatalab() {
+      throw new Error(message);
+    },
+  };
+}
+
+function failFirstCollectionClient(): KeywordSignalClient {
+  let remainingFailures = 3;
+  const failOnce = () => {
+    if (remainingFailures > 0) {
+      remainingFailures -= 1;
+      throw new Error("network reset");
+    }
+  };
+
+  return {
+    async fetchBlog() {
+      failOnce();
+      return { docs: 420, checkedAt: "2026-07-05T00:00:00.000Z" };
+    },
+    async fetchSearchAd() {
+      failOnce();
+      return { monthlySearches: 1800, checkedAt: "2026-07-05T00:00:00.000Z" };
+    },
+    async fetchDatalab() {
+      failOnce();
       return { trend7d: 0.18, checkedAt: "2026-07-05T00:00:00.000Z" };
     },
   };

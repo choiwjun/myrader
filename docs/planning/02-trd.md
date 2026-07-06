@@ -9,7 +9,7 @@
 | 레이어 | 선택 | 근거 |
 |--------|------|------|
 | 앱 골격 | **Next.js (App Router) 단일 풀스택** — 페이지 + Route Handler / Server Action | 입력 최소·모바일 중심 셀프서비스에 풀스택 단일 앱이 가장 가벼움 |
-| 엔진 | x-sag 분석 엔진을 **workspace 패키지로 import** | 맨바닥에서 짓지 않음. 엔진은 부품 |
+| 엔진 | x-sag 분석 엔진을 **현재 모노레포 workspace 패키지로 import** | SME v1은 `@boina/*`/`@radar/*`를 외부 발행하지 않고 내부 TS 소스 패키지로 소비. GitHub Packages 발행은 dist build와 release workflow를 의도적으로 추가한 뒤로 유예 |
 | 비동기 처리 | 백그라운드 잡 (분석이 느림) | 진단·AI 인용·SERP 호출은 즉답 불가 → 잡 큐 필요 |
 | DB | **Postgres** (Drizzle 재사용 가능) | x-sag diagnosis 스키마 차용 (04-database-design 참조) |
 | 디자인 | 별도 투자 (UX가 본 제품의 본체) | 05-design-system |
@@ -63,7 +63,7 @@
 |------|------|
 | **재사용 (x-sag)** | `packages/core-engine` (크롤·파서·analyzers·scoring·v2: gap/competitor/serp/geo-validator/nlp), `packages/contracts` (스키마·diagnosis/api 타입), naver-presence, llm-provider, snippet 로직 |
 | **신규** | Next.js 앱(페이지 + Route Handler / Server Action), 백그라운드 잡 배선, 모바일 UX(05), 4분류 행동 안내(REQ-005), "오늘 딱 하나" 우선순위 로직, 정직성 카피 가드 |
-| **재사용 방식** | **[OPEN] = OQ-6** — x-sag 패키지를 그대로 import vs 추출/복사. 결정 시 07-coding-convention 엔진 통합 규칙에 반영 |
+| **재사용 방식** | **OQ-6 해소(현재 SME v1)** — `packages/engine`, `packages/contracts`, `packages/keyword-pipeline` 등 모노레포 workspace 패키지를 TS 소스 상태로 import한다. GitHub Packages 외부 발행은 dist 산출물·exports 정리·release workflow가 준비된 뒤 별도 결정으로 진행한다 |
 
 > DB·TRD 상당 부분은 엔진 스키마(`packages/contracts`)를 차용하므로 맨바닥이 아니다.
 
@@ -74,7 +74,7 @@
 | AI 인용·SERP 비용 폭증 | 단위경제 악화 | grounded llmValidation·SERP 호출 게이팅, 캐싱/재진단 정책(REQ-007 OQ-2) |
 | 구글 SERP 키 미결정(OQ-4) | 구글 노출 기능 불확실 | v1에서 구글을 조건부로 두고 OQ-2와 함께 컷 결정 |
 | 잡 인프라 과/소설계(OQ-5) | 운영 부담 or 확장 한계 | 경량으로 시작, 추상화 레이어로 교체 가능하게 |
-| 엔진 결합 강도(OQ-6) | x-sag 변경에 끌려다님 | contracts 타입 경계 고정, import vs 복사 결정을 명문화 |
+| 엔진 결합 강도(OQ-6) | workspace-only 패키지 경계가 새어 앱이 엔진 내부에 끌려다님 | contracts 타입 경계 고정, 현재는 내부 workspace import만 허용. 외부 패키지 발행은 dist build/release workflow 준비 전까지 금지 |
 | on-page 점수 ≠ AI 실인용 | 잘못된 약속 → 신뢰 붕괴 | 정직성 규율(05·07): 점수 과신 금지, 진짜 레버는 리뷰·평판·브랜드임을 명시 |
 
 ## 6. 확장성 아키텍처 원칙(구속)
@@ -120,7 +120,7 @@
 
 - **Upstream docs**: 01-prd.md (REQ-001~007, OQ-2/4/5/6)
 - **Downstream docs**: 04-database-design.md(엔진 스키마 차용), 07-coding-convention.md(엔진 통합 규칙 + 확장성 코딩 규칙 6절), 03-user-flow.md(잡 진행 표시)
-- **Open questions**: OQ-2(MVP 컷·구글/역공학/재진단), OQ-4(구글 SERP 키·비용), OQ-5(잡 인프라), OQ-6(엔진 재사용 방식)
-- **Assumptions**: Naver Search API 접근 가능 / x-sag contracts 타입을 그대로 쓸 수 있음 / Postgres+Drizzle 재사용 가능 / **데이터 소스 우선순위 = AI 실인용(HERO) > 경쟁사·GapAnalyzer > 네이버>구글(v1.5)>SNS(연료)**(2절, 확정) / 작은 가게의 AI "모름"을 미래지향 가치+증거 측정으로 처리 / **확장성 = 구속 조건: 변할 축에만 확장점(어댑터·레지스트리·config·버저닝), x-sag 패턴 재사용, 엔진 계약 불변·additive only**(6절, 확정)
-- **Validation criteria**: 진단 잡이 비동기로 완주하고 신호등 결과를 반환한다 / 비용 게이팅이 동작한다 / 엔진 패키지가 신규 앱에서 import되어 동작한다
+- **Open questions**: OQ-2(MVP 컷·구글/역공학/재진단), OQ-4(구글 SERP 키·비용), OQ-5(잡 인프라). OQ-6은 현재 SME v1 기준 **workspace-only 패키지 사용**으로 해소됨(외부 발행 유예).
+- **Assumptions**: Naver Search API 접근 가능 / x-sag contracts 타입을 현재 모노레포 workspace 패키지로 사용할 수 있음 / Postgres+Drizzle 재사용 가능 / **데이터 소스 우선순위 = AI 실인용(HERO) > 경쟁사·GapAnalyzer > 네이버>구글(v1.5)>SNS(연료)**(2절, 확정) / 작은 가게의 AI "모름"을 미래지향 가치+증거 측정으로 처리 / **확장성 = 구속 조건: 변할 축에만 확장점(어댑터·레지스트리·config·버저닝), x-sag 패턴 재사용, 엔진 계약 불변·additive only**(6절, 확정)
+- **Validation criteria**: 진단 잡이 비동기로 완주하고 신호등 결과를 반환한다 / 비용 게이팅이 동작한다 / 엔진 패키지가 신규 앱에서 workspace import되어 동작한다 / 문서가 release workflow나 GitHub Packages 발행을 현재 범위로 요구하지 않는다
 - **Risks**: 데이터 소스 비용 / 키 미결정 / 잡 인프라 선택 / 엔진 결합 강도 / 점수≠실인용 신뢰 리스크 (위 5절)

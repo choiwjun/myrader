@@ -48,7 +48,6 @@ export async function GET(request: Request) {
     const rawType = searchParams.get("type");
     const type = rawType === null ? undefined : AssetTypeSchema.parse(rawType);
     const actionId = searchParams.get("actionId");
-    const keyword = searchParams.get("keyword");
 
     // ★ 유료(실행팩) 경계 — 서버 세션 account.plan 으로만 결정(클라 ?paid=1 무시). 익명=free.
     const { isPaid } = await resolveRequestPlanTier();
@@ -68,11 +67,17 @@ export async function GET(request: Request) {
       actionId ? getPersistedGapRows(db, diagnosisId) : Promise.resolve([]),
     ]);
     const selectedGap = actionId ? gapRows.find((row) => row.id === actionId) : undefined;
+    if (actionId && !selectedGap) {
+      return NextResponse.json(
+        { error: "Action not found", code: "ACTION_NOT_FOUND", success: false },
+        { status: 404 },
+      );
+    }
     const evidence = selectedGap
       ? [
-          { label: "연결된 할 일", detail: selectedGap.item },
+          { label: "확인한 할 일", detail: selectedGap.item },
           {
-            label: "측정 근거",
+            label: "옆집 확인 내용",
             detail: `${selectedGap.competitorName ?? "경쟁사"} ${selectedGap.competitorHas ? "보유" : "미보유"}`,
           },
         ]
@@ -85,7 +90,6 @@ export async function GET(request: Request) {
       ? deriveGeneratedAssetViewFromPersisted(persisted, dbToAssetType, {
           isPaid,
           type,
-          ...(keyword ? { sourceKeywords: [keyword] } : {}),
           evidence,
         })
       : deriveGeneratedAssetViewFromView({ isPaid });

@@ -1,12 +1,15 @@
 "use client";
 
-import type { RadarPreviewStatus, UnsubscribedRadarPreview } from "@/lib/radar/radar-preview";
+import type { RadarHomePreview, RadarPreviewStatus } from "@/lib/radar/radar-preview";
 import Link from "next/link";
 import { useState } from "react";
 
 export interface RadarPreviewCardProps {
-  readonly preview: UnsubscribedRadarPreview | null;
+  readonly preview: RadarHomePreview | null;
+  readonly diagnosisId?: string | null;
   readonly loading?: boolean;
+  readonly onRetry?: () => void;
+  readonly onPreviewChange?: (preview: RadarHomePreview) => void;
 }
 
 const STATUS_MARK: Record<RadarPreviewStatus, { readonly shape: string; readonly label: string }> =
@@ -22,16 +25,76 @@ const STATUS_COLOR: Record<RadarPreviewStatus, string> = {
   wait: "var(--boina-wait)",
 };
 
-export function RadarPreviewCard({ preview, loading = false }: RadarPreviewCardProps) {
-  const [interestOpen, setInterestOpen] = useState(false);
+type MutationState = "idle" | "loading" | "success" | "error";
+
+export function RadarPreviewCard({
+  preview,
+  diagnosisId = null,
+  loading = false,
+  onPreviewChange,
+  onRetry,
+}: RadarPreviewCardProps) {
+  const [subscriptionState, setSubscriptionState] = useState<MutationState>("idle");
+  const [subscriptionMessage, setSubscriptionMessage] = useState<string | null>(null);
+  const [feedbackState, setFeedbackState] = useState<Record<string, MutationState>>({});
   const sheetEnabled = preview?.sheetEnabled ?? true;
   const primaryHref = preview?.rows.find((row) => row.actionHref)?.actionHref ?? "/write";
+  const subscribing = subscriptionState === "loading";
   const emptyCaption =
     preview?.mode === "failed"
       ? (preview.caption ?? "스캔 결과를 불러오지 못했어요.")
       : preview?.mode === "waiting"
         ? (preview.caption ?? "첫 결과를 준비하고 있어요.")
         : (preview?.caption ?? "아직 보여줄 검색어가 충분하지 않아요.");
+
+  async function createTrialSubscription() {
+    if (subscribing) return;
+    if (!diagnosisId) {
+      setSubscriptionState("error");
+      setSubscriptionMessage("진단을 먼저 마치면 매주 검색어를 받아볼 수 있어요.");
+      return;
+    }
+
+    setSubscriptionState("loading");
+    setSubscriptionMessage("이번 주 검색어를 받을 준비를 하고 있어요.");
+    try {
+      const response = await fetch("/api/radar/subscription", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ diagnosisId }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success || !json.data) {
+        throw new Error(json.error ?? "Radar subscription failed");
+      }
+      onPreviewChange?.(json.data);
+      setSubscriptionState("success");
+      setSubscriptionMessage("신청됐어요. 첫 검색어를 준비하는 중이에요.");
+    } catch {
+      setSubscriptionState("error");
+      setSubscriptionMessage("신청하지 못했어요. 잠시 뒤 다시 눌러주세요.");
+    }
+  }
+
+  async function recordFeedback(keywordId: string, feedbackType: "used" | "not_yet") {
+    if (!diagnosisId) return;
+
+    setFeedbackState((current) => ({ ...current, [keywordId]: "loading" }));
+    try {
+      const response = await fetch("/api/radar/feedback", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ diagnosisId, keywordId, feedbackType }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success) {
+        throw new Error(json.error ?? "Radar feedback failed");
+      }
+      setFeedbackState((current) => ({ ...current, [keywordId]: "success" }));
+    } catch {
+      setFeedbackState((current) => ({ ...current, [keywordId]: "error" }));
+    }
+  }
 
   return (
     <section
@@ -62,7 +125,7 @@ export function RadarPreviewCard({ preview, loading = false }: RadarPreviewCardP
             const status = STATUS_MARK[row.status];
             return (
               <div
-                key={`${row.text}-${row.locked ? "locked" : "open"}`}
+                key={row.id ?? `${row.text}-${row.locked ? "locked" : "open"}`}
                 className={`flex items-center gap-3 py-3 ${row.locked ? "blur-[2px]" : ""}`}
                 aria-hidden={row.locked}
               >
@@ -81,18 +144,47 @@ export function RadarPreviewCard({ preview, loading = false }: RadarPreviewCardP
                     {row.reason}
                   </p>
                 </div>
-                {row.actionHref && !row.locked ? (
-                  <Link
-                    href={row.actionHref}
-                    className="hidden shrink-0 rounded-[14px] border border-[var(--boina-line)] px-3 py-2 text-[13px] font-bold text-[var(--boina-brand)] sm:inline-flex"
-                  >
-                    글감 만들기
-                  </Link>
-                ) : (
-                  <span className="hidden shrink-0 rounded-[14px] border border-[var(--boina-line)] px-3 py-2 text-[13px] font-bold text-[var(--boina-brand)] sm:inline-flex">
-                    글감 만들기
-                  </span>
-                )}
+                <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
+                  {preview?.mode === "subscribed" && row.id ? (
+                    <div className="flex items-center gap-1" aria-label={`${row.text} 사용 여부`}>
+                      <button
+                        type="button"
+                        disabled={feedbackState[row.id] === "loading"}
+                        onClick={() => recordFeedback(row.id as string, "used")}
+                        className="rounded-[12px] border border-[var(--boina-line)] px-2.5 py-1.5 text-[12px] font-bold text-[var(--boina-brand)] disabled:opacity-50"
+                      >
+                        썼어요
+                      </button>
+                      <button
+                        type="button"
+                        disabled={feedbackState[row.id] === "loading"}
+                        onClick={() => recordFeedback(row.id as string, "not_yet")}
+                        className="rounded-[12px] border border-[var(--boina-line)] px-2.5 py-1.5 text-[12px] font-bold text-[var(--boina-ink-2)] disabled:opacity-50"
+                      >
+                        아직요
+                      </button>
+                      {feedbackState[row.id] === "success" ? (
+                        <span className="text-[12px] font-bold text-[var(--boina-good)]">
+                          저장됨
+                        </span>
+                      ) : feedbackState[row.id] === "error" ? (
+                        <span className="text-[12px] font-bold text-[#B45309]">저장 실패</span>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {row.actionHref && !row.locked ? (
+                    <Link
+                      href={row.actionHref}
+                      className="rounded-[14px] border border-[var(--boina-line)] px-3 py-2 text-[13px] font-bold text-[var(--boina-brand)]"
+                    >
+                      글감 만들기
+                    </Link>
+                  ) : (
+                    <span className="rounded-[14px] border border-[var(--boina-line)] px-3 py-2 text-[13px] font-bold text-[var(--boina-brand)]">
+                      글감 만들기
+                    </span>
+                  )}
+                </div>
               </div>
             );
           })
@@ -108,10 +200,11 @@ export function RadarPreviewCard({ preview, loading = false }: RadarPreviewCardP
       {sheetEnabled ? (
         <button
           type="button"
-          onClick={() => setInterestOpen(true)}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-[14px] bg-[var(--boina-brand)] px-4 py-3.5 text-[16px] font-bold text-white transition-colors hover:bg-[var(--boina-brand-deep)] focus:outline-none focus:ring-2 focus:ring-[var(--boina-brand)] focus:ring-offset-2 active:scale-[0.99]"
+          onClick={createTrialSubscription}
+          disabled={subscribing}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-[14px] bg-[var(--boina-brand)] px-4 py-3.5 text-[16px] font-bold text-white transition-colors hover:bg-[var(--boina-brand-deep)] focus:outline-none focus:ring-2 focus:ring-[var(--boina-brand)] focus:ring-offset-2 active:scale-[0.99] disabled:opacity-70"
         >
-          {preview?.ctaLabel ?? "매주 검색어 받아보기"}
+          {subscribing ? "신청 중..." : (preview?.ctaLabel ?? "매주 검색어 받아보기")}
           <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
             arrow_forward
           </span>
@@ -129,7 +222,12 @@ export function RadarPreviewCard({ preview, loading = false }: RadarPreviewCardP
       ) : (
         <button
           type="button"
-          disabled={preview?.mode === "empty" || preview?.mode === "waiting"}
+          onClick={preview?.mode === "failed" ? onRetry : undefined}
+          disabled={
+            preview?.mode === "empty" ||
+            preview?.mode === "waiting" ||
+            (preview?.mode === "failed" && !onRetry)
+          }
           className="mt-4 flex w-full items-center justify-center gap-2 rounded-[14px] bg-[var(--boina-ink)] px-4 py-3.5 text-[16px] font-bold text-white disabled:bg-[var(--boina-ink-3)]"
         >
           {preview?.ctaLabel ??
@@ -143,43 +241,14 @@ export function RadarPreviewCard({ preview, loading = false }: RadarPreviewCardP
       <p className="mt-2 text-center text-[14px] font-medium leading-[20px] text-[var(--boina-ink-3)]">
         {preview?.priceLine ?? "결제 없이 홈에서 먼저 받아볼 수 있어요"}
       </p>
-
-      {sheetEnabled && interestOpen ? (
-        <div
-          aria-label="주간 레이더 관심 등록"
-          data-testid="radar-interest-sheet"
-          className="mt-4 rounded-[20px] border border-[var(--boina-line)] bg-[var(--boina-bg)] p-4"
+      {subscriptionMessage ? (
+        <output
+          className={`mt-2 block text-center text-[13px] font-bold leading-[18px] ${
+            subscriptionState === "error" ? "text-[#B45309]" : "text-[var(--boina-good)]"
+          }`}
         >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[16px] font-bold leading-[24px] text-[var(--boina-ink)]">
-                주간 검색어 준비
-              </p>
-              <p className="mt-1 text-[14px] font-medium leading-[20px] text-[var(--boina-ink-2)]">
-                매주 월요일, 홈에서 이번 주 검색어를 확인해요.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setInterestOpen(false)}
-              aria-label="닫기"
-              className="material-symbols-outlined rounded-full p-1 text-[20px] text-[var(--boina-ink-3)] hover:bg-[var(--boina-line)]"
-            >
-              close
-            </button>
-          </div>
-          <div className="mt-3 grid gap-2 text-[14px] font-medium leading-[20px] text-[var(--boina-ink-2)]">
-            <p>결제나 알림 없이 홈 카드에서 먼저 확인해요.</p>
-            <p>검색어가 충분하지 않은 주에는 조용하다고 알려드려요.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setInterestOpen(false)}
-            className="mt-4 flex w-full items-center justify-center rounded-[14px] bg-[var(--boina-ink)] px-4 py-3 text-[15px] font-bold text-white"
-          >
-            확인했어요
-          </button>
-        </div>
+          {subscriptionMessage}
+        </output>
       ) : null}
     </section>
   );

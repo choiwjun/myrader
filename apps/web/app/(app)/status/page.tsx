@@ -8,7 +8,7 @@
 //   1st = AI HERO — 화면 최상단·최대 비주얼. channel==='ai' 를 channels 배열 순서와
 //         무관하게 HERO로 분리. 신호등 비주얼 + 맥락 헤드라인 + 미래지향 카피.
 //   2nd = 채널 글래스카드(연료) — 네이버·구글(맛보기)·AI 추천 작은 카드.
-//   3rd = 우선순위 할 일 + evidence sheet.
+//   3rd = 우선순위 할 일 + 확인한 근거.
 // 정직성 가드: 점수(숫자) 0, 전문용어 0, 인과 단정 0, 신호등만.
 
 "use client";
@@ -20,14 +20,14 @@ import { Suspense, useEffect, useState } from "react";
 const GOOGLE_PREVIEW_NOTE = "자세한 순위는 다음 단계에서 확인할 수 있어요.";
 const AI_NOT_YET_NOTE = "실제로 AI가 추천할 때만 초록불이 켜져요.";
 
-type MeasurementLabel = "measured" | "estimated" | "unavailable";
+export type MeasurementLabel = "measured" | "estimated" | "unavailable";
 
-interface EvidenceItem {
+export interface EvidenceItem {
   label: string;
   detail: string;
 }
 
-interface ChannelStatus {
+export interface ChannelStatus {
   channel: "naver" | "google" | "ai";
   signal: Signal;
   summaryLine: string;
@@ -56,6 +56,25 @@ const CHANNEL_DEFAULT_LINE: Record<ChannelStatus["channel"], string> = {
   google: "구글 지도 노출은 다음 단계에서 더 자세히 봐요.",
   ai: "AI가 우리 가게의 특징을 읽기 시작했어요.",
 };
+const REQUIRED_CHANNELS: ChannelStatus["channel"][] = ["naver", "google", "ai"];
+
+const CHANNEL_INSUFFICIENT_LINE: Record<ChannelStatus["channel"], string> = {
+  naver: "네이버 근거가 아직 부족해요. 조금 더 살펴보는 중이에요.",
+  google: "구글 근거가 아직 부족해요. 조금 더 살펴보는 중이에요.",
+  ai: "AI 추천 근거가 아직 부족해요. 조금 더 살펴보는 중이에요.",
+};
+
+function insufficientChannel(channel: ChannelStatus["channel"]): ChannelStatus {
+  return {
+    channel,
+    signal: "red",
+    summaryLine: CHANNEL_INSUFFICIENT_LINE[channel],
+    found: false,
+    source: "unavailable",
+    measurementLabel: "unavailable",
+    evidence: [],
+  };
+}
 
 const CHANNEL_ICON: Record<ChannelStatus["channel"], string> = {
   naver: "search",
@@ -67,7 +86,7 @@ function aiHeadline(signal: Signal): { head: string; sub: string } {
   switch (signal) {
     case "green":
       return {
-        head: "AI가 우리 가게를 알고 있어요 👍",
+        head: "AI가 우리 가게를 알고 있어요",
         sub: "지금처럼 꾸준히 관리하면 더 잘 잡혀요.",
       };
     case "yellow":
@@ -86,12 +105,12 @@ function aiHeadline(signal: Signal): { head: string; sub: string } {
 function TrafficSignal({ signal, loading }: { signal: Signal; loading: boolean }) {
   const lit = loading ? "yellow" : signal;
   const glow: Record<Signal, string> = {
-    red: "0 0 24px rgba(239,68,68,0.6)",
-    yellow: "0 0 24px rgba(245,158,11,0.6)",
-    green: "0 0 24px rgba(16,185,129,0.6)",
+    red: "0 0 20px rgba(100,116,139,0.35)",
+    yellow: "0 0 24px rgba(245,158,11,0.55)",
+    green: "0 0 24px rgba(16,185,129,0.55)",
   };
   const litColor: Record<Signal, string> = {
-    red: "#EF4444",
+    red: "#94A3B8",
     yellow: "#F59E0B",
     green: "#10B981",
   };
@@ -111,13 +130,13 @@ function TrafficSignal({ signal, loading }: { signal: Signal; loading: boolean }
   return (
     <div className="relative mb-8 flex h-40 w-40 items-center justify-center md:h-52 md:w-52">
       <div
-        className="absolute inset-0 rounded-full bg-[#EEF2FF]"
+        className="absolute inset-0 rounded-full bg-[var(--boina-brand-soft)]"
         style={{ animation: "pulse-soft 3s ease-in-out infinite" }}
         aria-hidden="true"
       />
       <div
         className="relative flex h-28 w-28 items-center justify-center rounded-full border border-[#CBD5E1]/40 bg-white md:h-36 md:w-36"
-        style={{ boxShadow: "0 12px 40px rgba(79,70,229,0.10)" }}
+        style={{ boxShadow: "0 12px 40px rgba(11,122,85,0.10)" }}
       >
         <div className="flex flex-col gap-2">
           <Lamp pos="red" />
@@ -151,17 +170,19 @@ function ChannelCard({
   return (
     <div
       className={`flex flex-col gap-3 rounded-2xl p-5 transition-transform hover:-translate-y-1 hover:shadow-lg ${
-        isAi ? "border-2 border-[#4F46E5]/15" : "border border-[#E2E8F0]"
+        isAi ? "border-2 border-[var(--boina-brand)]/15" : "border border-[#E2E8F0]"
       }`}
       style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)" }}
     >
       <div className="flex items-center justify-between gap-3">
-        <span className={`text-sm font-bold ${isAi ? "text-[#4338CA]" : "text-[#434654]"}`}>
+        <span
+          className={`text-sm font-bold ${isAi ? "text-[var(--boina-brand-deep)]" : "text-[#434654]"}`}
+        >
           {label}
         </span>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {measurementLabel ? (
-            <span className="rounded-full bg-[#EEF2FF] px-2 py-0.5 text-[11px] font-bold text-[#4338CA]">
+            <span className="rounded-full bg-[var(--boina-brand-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--boina-brand-deep)]">
               {measurementLabelToText(measurementLabel)}
             </span>
           ) : null}
@@ -180,7 +201,7 @@ function ChannelCard({
       <div className="mt-auto flex items-center justify-between border-t border-[#E2E8F0]/70 pt-3">
         <span
           className="material-symbols-outlined text-[20px]"
-          style={{ color: isAi ? "#4F46E5" : "#94A3B8" }}
+          style={{ color: isAi ? "var(--boina-brand)" : "#94A3B8" }}
         >
           {CHANNEL_ICON[channelKey]}
         </span>
@@ -194,8 +215,8 @@ function CardSkeleton() {
   return (
     <div className="flex animate-pulse flex-col gap-3 rounded-2xl border border-[#E2E8F0] bg-white p-5">
       <div className="h-4 w-20 rounded bg-[#E2E8F0]" />
-      <div className="h-4 w-full rounded bg-[#EEF2FF]" />
-      <div className="h-4 w-3/4 rounded bg-[#EEF2FF]" />
+      <div className="h-4 w-full rounded bg-[var(--boina-brand-soft)]" />
+      <div className="h-4 w-3/4 rounded bg-[var(--boina-brand-soft)]" />
     </div>
   );
 }
@@ -218,11 +239,49 @@ function deriveMeasurementLabel(channel: ChannelStatus): MeasurementLabel {
   return "unavailable";
 }
 
-function sourceToText(channel: ChannelStatus) {
-  if (channel.source) return channel.source;
-  if (channel.channel === "naver") return "네이버 확인";
-  if (channel.channel === "google") return "준비도 추정";
-  return "AI 확인";
+export function sourceToText(channel: ChannelStatus) {
+  switch (channel.source) {
+    case "engine_results":
+      return "살펴보기 결과";
+    case "naver_serp":
+      return "네이버 확인";
+    case "gpt_grounded":
+      return "AI 직접 확인";
+    case "manual":
+      return "직접 입력";
+    case "unavailable":
+      return "출처 확인 전";
+    default:
+      return "출처 확인 전";
+  }
+}
+
+function hasConfirmedAiEvidence(channel: ChannelStatus) {
+  if (channel.channel !== "ai" || channel.signal !== "green") return true;
+  return channel.source === "gpt_grounded" && (channel.evidence?.length ?? 0) > 0;
+}
+
+export function normalizeDisplayChannels(channels: ChannelStatus[]): ChannelStatus[] {
+  const byChannel = new Map(channels.map((channel) => [channel.channel, channel]));
+
+  return REQUIRED_CHANNELS.map((channelKey) => {
+    const channel = byChannel.get(channelKey);
+    if (!channel) {
+      return insufficientChannel(channelKey);
+    }
+
+    const hasSummary = channel.summaryLine.trim().length > 0;
+    const lacksConfirmedAiEvidence = !hasConfirmedAiEvidence(channel);
+    const needsMoreEvidence = !channel.found || !hasSummary || lacksConfirmedAiEvidence;
+    return {
+      ...channel,
+      signal: needsMoreEvidence ? "red" : channel.signal,
+      summaryLine: needsMoreEvidence ? CHANNEL_INSUFFICIENT_LINE[channelKey] : channel.summaryLine,
+      source: channel.source ?? (needsMoreEvidence ? "unavailable" : null),
+      measurementLabel: channel.measurementLabel ?? (needsMoreEvidence ? "unavailable" : undefined),
+      evidence: channel.evidence ?? [],
+    };
+  });
 }
 
 function buildPriorityFixes(channels: ChannelStatus[]) {
@@ -262,11 +321,15 @@ function StatusPageInner() {
       return;
     }
 
+    const currentDiagnosisId = diagnosisId;
+
     async function load() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/channel-status?diagnosisId=${diagnosisId}`);
+        const statusParams = new URLSearchParams();
+        statusParams.set("diagnosisId", currentDiagnosisId);
+        const res = await fetch(`/api/channel-status?${statusParams.toString()}`);
         const json = await res.json();
         if (!res.ok || !json.success) {
           setError("결과를 불러오지 못했어요. 잠깐 후에 다시 확인해 볼까요?");
@@ -283,13 +346,12 @@ function StatusPageInner() {
     load();
   }, [diagnosisId]);
 
-  const getChannel = (ch: ChannelStatus["channel"]) => channels.find((c) => c.channel === ch);
-  const naver = getChannel("naver");
-  const google = getChannel("google");
-  const ai = getChannel("ai");
-  const aiSignal: Signal = ai?.signal ?? "red";
+  const displayChannels = normalizeDisplayChannels(channels);
+  const ai =
+    displayChannels.find((channel) => channel.channel === "ai") ?? insufficientChannel("ai");
+  const aiSignal: Signal = ai.signal;
   const hero = aiHeadline(aiSignal);
-  const fixes = buildPriorityFixes(channels);
+  const fixes = buildPriorityFixes(displayChannels);
 
   function goWrite(tier?: string) {
     const params = new URLSearchParams();
@@ -310,7 +372,7 @@ function StatusPageInner() {
           <button
             type="button"
             onClick={() => router.push("/find")}
-            className="mt-4 rounded-xl bg-[#4F46E5] px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-[#4338CA]"
+            className="mt-4 rounded-xl bg-[var(--boina-brand)] px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-[var(--boina-brand-deep)]"
           >
             가게 찾기로 가기
           </button>
@@ -330,10 +392,7 @@ function StatusPageInner() {
         <p className="mb-3 text-sm font-semibold tracking-wide text-[#94A3B8]">
           요즘 손님은 AI한테 물어봐요
         </p>
-        <h1
-          className="mb-4 text-[28px] font-bold leading-tight text-[#0F172A] md:text-[42px]"
-          style={{ fontFamily: "'Plus Jakarta Sans', 'Pretendard', sans-serif" }}
-        >
+        <h1 className="mb-4 text-[28px] font-bold leading-tight text-[#0F172A] md:text-[42px]">
           {loading ? "AI가 우리 가게를 살펴보는 중이에요" : hero.head}
         </h1>
         {!loading && (
@@ -344,12 +403,9 @@ function StatusPageInner() {
       </section>
 
       <section className="w-full">
-        <h2
-          className="mb-5 flex items-center gap-2 text-[20px] font-bold text-[#0F172A] md:text-[24px]"
-          style={{ fontFamily: "'Plus Jakarta Sans', 'Pretendard', sans-serif" }}
-        >
+        <h2 className="mb-5 flex items-center gap-2 text-[20px] font-bold text-[#0F172A] md:text-[24px]">
           내 가게를 찾게 하는 채널
-          <span className="rounded-full bg-[#E0E7FF] px-2 py-0.5 text-xs font-bold text-[#4338CA]">
+          <span className="rounded-full bg-[var(--boina-brand-soft)] px-2 py-0.5 text-xs font-bold text-[var(--boina-brand-deep)]">
             연료
           </span>
         </h2>
@@ -363,26 +419,17 @@ function StatusPageInner() {
             </>
           ) : (
             <>
-              <ChannelCard
-                channelKey="naver"
-                signal={naver?.signal ?? "yellow"}
-                summaryLine={naver?.summaryLine}
-                measurementLabel={naver ? deriveMeasurementLabel(naver) : "unavailable"}
-              />
-              <ChannelCard
-                channelKey="google"
-                signal={google?.signal ?? "yellow"}
-                summaryLine={google?.summaryLine}
-                note={GOOGLE_PREVIEW_NOTE}
-                measurementLabel={google ? deriveMeasurementLabel(google) : "estimated"}
-              />
-              <ChannelCard
-                channelKey="ai"
-                signal={aiSignal}
-                summaryLine={ai?.summaryLine}
-                isAi
-                measurementLabel={ai ? deriveMeasurementLabel(ai) : "unavailable"}
-              />
+              {displayChannels.map((channel) => (
+                <ChannelCard
+                  key={channel.channel}
+                  channelKey={channel.channel}
+                  signal={channel.signal}
+                  summaryLine={channel.summaryLine}
+                  note={channel.channel === "google" ? GOOGLE_PREVIEW_NOTE : undefined}
+                  isAi={channel.channel === "ai"}
+                  measurementLabel={deriveMeasurementLabel(channel)}
+                />
+              ))}
             </>
           )}
         </div>
@@ -402,9 +449,9 @@ function StatusPageInner() {
             <button
               type="button"
               onClick={() => goWrite()}
-              className="rounded-[14px] bg-[#4F46E5] px-4 py-2 text-[14px] font-bold text-white"
+              className="rounded-[14px] bg-[var(--boina-brand)] px-4 py-2 text-[14px] font-bold text-white"
             >
-              /write로 이동
+              문안 고치러 가기
             </button>
           </div>
 
@@ -415,7 +462,7 @@ function StatusPageInner() {
                   key={fix.id}
                   type="button"
                   onClick={() => goWrite(fix.tier)}
-                  className="rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] p-4 text-left transition hover:border-[#4F46E5]"
+                  className="rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] p-4 text-left transition hover:border-[var(--boina-brand)]"
                 >
                   <p className="text-[16px] font-bold text-[#0F172A]">{fix.title}</p>
                   <p className="mt-1 text-[14px] leading-[20px] text-[#64748B]">
@@ -430,7 +477,7 @@ function StatusPageInner() {
                 지금은 안정적으로 보이고 있어요.
               </p>
               <p className="mt-1 text-[14px] leading-[20px] text-[#047857]">
-                복붙 문안이나 꾸준히 할 일을 보고 싶다면 /write에서 이어서 볼 수 있어요.
+                복붙 문안이나 꾸준히 할 일을 보고 싶다면 문안 화면에서 이어서 볼 수 있어요.
               </p>
             </div>
           )}
@@ -443,11 +490,11 @@ function StatusPageInner() {
             <div className="mb-4">
               <p className="text-[14px] font-bold text-[var(--boina-ink-3)]">근거 보기</p>
               <h2 className="mt-1 text-[22px] font-extrabold leading-[30px] text-[#0F172A]">
-                evidence sheet
+                확인한 근거
               </h2>
             </div>
             <div className="grid gap-3">
-              {channels.map((channel) => {
+              {displayChannels.map((channel) => {
                 const label = channelToLabel(channel.channel).label;
                 const measurementLabel = deriveMeasurementLabel(channel);
                 return (
@@ -478,7 +525,7 @@ function StatusPageInner() {
                           ))}
                         </ul>
                       ) : (
-                        <p>아직 원본 evidence가 더 쌓이면 여기에 함께 보여드릴게요.</p>
+                        <p>확인한 자료가 더 쌓이면 여기에 함께 보여드릴게요.</p>
                       )}
                     </div>
                   </details>
@@ -489,13 +536,15 @@ function StatusPageInner() {
           <section className="mt-8 flex w-full max-w-xl flex-col items-center gap-3">
             <button
               type="button"
-              onClick={() =>
-                router.push(diagnosisId ? `/rivals?diagnosisId=${diagnosisId}` : "/rivals")
-              }
-              className="group flex w-full items-center justify-center gap-2 rounded-2xl bg-[#4F46E5] px-8 py-5 text-[18px] font-bold text-white transition-all hover:bg-[#4338CA] active:scale-[0.98]"
-              style={{ boxShadow: "0 8px 24px rgba(79,70,229,0.2)" }}
+              onClick={() => {
+                const params = new URLSearchParams();
+                if (diagnosisId) params.set("diagnosisId", diagnosisId);
+                router.push(`/rivals${params.toString() ? `?${params.toString()}` : ""}`);
+              }}
+              className="group flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--boina-brand)] px-8 py-5 text-[18px] font-bold text-white transition-all hover:bg-[var(--boina-brand-deep)] active:scale-[0.98]"
+              style={{ boxShadow: "0 8px 24px rgba(11,122,85,0.18)" }}
             >
-              옆집과 비교해 볼까요? 👀
+              옆집과 비교해 볼까요?
               <span className="material-symbols-outlined transition-transform group-hover:translate-x-1">
                 arrow_forward
               </span>

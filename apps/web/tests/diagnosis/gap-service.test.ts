@@ -29,6 +29,7 @@ import {
   buildGapIntro,
   deriveGapItems,
   deriveGapItemsFromResult,
+  deriveGapViewFromPersisted,
   ruleToBossLabel,
 } from "../../lib/diagnosis/gap-service.js";
 
@@ -104,6 +105,20 @@ function assertHonestGapItem(g: GapItem) {
   expect(g.priority).toBeLessThanOrEqual(5);
   // actionTier enum.
   expect(["self_fix", "snippet", "vendor", "ongoing"]).toContain(g.actionTier);
+}
+
+function assertEvidenceRows(evidence: unknown) {
+  expect(Array.isArray(evidence)).toBe(true);
+  const rows = evidence as Array<{ label?: unknown; detail?: unknown }>;
+  expect(rows.length).toBeGreaterThan(0);
+  for (const row of rows) {
+    expect(typeof row.label).toBe("string");
+    expect(typeof row.detail).toBe("string");
+    expect(row.label).toMatch(/[가-힣]/);
+    expect(row.detail).not.toMatch(
+      /reason|competitorName|measurementKind|measured|estimated|unavailable/,
+    );
+  }
 }
 
 // ===========================================================================
@@ -307,6 +322,54 @@ describe("buildGapIntro — 정직 한 문장", () => {
     expect(intro).toBeTruthy();
     expect(intro).not.toMatch(/뒤처|졌|밀려|망했/);
     expect(intro).not.toMatch(CAUSAL);
+  });
+});
+
+describe("deriveGapViewFromPersisted — 근거 표시 계약", () => {
+  it("gap item 과 view evidence 를 정규화된 한국어 행 배열로 반환한다", () => {
+    const view = deriveGapViewFromPersisted([
+      {
+        id: "gap-1",
+        item: "영업시간이 안 적혀 있어요",
+        competitorHas: true,
+        isMyGap: true,
+        source: "naver_serp",
+        collectedAt: "2026-07-06T00:00:00.000Z",
+        actionTier: "self_fix",
+        competitorName: "옆집국밥",
+      },
+    ]);
+
+    expect(view.measurementLabel).toBe("measured");
+    assertEvidenceRows(view.evidence);
+    expect(view.items).toHaveLength(1);
+    const item = view.items[0];
+    expect(item?.measurementLabel).toBe("measured");
+    assertEvidenceRows(item?.evidence);
+  });
+
+  it("missing persisted actionTier is not silently converted to self-fix", () => {
+    const view = deriveGapViewFromPersisted([
+      {
+        id: "gap-missing-tier",
+        item: "소개 문구가 부족해요",
+        competitorHas: true,
+        isMyGap: true,
+        source: "naver_serp",
+        collectedAt: "2026-07-06T00:00:00.000Z",
+        competitorName: "옆집국밥",
+      } as never,
+    ]);
+
+    expect(view.items).toEqual([]);
+    expect(view.measurementLabel).toBe("unavailable");
+    expect(view.evidence).toEqual([]);
+  });
+
+  it("gap 미측정 fallback 도 raw reason 없이 unavailable provenance 를 유지한다", () => {
+    const view = deriveGapViewFromPersisted([]);
+    expect(view.measurementLabel).toBe("unavailable");
+    expect(view.evidence).toEqual([]);
   });
 });
 

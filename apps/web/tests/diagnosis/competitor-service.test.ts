@@ -18,6 +18,7 @@ import { describe, expect, it } from "vitest";
 import {
   type Competitor,
   buildLossHeadline,
+  deriveCompetitorViewFromPersisted,
   deriveCompetitors,
   sourceToBadge,
 } from "../../lib/diagnosis/competitor-service.js";
@@ -82,6 +83,20 @@ function assertHonestCompetitor(c: Competitor) {
   // name 에 점수/전문용어/인과 카피 없음.
   expect(c.name).not.toMatch(/\d{1,3}\s*점|score|점수/i);
   expect(c.name).not.toMatch(CAUSAL);
+}
+
+function assertEvidenceRows(evidence: unknown) {
+  expect(Array.isArray(evidence)).toBe(true);
+  const rows = evidence as Array<{ label?: unknown; detail?: unknown }>;
+  expect(rows.length).toBeGreaterThan(0);
+  for (const row of rows) {
+    expect(typeof row.label).toBe("string");
+    expect(typeof row.detail).toBe("string");
+    expect(row.label).toMatch(/[가-힣]/);
+    expect(row.detail).not.toMatch(
+      /serpRank|measurementKind|measured|estimated|unavailable|gpt_grounded|naver_serp/,
+    );
+  }
 }
 
 // ── deriveCompetitors: naver_serp(실측) 매핑 ─────────────────────────────────
@@ -231,5 +246,32 @@ describe("sourceToBadge — 출처 정직 표기", () => {
     expect(b).toBeTruthy();
     expect(b).toMatch(/AI/);
     expect(b).not.toMatch(JARGON);
+  });
+});
+
+describe("deriveCompetitorViewFromPersisted — 근거 표시 계약", () => {
+  it("네이버/AI 경쟁사 evidence 를 한국어 label/detail 배열로 반환한다", () => {
+    const view = deriveCompetitorViewFromPersisted([
+      {
+        name: "옆집국밥",
+        source: "naver_serp",
+        serpRank: 2,
+        collectedAt: "2026-07-06T00:00:00.000Z",
+      },
+      {
+        name: "AI추천집",
+        source: "gpt_grounded",
+        serpRank: null,
+        collectedAt: "2026-07-06T00:01:00.000Z",
+      },
+    ]);
+
+    expect(view.competitors).toHaveLength(2);
+    for (const competitor of view.competitors) {
+      expect(competitor.measurementLabel).toBe("measured");
+      assertEvidenceRows(competitor.evidence);
+    }
+    expect(view.competitors[0]?.evidence?.map((row) => row.label)).toContain("순위");
+    expect(view.competitors[1]?.evidence?.map((row) => row.label)).toContain("경쟁사");
   });
 });

@@ -15,10 +15,15 @@ import { describe, expect, it } from "vitest";
 import {
   deriveAiChannelStatus,
   deriveChannelStatuses,
+  deriveChannelStatusesFromPersisted,
   deriveChannelStatusesFromView,
   deriveGoogleChannelStatus,
   deriveNaverChannelStatus,
 } from "../../lib/diagnosis/channel-status-service.js";
+import {
+  BUSINESS_PRESENCE_MEASUREMENT_CODE,
+  LLM_VALIDATION_MEASUREMENT_CODE,
+} from "../../lib/diagnosis/measurement.js";
 
 // ── 테스트용 DiagnosisJson 부분 빌더 (필요한 meta/scores 부분만; 순수 변환 검증) ──
 
@@ -169,6 +174,20 @@ function assertHonest(status: {
   if (status.note) {
     expect(status.note).not.toMatch(JARGON);
     expect(status.note).not.toMatch(CAUSAL);
+  }
+}
+
+function assertEvidenceRows(evidence: unknown) {
+  expect(Array.isArray(evidence)).toBe(true);
+  const rows = evidence as Array<{ label?: unknown; detail?: unknown }>;
+  expect(rows.length).toBeGreaterThan(0);
+  for (const row of rows) {
+    expect(typeof row.label).toBe("string");
+    expect(typeof row.detail).toBe("string");
+    expect(row.label).toMatch(/[가-힣]/);
+    expect(row.detail).not.toMatch(
+      /reason|measurementKind|competitor_reports_unavailable|measured|estimated|unavailable|naver_place|llm_validation/,
+    );
   }
 }
 
@@ -363,5 +382,103 @@ describe("deriveChannelStatusesFromView (v1 정직 폴백)", () => {
     expect(google).toBeDefined();
     expect(google?.note).toMatch(/다음 단계|맛보기/);
     if (google) assertHonest(google);
+  });
+});
+
+describe("deriveChannelStatusesFromPersisted (근거 표시 계약)", () => {
+  it("미측정 상태도 evidence 배열과 unavailable provenance 를 반환한다", () => {
+    const out = deriveChannelStatusesFromPersisted([]);
+    expect(out).toHaveLength(3);
+    for (const status of out) {
+      expect(status.measurementLabel).toBe("unavailable");
+      assertEvidenceRows(status.evidence);
+    }
+  });
+
+  it("다른 채널 저장행만 있어도 Google 미측정 상태를 green 으로 보이지 않는다", () => {
+    const out = deriveChannelStatusesFromPersisted([
+      {
+        channel: "naver",
+        code: BUSINESS_PRESENCE_MEASUREMENT_CODE,
+        impactScore: null,
+        priority: "high",
+        collectedAt: "2026-07-06T00:00:00.000Z",
+        evidence: {
+          measurementKind: "business_presence",
+          source: "naver_serp",
+          measurementLabel: "measured",
+          found: true,
+          payload: naverPresent(),
+        },
+      },
+    ]);
+
+    const google = out.find((status) => status.channel === "google");
+    expect(google?.signal).toBe("yellow");
+    expect(google?.measurementLabel).toBe("unavailable");
+    assertEvidenceRows(google?.evidence);
+  });
+
+  it("Google persisted row 가 unavailable provenance 이면 green 으로 보이지 않는다", () => {
+    const out = deriveChannelStatusesFromPersisted([
+      {
+        channel: "google",
+        code: "GOOGLE_PREVIEW_UNAVAILABLE",
+        impactScore: 5,
+        priority: "medium",
+        collectedAt: "2026-07-06T00:01:00.000Z",
+        evidence: { reason: "not_measured", measurementLabel: "unavailable" },
+      },
+    ]);
+
+    const google = out.find((status) => status.channel === "google");
+    expect(google?.signal).toBe("yellow");
+    expect(google?.measurementLabel).toBe("unavailable");
+    assertEvidenceRows(google?.evidence);
+  });
+
+  it("실측/추정/부재 케이스의 measurementLabel 은 정직하게 보존하고 evidence 는 정규화한다", () => {
+    const out = deriveChannelStatusesFromPersisted([
+      {
+        channel: "naver",
+        code: BUSINESS_PRESENCE_MEASUREMENT_CODE,
+        impactScore: null,
+        priority: "high",
+        collectedAt: "2026-07-06T00:00:00.000Z",
+        evidence: {
+          measurementKind: "business_presence",
+          source: "naver_serp",
+          measurementLabel: "measured",
+          found: true,
+          payload: naverPresent(),
+        },
+      },
+      {
+        channel: "google",
+        code: "GOOGLE_PREVIEW_READY",
+        impactScore: 10,
+        priority: "medium",
+        collectedAt: "2026-07-06T00:01:00.000Z",
+        evidence: { reason: "competitor_reports_unavailable", measurementLabel: "estimated" },
+      },
+      {
+        channel: "ai_citation",
+        code: LLM_VALIDATION_MEASUREMENT_CODE,
+        impactScore: null,
+        priority: "high",
+        collectedAt: "2026-07-06T00:02:00.000Z",
+        evidence: {
+          measurementKind: "llm_validation",
+          source: "gpt_grounded",
+          measurementLabel: "unavailable",
+          found: false,
+          payload: llmGroundedNotCited(),
+        },
+      },
+    ]);
+    expect(out.find((status) => status.channel === "naver")?.measurementLabel).toBe("measured");
+    expect(out.find((status) => status.channel === "google")?.measurementLabel).toBe("estimated");
+    expect(out.find((status) => status.channel === "ai")?.measurementLabel).toBe("unavailable");
+    for (const status of out) assertEvidenceRows(status.evidence);
   });
 });

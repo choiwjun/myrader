@@ -10,8 +10,15 @@
 //   S1-T5: 정직성 가드 — 점수(숫자) 0 / 전문용어 0 / 인과 단정 0
 //   S1-T6: AC-1 — 이름 한 칸으로 시작 (지역 없어도 검색 가능, 주소로 구분)
 
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import {
+  diagnosisIdFromEnqueueSuccess,
+  diagnosisStatusFromPollSuccess,
+} from "../../app/(app)/find/page";
 import { type DiagnosisStatus, diagnosisStatusToLabel } from "../../lib/shared/ui-labels";
+
+const findSource = readFileSync(new URL("../../app/(app)/find/page.tsx", import.meta.url), "utf8");
 
 // ── 진행 상태 레이블 계약 ────────────────────────────────────────────────────
 
@@ -88,54 +95,87 @@ describe("P2-S1: 가게 찾기 — progress_indicator 상태 레이블", () => {
 // ── 검색/확정 흐름 계약 ──────────────────────────────────────────────────────
 
 describe("P2-S1: 가게 찾기 — 데이터 흐름 계약", () => {
-  it("AC-1: 이름만으로 검색 가능 (지역은 선택)", () => {
-    // 이름 한 칸 필수, 지역은 선택 — 입력 최소화
-    const minimalInput = { name: "홍길동 치킨" };
-    expect(minimalInput.name.trim().length).toBeGreaterThan(0);
-    // 지역 없어도 검색 요청 구성 가능
-    const params = new URLSearchParams({
-      name: minimalInput.name,
-      // region 없음 → 공개 검색
-    });
-    expect(params.get("name")).toBe("홍길동 치킨");
-    expect(params.get("region")).toBeNull();
+  it("AC-1: source에서 이름만 필수이고 지역은 선택 검색값이다", () => {
+    const nameInputStart = findSource.indexOf('id="store-name"');
+    const regionInputStart = findSource.indexOf('id="store-region"');
+    expect(nameInputStart).toBeGreaterThanOrEqual(0);
+    expect(regionInputStart).toBeGreaterThanOrEqual(0);
+
+    const nameInput = findSource.slice(nameInputStart, findSource.indexOf("/>", nameInputStart));
+    const regionInput = findSource.slice(
+      regionInputStart,
+      findSource.indexOf("/>", regionInputStart),
+    );
+
+    expect(findSource).toContain("if (!name.trim()) return;");
+    expect(findSource).toContain('if (region.trim()) params.set("region", region.trim());');
+    expect(nameInput).toContain("required");
+    expect(regionInput).not.toContain("required");
   });
 
-  it("후보 목록: 이름+주소 조합으로 동명 구분", () => {
-    const candidates = [
-      { name: "홍길동 치킨", address: "서울 마포구", placeUrl: "https://naver.me/1" },
-      { name: "홍길동 치킨", address: "서울 강남구", placeUrl: "https://naver.me/2" },
-    ];
-    // 이름이 같아도 address 로 구분 가능해야 함
-    const unique = candidates.map((c) => `${c.name} — ${c.address}`);
-    expect(unique[0]).not.toBe(unique[1]);
+  it("후보 목록: source에서 이름과 주소를 함께 노출해 동명 가게를 구분한다", () => {
+    expect(findSource).toContain("aria-label={`${c.name} — ${c.address}`}");
+    expect(findSource).toContain("{c.name}");
+    expect(findSource).toContain("{c.address}");
   });
 
-  it("홈페이지 URL 없이 진단 시작 가능 (선택)", () => {
-    // websiteUrl 이 undefined 여도 enqueue payload 가 유효해야 함
-    const payload = {
-      target: "https://map.naver.com/v5/entry/place/12345",
-      businessId: "some-uuid",
-      businessProfile: {
-        businessName: "홍길동 치킨",
-        industry: "음식점",
-        region: "서울",
-        mainServices: ["치킨"],
-        targetKeywords: ["치킨", "배달"],
-      },
-      // websiteUrl 없음
-    };
-    expect(payload.target).toBeTruthy();
-    expect((payload as { websiteUrl?: string }).websiteUrl).toBeUndefined();
+  it("홈페이지 URL 없이 시작할 때 place URL target으로 enqueue할 수 있다", () => {
+    expect(findSource).toContain(
+      "const target = business.websiteUrl?.trim() || business.placeUrl || candidate.placeUrl",
+    );
+    expect(findSource).toContain(
+      'const sourceType = business.websiteUrl?.trim() ? "website" : "naver_place"',
+    );
+    expect(findSource).toContain("websiteUrl: websiteUrl.trim() || undefined");
   });
 
-  it("진단 완료 시 /status 이동 신호 생성", () => {
-    // done 상태가 되면 /status 로 이동해야 함
-    const doneStatus: DiagnosisStatus = "done";
-    expect(doneStatus).toBe("done");
-    // 완료 시 이동 경로
-    const nextPath = "/status";
-    expect(nextPath).toBe("/status");
+  it("진단 완료 시 diagnosisId를 보존한 home 이동 신호를 만든다", () => {
+    const diagnosisId = "11111111-1111-4111-8111-111111111111";
+    const nextPath = `/home?diagnosisId=${diagnosisId}`;
+    const url = new URL(nextPath, "https://boina.test");
+
+    expect(url.pathname).toBe("/home");
+    expect(url.searchParams.get("diagnosisId")).toBe(diagnosisId);
+    expect(findSource).toContain("router.push(`/home?diagnosisId=${id}`)");
+  });
+
+  it("enqueue 성공 응답에 유효한 diagnosisId가 없으면 폴링/이동 입력으로 쓰지 않는다", () => {
+    const validId = "11111111-1111-4111-8111-111111111111";
+
+    expect(diagnosisIdFromEnqueueSuccess({ success: true, data: {} })).toBeNull();
+    expect(diagnosisIdFromEnqueueSuccess({ success: true, data: { diagnosisId: "" } })).toBeNull();
+    expect(
+      diagnosisIdFromEnqueueSuccess({ success: true, data: { diagnosisId: "diag-123" } }),
+    ).toBeNull();
+    expect(diagnosisIdFromEnqueueSuccess({ success: true, data: { diagnosisId: validId } })).toBe(
+      validId,
+    );
+  });
+
+  it("polling 성공 payload의 status union만 화면 상태로 변환한다", () => {
+    expect(diagnosisStatusFromPollSuccess({ success: true, data: { status: "queued" } })).toBe(
+      "queued",
+    );
+    expect(diagnosisStatusFromPollSuccess({ success: true, data: { status: "running" } })).toBe(
+      "running",
+    );
+    expect(diagnosisStatusFromPollSuccess({ success: true, data: { status: "completed" } })).toBe(
+      "done",
+    );
+    expect(diagnosisStatusFromPollSuccess({ success: true, data: { status: "partial" } })).toBe(
+      "done",
+    );
+    expect(diagnosisStatusFromPollSuccess({ success: true, data: { status: "failed" } })).toBe(
+      "failed",
+    );
+  });
+
+  it("polling 성공 payload의 unknown/malformed status는 running으로 숨기지 않는다", () => {
+    expect(
+      diagnosisStatusFromPollSuccess({ success: true, data: { status: "mystery" } }),
+    ).toBeNull();
+    expect(diagnosisStatusFromPollSuccess({ success: true, data: { status: 1 } })).toBeNull();
+    expect(diagnosisStatusFromPollSuccess({ success: true, data: {} })).toBeNull();
   });
 
   it("진단 실패 시 재시도 가능 (failed)", () => {
@@ -160,14 +200,15 @@ describe("P2-S1: 가게 찾기 — 카피 가드 (전문용어 0)", () => {
     expect(hasLayPersonLang).toBe(true);
   });
 
-  it("start 버튼 라벨이 '살펴보기' 계열 (진단/분석 금지)", () => {
-    // 버튼 텍스트 후보 중 진단/분석은 금지
-    const allowedLabels = ["살펴볼게요", "살펴보기 시작", "살펴보기", "가게 살펴보기"];
-    const forbidden = ["진단", "분석", "검사"];
-    for (const label of allowedLabels) {
-      for (const term of forbidden) {
-        expect(label).not.toContain(term);
-      }
-    }
+  it("start 버튼 라벨이 source에서 '살펴보기' 계열이고 진단/분석을 노출하지 않는다", () => {
+    const buttonStart = findSource.indexOf("aria-busy={isStarting}");
+    expect(buttonStart).toBeGreaterThanOrEqual(0);
+    const buttonSource = findSource.slice(
+      buttonStart,
+      findSource.indexOf("</button>", buttonStart),
+    );
+
+    expect(buttonSource).toContain("가게 살펴볼게요");
+    expect(buttonSource).not.toMatch(/진단|분석|검사/);
   });
 });
