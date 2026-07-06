@@ -49,24 +49,29 @@ describe("A1-1: radar keyword pipeline is product-owned", () => {
   });
 
   it("radar app contracts consume owned pipeline outcomes through preview and scan job exports", () => {
-    const preview = buildSubscribedRadarPreview([
-      {
-        id: "kw-1",
-        text: "강남 카페 후기",
-        verdict: "now",
-        naverEvidence: {
-          volume: 120,
-          docs: 4,
-          saturation: 0.03,
-          trend7d: 18,
-          checkedAt: "2026-07-05T00:00:00.000Z",
+    const preview = buildSubscribedRadarPreview(
+      [
+        {
+          id: "kw-1",
+          text: "강남 카페 후기",
+          verdict: "now",
+          naverEvidence: {
+            volume: 120,
+            docs: 4,
+            saturation: 0.03,
+            trend7d: 18,
+            checkedAt: "2026-07-05T00:00:00.000Z",
+          },
         },
-      },
-    ]);
+      ],
+      { diagnosisId: "00000000-0000-4000-8000-000000000abc" },
+    );
 
+    expect(preview.rows.at(0)?.actionHref).toContain("radarKeywordId=kw-1");
+    expect(preview.rows.at(0)?.actionHref).toContain(
+      "diagnosisId=00000000-0000-4000-8000-000000000abc",
+    );
     expect(preview.rows.at(0)).toMatchObject({
-      actionHref:
-        "/write?radarKeywordId=kw-1&keyword=%EA%B0%95%EB%82%A8%20%EC%B9%B4%ED%8E%98%20%ED%9B%84%EA%B8%B0",
       locked: false,
       status: "good",
     });

@@ -62,7 +62,7 @@ export async function GET(request: Request) {
         const keywords = await radarRepository.latestKeywordsForSubscription(subscription.id, 5);
         const preview =
           keywords.length > 0
-            ? buildSubscribedRadarPreview(keywords)
+            ? buildSubscribedRadarPreview(keywords, { diagnosisId })
             : emptySubscribedRadarPreview();
         return NextResponse.json({ data: preview, success: true });
       } catch {

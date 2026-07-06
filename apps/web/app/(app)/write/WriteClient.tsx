@@ -168,6 +168,7 @@ function WritePageInner() {
         assetUrl.searchParams.set("diagnosisId", diagnosisId ?? "");
         if (focusType) assetUrl.searchParams.set("type", focusType);
         if (actionId) assetUrl.searchParams.set("actionId", actionId);
+        if (keyword) assetUrl.searchParams.set("keyword", keyword);
 
         const [actionRes, assetRes] = await Promise.all([
           fetch(actionUrl.toString()),
@@ -190,7 +191,7 @@ function WritePageInner() {
     }
 
     load();
-  }, [actionId, diagnosisId, focusTier, focusType]);
+  }, [actionId, diagnosisId, focusTier, focusType, keyword]);
 
   const visibleActions = actionData?.actions ?? [];
   const visibleAssets = (assetData?.assets ?? []).filter(

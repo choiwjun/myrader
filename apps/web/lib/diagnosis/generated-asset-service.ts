@@ -56,6 +56,11 @@ export const ASSET_TYPES: readonly GeneratedAssetType[] = [
   "vendor_prescription",
 ] as const;
 
+export interface GeneratedAssetEvidence {
+  label: string;
+  detail: string;
+}
+
 /**
  * 화면(S6)용 복붙 생성물 — resources.yaml generatedAsset 필드와 1:1.
  * content/title 은 카피 가드(07 §4)를 통과한 사장님 언어만. 점수/코드값/전문용어 0.
@@ -71,6 +76,8 @@ export interface GeneratedAsset {
   content: string;
   /** 복사 가능 여부 — 항상 true(S6 큰 복사 버튼). */
   copyable: true;
+  sourceKeywords?: string[];
+  evidence?: GeneratedAssetEvidence[];
 }
 
 // ---------------------------------------------------------------------------
@@ -300,6 +307,8 @@ export type DbTypeToAssetType = (dbType: string) => GeneratedAssetType | null;
 export interface PersistedAssetOptions {
   isPaid?: boolean;
   type?: GeneratedAssetType;
+  sourceKeywords?: string[];
+  evidence?: GeneratedAssetEvidence[];
 }
 
 /**
@@ -324,7 +333,17 @@ export function deriveGeneratedAssetViewFromPersisted(
     const content = r.code;
     // 07 §4 생성물 가드: 통과 못 한 본문/제목은 출력하지 않는다(저장돼 있어도 — 정직 폴백).
     if (!passesCopyGuard(content) || !passesCopyGuard(title)) continue;
-    assets.push({ id: makeUuidV4(), type, title, content, copyable: true });
+    assets.push({
+      id: makeUuidV4(),
+      type,
+      title,
+      content,
+      copyable: true,
+      ...(options.sourceKeywords && options.sourceKeywords.length > 0
+        ? { sourceKeywords: options.sourceKeywords }
+        : {}),
+      ...(options.evidence && options.evidence.length > 0 ? { evidence: options.evidence } : {}),
+    });
   }
   return { assets, intro: buildAssetsIntro(assets.length), isPaid };
 }

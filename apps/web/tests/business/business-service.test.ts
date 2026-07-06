@@ -40,6 +40,22 @@ function makeFakeRepo(): BusinessRepository & { rows: Map<string, BusinessRecord
       rows.set(id, rec);
       return rec;
     },
+    async update(id, patch) {
+      const current = rows.get(id);
+      if (!current) throw new Error("missing business");
+      const next: BusinessRecord = {
+        ...current,
+        ...(patch.name !== undefined ? { name: patch.name ?? "" } : {}),
+        ...(patch.category !== undefined ? { category: patch.category } : {}),
+        ...(patch.region !== undefined ? { region: patch.region } : {}),
+        ...(patch.naverPlaceId !== undefined ? { naverPlaceId: patch.naverPlaceId } : {}),
+        ...(patch.homepageUrl !== undefined ? { homepageUrl: patch.homepageUrl } : {}),
+        updatedAt: new Date(),
+      };
+      rows.set(id, next);
+      return next;
+    },
+
     async findById(id) {
       return rows.get(id) ?? null;
     },
@@ -123,6 +139,36 @@ describe("business 서비스 (P2-R1)", () => {
     expect(view.id).toBeTruthy();
     expect(view.websiteUrl).toBeNull();
     expect(repo.rows.get(view.id)?.homepageUrl).toBeNull();
+  });
+
+  it("confirmBusiness: 기존 네이버 가게 재확정 시 새 홈페이지를 저장한다", async () => {
+    const repo = makeFakeRepo();
+    const first = await confirmBusiness(repo, {
+      accountId: ACCOUNT_ID,
+      candidate: {
+        placeUrl: "https://place.naver.com/restaurant/5551111",
+        name: "기존가게",
+        address: "서울",
+        category: "한식",
+      },
+      region: "서울",
+    });
+    const second = await confirmBusiness(repo, {
+      accountId: ACCOUNT_ID,
+      candidate: {
+        placeUrl: "https://place.naver.com/restaurant/5551111",
+        name: "기존가게",
+        address: "서울",
+        category: "한식",
+      },
+      websiteUrl: "https://owned.example.com",
+      region: "서울 강남구",
+    });
+
+    expect(second.id).toBe(first.id);
+    expect(second.websiteUrl).toBe("https://owned.example.com");
+    expect(repo.rows.get(first.id)?.homepageUrl).toBe("https://owned.example.com");
+    expect(repo.rows.get(first.id)?.region).toBe("서울 강남구");
   });
 
   it("getBusinessView: 저장 행 → 화면 뷰 (placeUrl 복원, 없으면 null)", async () => {

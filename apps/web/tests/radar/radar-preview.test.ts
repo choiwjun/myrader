@@ -45,38 +45,45 @@ describe("buildUnsubscribedRadarPreview", () => {
 
 describe("buildSubscribedRadarPreview", () => {
   it("builds weekly keyword rows that open write from stored radar results", () => {
-    const preview = buildSubscribedRadarPreview([
-      {
-        id: "keyword-1",
-        text: "성수동 비오는날 빵집",
-        verdict: "now",
-        naverEvidence: {
-          volume: 120,
-          docs: 4,
-          saturation: 0.03,
-          trend7d: 18,
-          checkedAt: "2026-07-05T00:00:00.000Z",
+    const preview = buildSubscribedRadarPreview(
+      [
+        {
+          id: "keyword-1",
+          text: "성수동 비오는날 빵집",
+          verdict: "now",
+          naverEvidence: {
+            volume: 120,
+            docs: 4,
+            saturation: 0.03,
+            trend7d: 18,
+            checkedAt: "2026-07-05T00:00:00.000Z",
+          },
         },
-      },
-      {
-        id: "keyword-2",
-        text: "서울숲 비건 케이크",
-        verdict: "good",
-        naverEvidence: {
-          volume: 80,
-          docs: 22,
-          saturation: 0.27,
-          trend7d: 0,
-          checkedAt: "2026-07-05T00:00:00.000Z",
+        {
+          id: "keyword-2",
+          text: "서울숲 비건 케이크",
+          verdict: "good",
+          naverEvidence: {
+            volume: 80,
+            docs: 22,
+            saturation: 0.27,
+            trend7d: 0,
+            checkedAt: "2026-07-05T00:00:00.000Z",
+          },
         },
-      },
-    ]);
+      ],
+      { diagnosisId: "00000000-0000-4000-8000-000000000abc" },
+    );
 
     expect(preview.mode).toBe("subscribed");
     expect(preview.rows).toHaveLength(2);
+    expect(preview.rows[0]?.actionHref).toContain("/write?");
+    expect(preview.rows[0]?.actionHref).toContain("radarKeywordId=keyword-1");
+    expect(preview.rows[0]?.actionHref).toContain("keyword=");
+    expect(preview.rows[0]?.actionHref).toContain(
+      "diagnosisId=00000000-0000-4000-8000-000000000abc",
+    );
     expect(preview.rows[0]).toMatchObject({
-      actionHref:
-        "/write?radarKeywordId=keyword-1&keyword=%EC%84%B1%EC%88%98%EB%8F%99%20%EB%B9%84%EC%98%A4%EB%8A%94%EB%82%A0%20%EB%B9%B5%EC%A7%91",
       locked: false,
       reason: "지난주보다 찾는 사람이 늘었어요",
       status: "good",

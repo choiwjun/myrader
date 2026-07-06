@@ -302,11 +302,11 @@ export function buildSelfReport(
 }
 
 /**
- * GapAnalyzer 입력 경쟁사 리포트 구성 — 수동 competitorUrls 마다 1건.
+ * GapAnalyzer 입력 경쟁사 리포트 구성 — 측정된 경쟁사 식별자마다 1건.
  *
- * FR-012 MVP(실 SERP 자동발견 키 0): competitorUrls 는 수동/mock 으로 주입된다. 경쟁사 진단은
- * "경쟁사가 해당 룰을 통과했다고 본다"(passed=true) — 즉 내가 미통과한 항목은 경쟁사 우위(gap>0).
- * 이 단순 가정이 룰 역공학(어떻게)의 보수적 토대다(실 경쟁사 진단은 OQ-4 자동발견 이후).
+ * v1에는 경쟁사별 전체 크롤 리포트가 아직 별도 테이블로 저장되지 않는다. 대신 신뢰 출처
+ * (grounded LLM/SERP/dev-sample)로 확인된 경쟁사 식별자에 한해, 내 미통과 항목을 경쟁사가
+ * 보유한 것으로 보는 보수 리포트를 만든다. 출처가 없으면 이 함수는 빈 배열을 반환한다.
  */
 export function buildCompetitorReports(
   competitorUrls: string[],
@@ -478,9 +478,9 @@ export interface BuildPersistenceInput {
   reportId: string;
   websiteUrl: string;
   output: DiagnosisPipelineOutput;
-  /** GapAnalyzer 라이브 호출에 쓸 실제 경쟁사 리포트. 없으면 가정 갭을 만들지 않는다. */
+  /** GapAnalyzer 리포트 구성에 쓸 측정 경쟁사 식별자. 비면 gap_rows/actions 는 비운다. */
   competitorUrls: string[];
-  /** 저장된/주입된 실제 경쟁사 리포트. 없으면 gap_rows/actions 는 비우고 unavailable 로 읽는다. */
+  /** 저장된/주입된 경쟁사 리포트. 없으면 측정 경쟁사 식별자에서 v1 보수 리포트를 구성한다. */
   competitorReports?: CompetitorReportLike[];
   /** 잡 핸들러가 주입한 실 GapAnalyzer(@boina/engine/v2/gap) 또는 테스트 mock. */
   analyzer: GapAnalyzerPort;
@@ -504,8 +504,8 @@ export interface PersistencePlan {
  * 파이프라인 산출 → 04 §4 5종 테이블 insert 값 묶음(순수 매퍼 — DB 접근 0).
  *
  * 일관 기록(04 §4): 한 진단의 engine_result·competitor·gap_row·snippet·action 을 함께 산출한다.
- * 경쟁사 갭은 "실제 경쟁사 리포트"가 있을 때만 계산한다. 리포트가 없으면 경쟁사 카드는 저장하되,
- * gap_rows/actions 는 비워 읽기 경로가 measured-unavailable 상태를 정직하게 노출하게 한다.
+ * 경쟁사 갭은 저장/주입된 competitorReports 를 우선 사용하고, 없으면 측정 경쟁사 식별자에서
+ * v1 보수 리포트를 구성한다. 식별자도 없으면 gap_rows/actions 는 비운다.
  */
 export function buildPersistencePlan(input: BuildPersistenceInput): PersistencePlan {
   const { diagnosisId, reportId, websiteUrl, output } = input;
@@ -520,7 +520,8 @@ export function buildPersistencePlan(input: BuildPersistenceInput): PersistenceP
   });
 
   const selfReport = buildSelfReport(reportId, websiteUrl, output.items);
-  const competitorReports = input.competitorReports ?? [];
+  const competitorReports =
+    input.competitorReports ?? buildCompetitorReports(input.competitorUrls, selfReport);
   let gapRows: GapRowInsert[] = [];
   let gapItems: GapItem[] = [];
   if (input.competitorUrls.length > 0 && competitorReports.length > 0) {

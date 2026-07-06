@@ -56,6 +56,23 @@ export function createDbBusinessRepository(db: DbClient): BusinessRepository {
       return toRecord(row);
     },
 
+    async update(id, patch) {
+      const [row] = await db
+        .update(businesses)
+        .set({
+          ...(patch.name !== undefined ? { name: patch.name ?? "" } : {}),
+          ...(patch.category !== undefined ? { category: patch.category } : {}),
+          ...(patch.region !== undefined ? { region: patch.region } : {}),
+          ...(patch.naverPlaceId !== undefined ? { naverPlaceId: patch.naverPlaceId } : {}),
+          ...(patch.homepageUrl !== undefined ? { homepageUrl: patch.homepageUrl } : {}),
+          updatedAt: new Date(),
+        })
+        .where(eq(businesses.id, id))
+        .returning();
+      if (!row || row.deletedAt) throw new Error("business update failed");
+      return toRecord(row);
+    },
+
     async findById(id) {
       const [row] = await db.select().from(businesses).where(eq(businesses.id, id)).limit(1);
       if (!row || row.deletedAt) return null;

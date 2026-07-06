@@ -23,10 +23,25 @@ interface AssetRowStub {
   code: string;
 }
 
-const state: { view: DiagnosisView | null; tier: PlanTier; assets: AssetRowStub[] } = {
+const state: {
+  view: DiagnosisView | null;
+  tier: PlanTier;
+  assets: AssetRowStub[];
+  gapRows: Array<{
+    id: string;
+    item: string;
+    competitorHas: boolean;
+    isMyGap: boolean;
+    actionTier: "self_fix" | "snippet" | "vendor" | "ongoing";
+    source: "naver_serp" | "gpt_grounded" | "manual";
+    collectedAt: string;
+    competitorName: string | null;
+  }>;
+} = {
   view: null,
   tier: "free",
   assets: [],
+  gapRows: [],
 };
 
 vi.mock("../../lib/diagnosis/diagnosis-repository.js", () => ({
@@ -41,6 +56,7 @@ vi.mock("../../lib/diagnosis/diagnosis-repository.js", () => ({
 vi.mock("../../lib/diagnosis/persistence-repository.js", () => ({
   getDefaultDb: () => ({}),
   getPersistedGeneratedAssets: vi.fn(async () => state.assets),
+  getPersistedGapRows: vi.fn(async () => state.gapRows),
 }));
 
 // ★ PlanTier 서버 판정 stub — 세션 account.plan 으로만 결정(클라 ?paid=1 무시) 검증용.
@@ -189,6 +205,45 @@ describe("GET /api/generated-asset (P2-R6 / P3-R1)", () => {
     // 잠금 메타는 개수만(4종 중 2종 잠금).
     expect(body.data.paywall.locked).toBe(true);
     expect(body.data.paywall.lockedCount).toBe(2);
+  });
+
+  it("actionId와 keyword가 있으면 생성물에 근거와 sourceKeywords를 붙인다", async () => {
+    state.tier = "paid";
+    state.view = completedView();
+    state.assets = [
+      { type: "LOCAL_BUSINESS", code: "우리 가게는 마포의 한식당이에요. 편하게 들러 주세요." },
+    ];
+    state.gapRows = [
+      {
+        id: "gap-1",
+        item: "가게 소개 문구가 부족해요",
+        competitorHas: true,
+        isMyGap: true,
+        actionTier: "snippet",
+        source: "naver_serp",
+        collectedAt: "2026-07-05T00:00:00.000Z",
+        competitorName: "옆집가게",
+      },
+    ];
+
+    const res = await GET(
+      req(
+        `diagnosisId=${VALID_UUID}&type=place_intro&actionId=gap-1&keyword=${encodeURIComponent("마포 한식")}`,
+      ),
+    );
+    const body = (await res.json()) as {
+      data: {
+        assets: Array<{
+          sourceKeywords?: string[];
+          evidence?: Array<{ label: string; detail: string }>;
+        }>;
+      };
+    };
+    expect(body.data.assets[0]?.sourceKeywords).toEqual(["마포 한식"]);
+    expect(body.data.assets[0]?.evidence?.[0]).toEqual({
+      label: "연결된 할 일",
+      detail: "가게 소개 문구가 부족해요",
+    });
   });
 
   it("v1 폴백: 원자료 미영속화 → 추측 생성물 0(빈 배열) + 응원 인트로(인과·중개 0)", async () => {

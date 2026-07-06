@@ -24,7 +24,11 @@ import {
   deriveGeneratedAssetViewFromPersisted,
   deriveGeneratedAssetViewFromView,
 } from "@/lib/diagnosis/generated-asset-service";
-import { getDefaultDb, getPersistedGeneratedAssets } from "@/lib/diagnosis/persistence-repository";
+import {
+  getDefaultDb,
+  getPersistedGapRows,
+  getPersistedGeneratedAssets,
+} from "@/lib/diagnosis/persistence-repository";
 import { computePaywallMeta, resolveRequestPlanTier } from "@/lib/diagnosis/plan-tier";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -43,6 +47,8 @@ export async function GET(request: Request) {
     // ?type — 특정 생성물만 보기(S5에서 연결). 미지정이면 전부. (경계 우회 아님 — 보기 필터)
     const rawType = searchParams.get("type");
     const type = rawType === null ? undefined : AssetTypeSchema.parse(rawType);
+    const actionId = searchParams.get("actionId");
+    const keyword = searchParams.get("keyword");
 
     // ★ 유료(실행팩) 경계 — 서버 세션 account.plan 으로만 결정(클라 ?paid=1 무시). 익명=free.
     const { isPaid } = await resolveRequestPlanTier();
@@ -56,13 +62,32 @@ export async function GET(request: Request) {
     }
 
     // 실데이터 경로: 영속화된 generated_assets → 복붙 생성물(카피 가드 재검증). 없으면 정직 빈 상태.
-    const persisted = await getPersistedGeneratedAssets(getDefaultDb(), diagnosisId);
+    const db = getDefaultDb();
+    const [persisted, gapRows] = await Promise.all([
+      getPersistedGeneratedAssets(db, diagnosisId),
+      actionId ? getPersistedGapRows(db, diagnosisId) : Promise.resolve([]),
+    ]);
+    const selectedGap = actionId ? gapRows.find((row) => row.id === actionId) : undefined;
+    const evidence = selectedGap
+      ? [
+          { label: "연결된 할 일", detail: selectedGap.item },
+          {
+            label: "측정 근거",
+            detail: `${selectedGap.competitorName ?? "경쟁사"} ${selectedGap.competitorHas ? "보유" : "미보유"}`,
+          },
+        ]
+      : [];
     const {
       assets,
       intro,
       isPaid: paid,
     } = persisted.length > 0
-      ? deriveGeneratedAssetViewFromPersisted(persisted, dbToAssetType, { isPaid, type })
+      ? deriveGeneratedAssetViewFromPersisted(persisted, dbToAssetType, {
+          isPaid,
+          type,
+          ...(keyword ? { sourceKeywords: [keyword] } : {}),
+          evidence,
+        })
       : deriveGeneratedAssetViewFromView({ isPaid });
 
     // 잠금 메타(★ content 0): ?type 미지정 시 전체 생성물 - 무료 노출 = 잠긴 개수. 잠긴 본문은 응답에 없음.

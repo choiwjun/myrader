@@ -116,19 +116,25 @@ export async function buildUnsubscribedRadarPreview(
 
 export function buildSubscribedRadarPreview(
   keywords: readonly SubscribedRadarKeyword[],
+  options: { diagnosisId?: string } = {},
 ): RadarHomePreview {
   if (keywords.length === 0) return emptySubscribedRadarPreview();
 
-  const rows = keywords.slice(0, 5).map(
-    (keyword): RadarPreviewRow => ({
+  const rows = keywords.slice(0, 5).map((keyword): RadarPreviewRow => {
+    const params = new URLSearchParams({
+      radarKeywordId: keyword.id,
+      keyword: keyword.text,
+    });
+    if (options.diagnosisId) params.set("diagnosisId", options.diagnosisId);
+    return {
       id: keyword.id,
       text: keyword.text,
       reason: reasonForKeyword(keyword),
       status: statusForVerdict(keyword.verdict),
       locked: false,
-      actionHref: `/write?radarKeywordId=${encodeURIComponent(keyword.id)}&keyword=${encodeURIComponent(keyword.text)}`,
-    }),
-  );
+      actionHref: `/write?${params.toString()}`,
+    };
+  });
 
   return {
     mode: "subscribed",

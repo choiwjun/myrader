@@ -64,6 +64,13 @@ export interface CreateBusinessInput {
   naverPlaceId?: string | null;
   homepageUrl?: string | null;
 }
+export interface UpdateBusinessInput {
+  name?: string | null;
+  category?: string | null;
+  region?: string | null;
+  naverPlaceId?: string | null;
+  homepageUrl?: string | null;
+}
 
 /**
  * business 저장소 추상화 — DB 구현 주입 가능(07 경계 + 테스트 용이).
@@ -71,6 +78,7 @@ export interface CreateBusinessInput {
  */
 export interface BusinessRepository {
   create(input: CreateBusinessInput): Promise<BusinessRecord>;
+  update?(id: string, input: UpdateBusinessInput): Promise<BusinessRecord>;
   findById(id: string): Promise<BusinessRecord | null>;
   /**
    * naver_place_id 로 기존 행을 조회한다(재확정 멱등용). 없으면 null.
@@ -192,11 +200,26 @@ export async function confirmBusiness(
   const category = parsed.candidate.category.length > 0 ? parsed.candidate.category : null;
 
   // ★ 재확정 멱등(naver_place_id UNIQUE): 같은 가게로 재진단/더블서밋 시 새 insert 가 아니라
-  // 기존 행을 재사용한다(중복 키 위반 500 방지). 익명(account_id null) 행도 안전하게 재사용.
-  // DB 스키마(UNIQUE)는 유지 — 멱등은 애플리케이션 레이어가 담당.
-  const rec = naverPlaceId
-    ? ((await repo.findByNaverPlaceId(naverPlaceId)) ??
-      (await repo.create({
+  // 기존 행을 재사용한다(중복 키 위반 500 방지). 단, 이번 확정에서 홈페이지/업종/지역을 새로
+  // 제공하면 기존 행도 갱신한다. 그래야 /find 가 방금 입력한 홈페이지를 진단 대상으로 쓴다.
+  let rec: BusinessRecord;
+  if (naverPlaceId) {
+    const existing = await repo.findByNaverPlaceId(naverPlaceId);
+    if (existing) {
+      rec = (await repo.update?.(existing.id, {
+        name: parsed.candidate.name,
+        ...(category ? { category } : {}),
+        ...(parsed.region ? { region: parsed.region } : {}),
+        ...(parsed.websiteUrl ? { homepageUrl: parsed.websiteUrl } : {}),
+      })) ?? {
+        ...existing,
+        name: parsed.candidate.name,
+        category: category ?? existing.category,
+        region: parsed.region ?? existing.region,
+        homepageUrl: parsed.websiteUrl ?? existing.homepageUrl,
+      };
+    } else {
+      rec = await repo.create({
         // 익명 진단이면 null — 인증 세션 있으면 route 가 accountId 를 채워 귀속.
         accountId: parsed.accountId ?? null,
         name: parsed.candidate.name,
@@ -204,16 +227,19 @@ export async function confirmBusiness(
         region: parsed.region ?? null,
         naverPlaceId,
         homepageUrl: parsed.websiteUrl ?? null,
-      })))
-    : await repo.create({
-        // naver_place_id 없으면(파싱 실패) UNIQUE 충돌 없음 — 평소대로 생성.
-        accountId: parsed.accountId ?? null,
-        name: parsed.candidate.name,
-        category,
-        region: parsed.region ?? null,
-        naverPlaceId,
-        homepageUrl: parsed.websiteUrl ?? null,
       });
+    }
+  } else {
+    rec = await repo.create({
+      // naver_place_id 없으면(파싱 실패) UNIQUE 충돌 없음 — 평소대로 생성.
+      accountId: parsed.accountId ?? null,
+      name: parsed.candidate.name,
+      category,
+      region: parsed.region ?? null,
+      naverPlaceId,
+      homepageUrl: parsed.websiteUrl ?? null,
+    });
+  }
 
   // 응답 뷰: 저장 행 기반(category 포함). 기존 행 재사용 시 그 행의 저장 category 를 노출하되,
   // 비어 있고 이번 후보에 업종이 있으면 후보값을 노출(저장은 create 시점에만 — 멱등 유지).
