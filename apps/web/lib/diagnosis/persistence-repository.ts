@@ -4,7 +4,7 @@
 // @SPEC packages/db/src/schema/* (테이블 구조 변경 금지 — import + insert/select 만)
 // @TEST apps/web/tests/diagnosis/diagnosis-persistence-integration.test.ts
 //
-// PersistencePlan(순수 매퍼 산출) → 실제 DB insert. 모든 쿼리는 eq() 파라미터 바인딩
+// PersistencePlan(순수 매퍼 산출) → 실제 DB insert. 모든 쿼리는 eq()/and() 파라미터 바인딩
 // (문자열 보간 0 — SQL Injection 방지, Guardrails). id 는 DB defaultRandom(UUID v4).
 //
 // 04 §4 일관 기록: competitor insert → 그 competitor_id 로 gap_rows insert(FK 보존).
@@ -19,7 +19,7 @@ import {
   gapRows as gapRowsTable,
   generatedAssets as generatedAssetsTable,
 } from "@boina/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { PersistencePlan } from "./diagnosis-persistence.js";
 import type { GapActionTier } from "./gap-service.js";
 
@@ -74,8 +74,9 @@ export async function persistDiagnosisArtifacts(
   }
 
   // 3. gap_rows (competitor FK 필수 — 대표 competitor 에 귀속). competitor 0 이면 생략.
+  let insertedGapRows: Array<{ id: string }> = [];
   if (firstCompetitorId && plan.gapRows.length > 0) {
-    const rows = await db
+    insertedGapRows = await db
       .insert(gapRowsTable)
       .values(
         plan.gapRows.map((g) => ({
@@ -88,7 +89,7 @@ export async function persistDiagnosisArtifacts(
         })),
       )
       .returning({ id: gapRowsTable.id });
-    result.gapRows = rows.length;
+    result.gapRows = insertedGapRows.length;
   }
 
   // 4. generated_assets (복붙 생성물 — code/text).
@@ -100,8 +101,14 @@ export async function persistDiagnosisArtifacts(
   }
 
   // 5. actions (4분류 + 오늘 딱 하나).
+  // 새 진단부터는 action_ref 를 gap_row.id 와 정렬해 action completion/actionId deep-link 가
+  // 같은 실체를 가리키게 한다. gap_rows 가 없으면 plan.actionRef 를 그대로 사용한다.
   if (plan.actions.length > 0) {
-    const rows = await db.insert(actionsTable).values(plan.actions).returning({
+    const values = plan.actions.map((action, index) => ({
+      ...action,
+      actionRef: insertedGapRows[index]?.id ?? action.actionRef,
+    }));
+    const rows = await db.insert(actionsTable).values(values).returning({
       id: actionsTable.id,
     });
     result.actions = rows.length;
@@ -146,6 +153,7 @@ export async function getPersistedCompetitors(
 
 /** route 가 갭을 읽는 행 형태(사장님 언어 label + 경쟁사보유/내갭 + 4분류 tier + 근거 메타). */
 export interface PersistedGapRow {
+  id: string;
   item: string;
   competitorHas: boolean;
   isMyGap: boolean;
@@ -163,6 +171,7 @@ export async function getPersistedGapRows(
 ): Promise<PersistedGapRow[]> {
   const rows = await db
     .select({
+      id: gapRowsTable.id,
       item: gapRowsTable.item,
       competitorHas: gapRowsTable.competitorHas,
       isMyGap: gapRowsTable.isMyGap,
@@ -175,6 +184,7 @@ export async function getPersistedGapRows(
     .innerJoin(competitorsTable, eq(gapRowsTable.competitorId, competitorsTable.id))
     .where(eq(competitorsTable.diagnosisId, diagnosisId));
   return rows.map((r) => ({
+    id: r.id,
     item: r.item,
     competitorHas: r.competitorHas,
     isMyGap: r.isMyGap,
@@ -185,31 +195,75 @@ export async function getPersistedGapRows(
   }));
 }
 
-/** route 가 행동을 읽는 행 형태(4분류 tier + 오늘딱하나 — 점수/코드값 0). */
+/** route 가 행동을 읽는 행 형태(4분류 tier + 오늘딱하나 + 완료상태 — 점수/코드값 0). */
 export interface PersistedAction {
+  id: string;
   actionRef: string;
   actionTier: "high" | "medium" | "low" | "waiting";
   isTodayOne: boolean;
+  isCompleted: boolean | null;
+  completedAt: Date | null;
 }
 
-/** diagnosisId 의 actions(4분류 + 오늘 딱 하나). */
+/** diagnosisId 의 actions(4분류 + 오늘 딱 하나 + 완료상태). */
 export async function getPersistedActions(
   db: DbClient,
   diagnosisId: string,
 ): Promise<PersistedAction[]> {
   const rows = await db
     .select({
+      id: actionsTable.id,
       actionRef: actionsTable.actionRef,
       actionTier: actionsTable.actionTier,
       isTodayOne: actionsTable.isTodayOne,
+      isCompleted: actionsTable.isCompleted,
+      completedAt: actionsTable.completedAt,
     })
     .from(actionsTable)
     .where(eq(actionsTable.diagnosisId, diagnosisId));
   return rows.map((r) => ({
+    id: r.id,
     actionRef: r.actionRef,
     actionTier: r.actionTier,
     isTodayOne: r.isTodayOne,
+    isCompleted: r.isCompleted,
+    completedAt: r.completedAt,
   }));
+}
+
+/** action completion 상태를 갱신한다. actionRef 는 /api/action 이 노출하는 action.id 와 같다. */
+export async function setPersistedActionCompletion(
+  db: DbClient,
+  diagnosisId: string,
+  actionRef: string,
+  completed: boolean,
+): Promise<PersistedAction | null> {
+  const [row] = await db
+    .update(actionsTable)
+    .set({
+      isCompleted: completed,
+      completedAt: completed ? new Date() : null,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(actionsTable.diagnosisId, diagnosisId), eq(actionsTable.actionRef, actionRef)))
+    .returning({
+      id: actionsTable.id,
+      actionRef: actionsTable.actionRef,
+      actionTier: actionsTable.actionTier,
+      isTodayOne: actionsTable.isTodayOne,
+      isCompleted: actionsTable.isCompleted,
+      completedAt: actionsTable.completedAt,
+    });
+
+  if (!row) return null;
+  return {
+    id: row.id,
+    actionRef: row.actionRef,
+    actionTier: row.actionTier,
+    isTodayOne: row.isTodayOne,
+    isCompleted: row.isCompleted,
+    completedAt: row.completedAt,
+  };
 }
 
 /** route 가 생성물을 읽는 행 형태(DB type + 복붙 본문 — 코드값/전문용어는 가드가 차단). */

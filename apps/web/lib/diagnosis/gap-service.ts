@@ -345,6 +345,8 @@ export function deriveGapViewFromView(options: GapItemOptions = {}): GapViewResu
 /** 영속화된 gap_row 한 줄(앱層 — persistence-repository 가 반환). */
 export interface PersistedGapRowLike {
   /** 사장님 언어 label(룰 코드값 비노출). */
+  /** gap_row id (있으면 actionId deep-link / completion 기준으로 그대로 사용). */
+  id?: string;
   item: string;
   competitorHas: boolean;
   isMyGap: boolean;
@@ -377,7 +379,7 @@ export function deriveGapViewFromPersisted(
   const myGaps = rows.filter((r) => r.isMyGap === true);
   const visible = isPaid ? myGaps : myGaps.slice(0, FREE_TOP_N);
   const items: GapItem[] = visible.map((r, idx) => ({
-    id: makeUuidV4(),
+    id: r.id ?? makeUuidV4(),
     label: r.item,
     competitorHas: r.competitorHas,
     iHave: !r.isMyGap,

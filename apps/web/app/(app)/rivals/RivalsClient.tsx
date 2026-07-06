@@ -7,12 +7,23 @@ import { type ActionTier, actionTierToLabel } from "@/lib/shared/ui-labels";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
+type MeasurementLabel = "measured" | "estimated" | "unavailable";
+
+interface EvidenceItem {
+  label: string;
+  detail: string;
+}
+
 interface CompetitorItem {
   id: string;
   name: string;
   channel: string;
   beatsMe: boolean;
   source: string;
+  rank?: number;
+  collectedAt?: string | null;
+  measurementLabel?: MeasurementLabel | null;
+  evidence?: EvidenceItem[];
 }
 
 interface CompetitorData {
@@ -29,6 +40,10 @@ interface GapItem {
   actionTier: GapActionTier;
   priority: number;
   isPaid: boolean;
+  source?: string | null;
+  collectedAt?: string | null;
+  measurementLabel?: MeasurementLabel | null;
+  evidence?: EvidenceItem[];
 }
 
 interface GapData {
@@ -46,16 +61,34 @@ const TIER_SHORT: Record<ActionTier, string> = {
   gray_ongoing: "꾸준히",
 };
 
-function sourceToLabel(source: string): string {
+function sourceToLabel(source: string) {
   if (source === "naver_serp") return "네이버 검색에서 확인";
   if (source === "gpt_grounded") return "AI가 확인";
-  return "확인됨";
+  return "확인된 자료 기준";
 }
 
-function sourceToCollectedAtLabel(source: string): string {
+function sourceToCollectedAtLabel(source: string) {
   if (source === "naver_serp") return "검색 결과 기준";
   if (source === "gpt_grounded") return "AI 응답 기준";
   return "확인된 자료 기준";
+}
+
+function measurementLabelToText(label: MeasurementLabel | null | undefined) {
+  switch (label) {
+    case "measured":
+      return "실측";
+    case "estimated":
+      return "추정";
+    case "unavailable":
+      return "확인 전";
+    default:
+      return "확인 전";
+  }
+}
+
+function fallbackMeasurementLabel(source?: string | null): MeasurementLabel {
+  if (source === "naver_serp" || source === "gpt_grounded") return "measured";
+  return "unavailable";
 }
 
 function RivalsPageInner() {
@@ -105,12 +138,14 @@ function RivalsPageInner() {
   const hasCompetitors = competitors.length > 0;
   const hasGaps = gaps.length > 0;
 
-  function goWrite(tier?: ActionTier) {
-    if (diagnosisId) {
-      router.push(`/write?diagnosisId=${diagnosisId}${tier ? `&tier=${tier}` : ""}`);
-      return;
+  function goWrite(item?: GapItem) {
+    const params = new URLSearchParams();
+    if (diagnosisId) params.set("diagnosisId", diagnosisId);
+    if (item) {
+      params.set("tier", gapActionTierToClass(item.actionTier));
+      params.set("actionId", item.id);
     }
-    router.push("/write");
+    router.push(`/write${params.toString() ? `?${params.toString()}` : ""}`);
   }
 
   if (error) {
@@ -185,9 +220,16 @@ function RivalsPageInner() {
                 key={competitor.id}
                 className="rounded-[16px] border border-[#E2E8F0] bg-white p-4"
               >
-                <h3 className="truncate text-[17px] font-bold text-[var(--boina-ink)]">
-                  {competitor.name}
-                </h3>
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="truncate text-[17px] font-bold text-[var(--boina-ink)]">
+                    {competitor.name}
+                  </h3>
+                  <span className="rounded-full bg-[#EEF2FF] px-2 py-0.5 text-[11px] font-bold text-[#4338CA]">
+                    {measurementLabelToText(
+                      competitor.measurementLabel ?? fallbackMeasurementLabel(competitor.source),
+                    )}
+                  </span>
+                </div>
                 <div className="mt-4 grid gap-2">
                   <div className="flex items-center justify-between rounded-[12px] bg-[#ECFDF5] px-3 py-2.5">
                     <span className="text-[14px] font-semibold text-[#065F46]">옆집</span>
@@ -200,6 +242,7 @@ function RivalsPageInner() {
                 </div>
                 <p className="mt-4 text-[12px] font-medium leading-[18px] text-[#94A3B8]">
                   {sourceToLabel(competitor.source)}
+                  {competitor.rank ? ` · ${competitor.rank}번째` : ""}
                 </p>
               </article>
             ))}
@@ -241,13 +284,18 @@ function RivalsPageInner() {
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => goWrite(tier)}
+                  onClick={() => goWrite(item)}
                   className="rounded-[16px] border border-[#E2E8F0] bg-white p-4 text-left transition hover:border-[var(--boina-brand)]"
                   aria-label={`${item.label} 문안 보기`}
                 >
-                  <span className="inline-flex rounded-full bg-[#E0E7FF] px-2.5 py-1 text-[12px] font-bold text-[#4338CA]">
-                    {TIER_SHORT[tier]}
-                  </span>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="inline-flex rounded-full bg-[#E0E7FF] px-2.5 py-1 text-[12px] font-bold text-[#4338CA]">
+                      {TIER_SHORT[tier]}
+                    </span>
+                    <span className="rounded-full bg-[#EEF2FF] px-2 py-0.5 text-[11px] font-bold text-[#4338CA]">
+                      {measurementLabelToText(item.measurementLabel ?? fallbackMeasurementLabel(item.source))}
+                    </span>
+                  </div>
                   <h3 className="mt-3 text-[17px] font-bold leading-[24px] text-[var(--boina-ink)]">
                     {item.label}
                   </h3>
@@ -283,20 +331,65 @@ function RivalsPageInner() {
       </section>
 
       <section className="mb-8 rounded-[20px] border border-[var(--boina-line)] bg-[#F8FAFC] p-5">
-        <p className="text-[14px] font-bold text-[var(--boina-ink-3)]">비교 근거</p>
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
+        <div className="mb-4">
+          <p className="text-[14px] font-bold text-[var(--boina-ink-3)]">비교 근거</p>
+          <h2 className="mt-1 text-[22px] font-extrabold leading-[30px] text-[var(--boina-ink)]">
+            evidence sheet
+          </h2>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
           {(hasCompetitors
-            ? competitors
-            : [{ id: "empty", source: "none", name: "비교 준비 중" }]
+            ? competitors.map((item) => ({
+                id: item.id,
+                title: item.name,
+                source: item.source,
+                collectedAt: item.collectedAt,
+                measurementLabel: item.measurementLabel ?? fallbackMeasurementLabel(item.source),
+                evidence: item.evidence,
+              }))
+            : [
+                {
+                  id: "empty-competitor",
+                  title: "비교 준비 중",
+                  source: "none",
+                  collectedAt: null,
+                  measurementLabel: "unavailable" as MeasurementLabel,
+                  evidence: [],
+                },
+              ]
+          ).concat(
+            gaps.map((item) => ({
+              id: `gap-${item.id}`,
+              title: item.label,
+              source: item.source ?? "gap",
+              collectedAt: item.collectedAt ?? null,
+              measurementLabel: item.measurementLabel ?? fallbackMeasurementLabel(item.source),
+              evidence: item.evidence ?? [],
+            })),
           ).map((item) => (
-            <div
-              key={item.id}
-              className="rounded-[14px] border border-[#E2E8F0] bg-white px-4 py-3"
-            >
-              <p className="text-[14px] font-bold text-[var(--boina-ink)]">{item.name}</p>
+            <div key={item.id} className="rounded-[14px] border border-[#E2E8F0] bg-white px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-[14px] font-bold text-[var(--boina-ink)]">{item.title}</p>
+                <span className="rounded-full bg-[#EEF2FF] px-2 py-0.5 text-[11px] font-bold text-[#4338CA]">
+                  {measurementLabelToText(item.measurementLabel)}
+                </span>
+              </div>
               <p className="mt-1 text-[13px] leading-[19px] text-[var(--boina-ink-2)]">
-                {sourceToLabel(item.source)} · {sourceToCollectedAtLabel(item.source)}
+                {sourceToLabel(item.source)} · {item.collectedAt ?? sourceToCollectedAtLabel(item.source)}
               </p>
+              {(item.evidence?.length ?? 0) > 0 ? (
+                <ul className="mt-2 grid gap-1 text-[12px] leading-[18px] text-[#64748B]">
+                  {item.evidence?.map((evidence) => (
+                    <li key={`${item.id}-${evidence.label}`}>
+                      {evidence.label}: {evidence.detail}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-[12px] leading-[18px] text-[#64748B]">
+                  measured/unavailable/estimated 라벨과 함께 원본 근거가 쌓이면 여기에서 보여드릴게요.
+                </p>
+              )}
             </div>
           ))}
         </div>

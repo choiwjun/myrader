@@ -31,7 +31,9 @@ describe("A0-4: Rivals menu integrates compare and gap", () => {
     expect(src).not.toContain('hrefWithDiagnosisId("/gap"');
     expect(src).not.toContain("router.push(`/checkout");
     expect(src).not.toContain("router.push(`/actions");
-    expect(src).toContain("router.push(`/write?diagnosisId=${diagnosisId}");
+    expect(src).toContain("router.push(`/write");
+    expect(src).toContain('params.set("actionId", item.id)');
+    expect(src).toContain('params.set("tier", gapActionTierToClass(item.actionTier))');
   });
 
   it("legacy compare and gap routes redirect to rivals while preserving diagnosisId", () => {

@@ -8,7 +8,7 @@
 //   1st = AI HERO — 화면 최상단·최대 비주얼. channel==='ai' 를 channels 배열 순서와
 //         무관하게 HERO로 분리. 신호등 비주얼 + 맥락 헤드라인 + 미래지향 카피.
 //   2nd = 채널 글래스카드(연료) — 네이버·구글(맛보기)·AI 추천 작은 카드.
-//   3rd = 비교 CTA.
+//   3rd = 우선순위 할 일 + evidence sheet.
 // 정직성 가드: 점수(숫자) 0, 전문용어 0, 인과 단정 0, 신호등만.
 
 "use client";
@@ -17,12 +17,15 @@ import { type Signal, channelToLabel } from "@/lib/shared/ui-labels";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
-// ── 정직성 카피 상수 ──────────────────────────────────────────────────────────
-
 const GOOGLE_PREVIEW_NOTE = "자세한 순위는 다음 단계에서 확인할 수 있어요.";
 const AI_NOT_YET_NOTE = "실제로 AI가 추천할 때만 초록불이 켜져요.";
 
-// ── 타입 ─────────────────────────────────────────────────────────────────────
+type MeasurementLabel = "measured" | "estimated" | "unavailable";
+
+interface EvidenceItem {
+  label: string;
+  detail: string;
+}
 
 interface ChannelStatus {
   channel: "naver" | "google" | "ai";
@@ -30,20 +33,16 @@ interface ChannelStatus {
   summaryLine: string;
   found: boolean;
   note?: string;
+  source?: string | null;
+  collectedAt?: string | null;
+  measurementLabel?: MeasurementLabel | null;
+  evidence?: EvidenceItem[];
 }
-
-interface DiagnosisView {
-  id: string;
-  status: string;
-  overallSignal: Signal;
-}
-
-// ── 신호 → 시각 토큰 (점수 없이 색/라벨만) ────────────────────────────────────
 
 const SIGNAL_DOT: Record<Signal, string> = {
   green: "#10B981",
   yellow: "#F59E0B",
-  red: "#94A3B8", // red 신호 = "아직 신호 없음" — 비난색(빨강) 대신 중립 슬레이트
+  red: "#94A3B8",
 };
 
 const SIGNAL_CHIP: Record<Signal, { text: string; color: string; pulse: boolean }> = {
@@ -52,7 +51,6 @@ const SIGNAL_CHIP: Record<Signal, { text: string; color: string; pulse: boolean 
   red: { text: "신호 대기", color: "#64748B", pulse: false },
 };
 
-// 채널별 기본 한 줄 (실측 summaryLine 없을 때)
 const CHANNEL_DEFAULT_LINE: Record<ChannelStatus["channel"], string> = {
   naver: "검색 결과에서 우리 가게를 살펴보고 있어요.",
   google: "구글 지도 노출은 다음 단계에서 더 자세히 봐요.",
@@ -64,8 +62,6 @@ const CHANNEL_ICON: Record<ChannelStatus["channel"], string> = {
   google: "language",
   ai: "smart_toy",
 };
-
-// ── AI HERO 헤드라인/서브카피 (신호 구동) ─────────────────────────────────────
 
 function aiHeadline(signal: Signal): { head: string; sub: string } {
   switch (signal) {
@@ -86,8 +82,6 @@ function aiHeadline(signal: Signal): { head: string; sub: string } {
       };
   }
 }
-
-// ── AI HERO 신호등 비주얼 ─────────────────────────────────────────────────────
 
 function TrafficSignal({ signal, loading }: { signal: Signal; loading: boolean }) {
   const lit = loading ? "yellow" : signal;
@@ -135,20 +129,20 @@ function TrafficSignal({ signal, loading }: { signal: Signal; loading: boolean }
   );
 }
 
-// ── 채널 글래스카드 ───────────────────────────────────────────────────────────
-
 function ChannelCard({
   channelKey,
   signal,
   summaryLine,
   isAi = false,
   note,
+  measurementLabel,
 }: {
   channelKey: ChannelStatus["channel"];
   signal: Signal;
   summaryLine?: string;
   isAi?: boolean;
   note?: string;
+  measurementLabel?: MeasurementLabel | null;
 }) {
   const chip = SIGNAL_CHIP[signal];
   const label = channelToLabel(channelKey).label;
@@ -161,18 +155,25 @@ function ChannelCard({
       }`}
       style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)" }}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <span className={`text-sm font-bold ${isAi ? "text-[#4338CA]" : "text-[#434654]"}`}>
           {label}
         </span>
-        <div className="flex items-center gap-1.5">
-          <span
-            className={`h-2 w-2 rounded-full ${chip.pulse ? "animate-pulse" : ""}`}
-            style={{ backgroundColor: SIGNAL_DOT[signal] }}
-          />
-          <span className="text-xs font-semibold" style={{ color: chip.color }}>
-            {chip.text}
-          </span>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {measurementLabel ? (
+            <span className="rounded-full bg-[#EEF2FF] px-2 py-0.5 text-[11px] font-bold text-[#4338CA]">
+              {measurementLabelToText(measurementLabel)}
+            </span>
+          ) : null}
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`h-2 w-2 rounded-full ${chip.pulse ? "animate-pulse" : ""}`}
+              style={{ backgroundColor: SIGNAL_DOT[signal] }}
+            />
+            <span className="text-xs font-semibold" style={{ color: chip.color }}>
+              {chip.text}
+            </span>
+          </div>
         </div>
       </div>
       <p className="text-[15px] font-medium leading-relaxed text-[#0F172A]">{line}</p>
@@ -189,8 +190,6 @@ function ChannelCard({
   );
 }
 
-// ── 카드 스켈레톤 ─────────────────────────────────────────────────────────────
-
 function CardSkeleton() {
   return (
     <div className="flex animate-pulse flex-col gap-3 rounded-2xl border border-[#E2E8F0] bg-white p-5">
@@ -201,14 +200,57 @@ function CardSkeleton() {
   );
 }
 
-// ── 내부 페이지 ───────────────────────────────────────────────────────────────
+function measurementLabelToText(label: MeasurementLabel) {
+  switch (label) {
+    case "measured":
+      return "실측";
+    case "estimated":
+      return "추정";
+    case "unavailable":
+      return "근거 부족";
+  }
+}
+
+function deriveMeasurementLabel(channel: ChannelStatus): MeasurementLabel {
+  if (channel.measurementLabel) return channel.measurementLabel;
+  if (channel.channel === "google") return "estimated";
+  if (channel.found) return "measured";
+  return "unavailable";
+}
+
+function sourceToText(channel: ChannelStatus) {
+  if (channel.source) return channel.source;
+  if (channel.channel === "naver") return "네이버 확인";
+  if (channel.channel === "google") return "준비도 추정";
+  return "AI 확인";
+}
+
+function buildPriorityFixes(channels: ChannelStatus[]) {
+  return channels
+    .filter((channel) => channel.signal !== "green")
+    .map((channel) => ({
+      id: channel.channel,
+      title:
+        channel.channel === "naver"
+          ? "네이버에 보일 재료부터 채우기"
+          : channel.channel === "google"
+            ? "구글이 읽기 쉬운 소개글 다듬기"
+            : "AI가 읽을 설명과 질문 재료 채우기",
+      description: channel.summaryLine,
+      tier:
+        channel.channel === "naver"
+          ? "green_self"
+          : channel.channel === "google"
+            ? "yellow_copy"
+            : "gray_ongoing",
+    }));
+}
 
 function StatusPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const diagnosisId = searchParams.get("diagnosisId");
 
-  const [, setDiagnosis] = useState<DiagnosisView | null>(null);
   const [channels, setChannels] = useState<ChannelStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -224,20 +266,13 @@ function StatusPageInner() {
       setLoading(true);
       setError(null);
       try {
-        const [diagRes, chanRes] = await Promise.all([
-          fetch(`/api/diagnosis?id=${diagnosisId}`),
-          fetch(`/api/channel-status?diagnosisId=${diagnosisId}`),
-        ]);
-        const [diagJson, chanJson] = await Promise.all([diagRes.json(), chanRes.json()]);
-
-        if (!diagRes.ok || !diagJson.success) {
+        const res = await fetch(`/api/channel-status?diagnosisId=${diagnosisId}`);
+        const json = await res.json();
+        if (!res.ok || !json.success) {
           setError("결과를 불러오지 못했어요. 잠깐 후에 다시 확인해 볼까요?");
           return;
         }
-        setDiagnosis(diagJson.data);
-        if (chanRes.ok && chanJson.success) {
-          setChannels(chanJson.data?.channels ?? []);
-        }
+        setChannels(json.data?.channels ?? []);
       } catch {
         setError("연결이 잠깐 끊겼어요. 다시 시도해 볼까요?");
       } finally {
@@ -248,16 +283,21 @@ function StatusPageInner() {
     load();
   }, [diagnosisId]);
 
-  // AI는 channels 배열 순서와 무관하게 HERO 슬롯으로 분리(§1-A)
   const getChannel = (ch: ChannelStatus["channel"]) => channels.find((c) => c.channel === ch);
   const naver = getChannel("naver");
   const google = getChannel("google");
   const ai = getChannel("ai");
-
   const aiSignal: Signal = ai?.signal ?? "red";
   const hero = aiHeadline(aiSignal);
+  const fixes = buildPriorityFixes(channels);
 
-  // ── 에러 화면 ───────────────────────────────────────────────────────────────
+  function goWrite(tier?: string) {
+    const params = new URLSearchParams();
+    if (diagnosisId) params.set("diagnosisId", diagnosisId);
+    if (tier) params.set("tier", tier);
+    router.push(`/write${params.toString() ? `?${params.toString()}` : ""}`);
+  }
+
   if (error) {
     return (
       <div className="mx-auto max-w-xl px-6 py-20">
@@ -281,7 +321,6 @@ function StatusPageInner() {
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col items-center px-6 py-12 md:py-16">
-      {/* ── AI HERO ── */}
       <section
         aria-label="AI 추천 상태 (HERO)"
         data-testid="ai-hero-slot"
@@ -304,7 +343,6 @@ function StatusPageInner() {
         )}
       </section>
 
-      {/* ── 채널 연료 카드 ── */}
       <section className="w-full">
         <h2
           className="mb-5 flex items-center gap-2 text-[20px] font-bold text-[#0F172A] md:text-[24px]"
@@ -329,14 +367,22 @@ function StatusPageInner() {
                 channelKey="naver"
                 signal={naver?.signal ?? "yellow"}
                 summaryLine={naver?.summaryLine}
+                measurementLabel={naver ? deriveMeasurementLabel(naver) : "unavailable"}
               />
               <ChannelCard
                 channelKey="google"
                 signal={google?.signal ?? "yellow"}
                 summaryLine={google?.summaryLine}
                 note={GOOGLE_PREVIEW_NOTE}
+                measurementLabel={google ? deriveMeasurementLabel(google) : "estimated"}
               />
-              <ChannelCard channelKey="ai" signal={aiSignal} summaryLine={ai?.summaryLine} isAi />
+              <ChannelCard
+                channelKey="ai"
+                signal={aiSignal}
+                summaryLine={ai?.summaryLine}
+                isAi
+                measurementLabel={ai ? deriveMeasurementLabel(ai) : "unavailable"}
+              />
             </>
           )}
         </div>
@@ -344,38 +390,120 @@ function StatusPageInner() {
         <p className="mb-12 text-center text-[13px] text-[#94A3B8]">* {AI_NOT_YET_NOTE}</p>
       </section>
 
-      {!loading && (
-        <section className="flex w-full max-w-xl flex-col items-center gap-3">
-          <button
-            type="button"
-            onClick={() =>
-              router.push(diagnosisId ? `/rivals?diagnosisId=${diagnosisId}` : "/rivals")
-            }
-            className="group flex w-full items-center justify-center gap-2 rounded-2xl bg-[#4F46E5] px-8 py-5 text-[18px] font-bold text-white transition-all hover:bg-[#4338CA] active:scale-[0.98]"
-            style={{ boxShadow: "0 8px 24px rgba(79,70,229,0.2)" }}
-          >
-            옆집과 비교해 볼까요? 👀
-            <span className="material-symbols-outlined transition-transform group-hover:translate-x-1">
-              arrow_forward
-            </span>
-          </button>
-          <p className="text-sm text-[#64748B]">
-            다음 단계에서 우리 가게의 경쟁력을 확인해 보세요.
-          </p>
+      {!loading ? (
+        <section className="mb-8 w-full rounded-[20px] border border-[#E2E8F0] bg-white p-5 shadow-[0_1px_3px_rgba(25,31,40,0.06)]">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-[14px] font-bold text-[var(--boina-ink-3)]">오늘 먼저 고칠 것</p>
+              <h2 className="mt-1 text-[22px] font-extrabold leading-[30px] text-[#0F172A]">
+                우선순위 할 일
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => goWrite()}
+              className="rounded-[14px] bg-[#4F46E5] px-4 py-2 text-[14px] font-bold text-white"
+            >
+              /write로 이동
+            </button>
+          </div>
+
+          {fixes.length > 0 ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              {fixes.map((fix) => (
+                <button
+                  key={fix.id}
+                  type="button"
+                  onClick={() => goWrite(fix.tier)}
+                  className="rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] p-4 text-left transition hover:border-[#4F46E5]"
+                >
+                  <p className="text-[16px] font-bold text-[#0F172A]">{fix.title}</p>
+                  <p className="mt-1 text-[14px] leading-[20px] text-[#64748B]">{fix.description}</p>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-[16px] border border-[#A7F3D0] bg-[#ECFDF5] px-5 py-6">
+              <p className="text-[17px] font-bold text-[#065F46]">지금은 안정적으로 보이고 있어요.</p>
+              <p className="mt-1 text-[14px] leading-[20px] text-[#047857]">
+                복붙 문안이나 꾸준히 할 일을 보고 싶다면 /write에서 이어서 볼 수 있어요.
+              </p>
+            </div>
+          )}
         </section>
-      )}
+      ) : null}
+
+      {!loading ? (
+        <>
+          <section className="w-full rounded-[20px] border border-[#E2E8F0] bg-[#F8FAFC] p-5">
+            <div className="mb-4">
+              <p className="text-[14px] font-bold text-[var(--boina-ink-3)]">근거 보기</p>
+              <h2 className="mt-1 text-[22px] font-extrabold leading-[30px] text-[#0F172A]">
+                evidence sheet
+              </h2>
+            </div>
+            <div className="grid gap-3">
+              {channels.map((channel) => {
+                const label = channelToLabel(channel.channel).label;
+                const measurementLabel = deriveMeasurementLabel(channel);
+                return (
+                  <details
+                    key={channel.channel}
+                    className="rounded-[16px] border border-[#E2E8F0] bg-white px-4 py-3"
+                  >
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[15px] font-bold text-[#0F172A]">{label}</p>
+                        <p className="text-[13px] text-[#64748B]">{measurementLabelToText(measurementLabel)}</p>
+                      </div>
+                      <span className="text-[13px] font-medium text-[#64748B]">
+                        {channel.collectedAt ?? "수집 시각 기록 전"}
+                      </span>
+                    </summary>
+                    <div className="mt-3 grid gap-2 border-t border-[#E2E8F0] pt-3 text-[14px] text-[#475569]">
+                      <p>출처: {sourceToText(channel)}</p>
+                      <p>메모: {channel.note ?? channel.summaryLine}</p>
+                      {(channel.evidence?.length ?? 0) > 0 ? (
+                        <ul className="grid gap-1">
+                          {channel.evidence?.map((item) => (
+                            <li key={`${channel.channel}-${item.label}`}>
+                              {item.label}: {item.detail}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p>아직 원본 evidence가 더 쌓이면 여기에 함께 보여드릴게요.</p>
+                      )}
+                    </div>
+                  </details>
+                );
+              })}
+            </div>
+          </section>
+          <section className="mt-8 flex w-full max-w-xl flex-col items-center gap-3">
+            <button
+              type="button"
+              onClick={() =>
+                router.push(diagnosisId ? `/rivals?diagnosisId=${diagnosisId}` : "/rivals")
+              }
+              className="group flex w-full items-center justify-center gap-2 rounded-2xl bg-[#4F46E5] px-8 py-5 text-[18px] font-bold text-white transition-all hover:bg-[#4338CA] active:scale-[0.98]"
+              style={{ boxShadow: "0 8px 24px rgba(79,70,229,0.2)" }}
+            >
+              옆집과 비교해 볼까요? 👀
+              <span className="material-symbols-outlined transition-transform group-hover:translate-x-1">
+                arrow_forward
+              </span>
+            </button>
+            <p className="text-sm text-[#64748B]">
+              다음 단계에서 우리 가게의 경쟁력을 확인해 보세요.
+            </p>
+          </section>
+        </>
+      ) : null}
     </div>
   );
 }
 
-// ── 내보내기 (Suspense 래핑) ──────────────────────────────────────────────────
-
-/**
- * S2 내 상태 (/status) — 풀 반응형.
- * auth: false. diagnosisId 쿼리로 데이터 로드.
- * 정보계층: AI HERO(최상단) → 채널 연료(네이버·구글·AI) → 비교 CTA.
- * 점수 0. 전문용어 0. 인과 단정 0.
- */
 export default function StatusPage() {
   return (
     <Suspense

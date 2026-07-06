@@ -12,7 +12,9 @@ describe("A0-5: Write menu integrates actions and generated copy", () => {
   it("write owns action and generated-asset data directly", () => {
     const src = readAppFile("write/WriteClient.tsx");
 
-    expect(src).toContain("/api/action?diagnosisId=");
+    expect(src).toContain("/api/action");
+    expect(src).toContain('searchParams.get("actionId")');
+    expect(src).toContain('method: "PATCH"');
     expect(src).toContain("/api/generated-asset");
     expect(src).toContain("오늘 할 일");
     expect(src).toContain("추천 액션");
@@ -39,7 +41,9 @@ describe("A0-5: Write menu integrates actions and generated copy", () => {
       expect(src).toContain("redirect(");
       expect(src).toContain("/write");
       expect(src).toContain("diagnosisId");
+      expect(src).toContain("actionId");
     }
+    expect(actions).toContain("tier");
     expect(assets).toContain("type");
   });
 });

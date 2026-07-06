@@ -3,32 +3,37 @@
 // @SPEC specs/domain/resources.yaml (action 리소스)
 // @SPEC .claude/constitutions/nextjs/api-routes.md (try-catch / Zod / 일관 응답 / 비-200 에러)
 // @TEST apps/web/tests/diagnosis/action-route.test.ts
-//
-// route 모듈을 직접 import 해 Request 로 호출 (Next 런타임 없이 핸들러 단위 검증).
-// 저장소(getDefaultDiagnosisRepository)는 vi.mock 으로 fake 주입 — 실 DB 접근 0.
-//
-// ★ 보안(P3-R1): 무료/유료 경계는 서버 세션 account.plan 으로만 결정된다(resolveRequestPlanTier).
-// 클라 ?paid=1 은 무시된다 — free 세션이 ?paid=1 보내도 isPaid=false(우회 0). 오늘 딱 하나는 무료 보장.
-//
-// v1 한계(정직): DB(04 스키마)는 진단 원자료(GapResult)를 영속화하지 않으므로
-// (FR-012 §5 영속화 [OPEN]), route 는 진단 view(완료 여부)만으로 정직 폴백을 산출한다 —
-// 추측 행동 0(빈 배열) + 오늘 딱 하나 null + 응원 인트로. 코드값 노출 0.
 
 import { describe, expect, it, vi } from "vitest";
 import type { DiagnosisView } from "../../lib/diagnosis/diagnosis-service.js";
 import type { PlanTier } from "../../lib/diagnosis/plan-tier.js";
+import type { GapActionTier } from "../../lib/diagnosis/gap-service.js";
 
 interface GapRowStub {
+  id?: string;
   item: string;
   competitorHas: boolean;
   isMyGap: boolean;
+  actionTier?: GapActionTier;
 }
 
-const state: { view: DiagnosisView | null; tier: PlanTier; gapRows: GapRowStub[] } = {
+const state: {
+  view: DiagnosisView | null;
+  tier: PlanTier;
+  gapRows: GapRowStub[];
+  completions: Record<string, { isCompleted: boolean; completedAt: Date | null }>;
+} = {
   view: null,
   tier: "free",
   gapRows: [],
+  completions: {},
 };
+
+vi.mock("next/server", () => ({
+  NextResponse: {
+    json: (body: unknown, init?: ResponseInit) => Response.json(body, init),
+  },
+}));
 
 vi.mock("../../lib/diagnosis/diagnosis-repository.js", () => ({
   getDefaultDiagnosisRepository: () => ({
@@ -38,13 +43,35 @@ vi.mock("../../lib/diagnosis/diagnosis-repository.js", () => ({
   }),
 }));
 
-// 영속화 저장소 stub — 실 DB 접근 0. state.gapRows 로 실 갭 행 주입(content 비노출 검증).
 vi.mock("../../lib/diagnosis/persistence-repository.js", () => ({
   getDefaultDb: () => ({}),
   getPersistedGapRows: vi.fn(async () => state.gapRows),
+  getPersistedActions: vi.fn(async () =>
+    Object.entries(state.completions).map(([actionRef, value], index) => ({
+      id: `persisted-${index}`,
+      actionRef,
+      actionTier: "low" as const,
+      isTodayOne: false,
+      isCompleted: value.isCompleted,
+      completedAt: value.completedAt,
+    })),
+  ),
+  setPersistedActionCompletion: vi.fn(async (_db, _diagnosisId: string, actionId: string, completed: boolean) => {
+    const matched = state.gapRows.find((row) => row.id === actionId);
+    if (!matched) return null;
+    const completedAt = completed ? new Date("2026-07-06T07:55:00.000Z") : null;
+    state.completions[actionId] = { isCompleted: completed, completedAt };
+    return {
+      id: `persisted-${actionId}`,
+      actionRef: actionId,
+      actionTier: "low" as const,
+      isTodayOne: false,
+      isCompleted: completed,
+      completedAt,
+    };
+  }),
 }));
 
-// ★ PlanTier 서버 판정 stub — 세션 account.plan 으로만 결정(클라 ?paid=1 무시) 검증용.
 vi.mock("../../lib/diagnosis/plan-tier.js", async (orig) => {
   const actual = await orig<typeof import("../../lib/diagnosis/plan-tier.js")>();
   return {
@@ -65,10 +92,18 @@ vi.mock("../../lib/diagnosis/diagnosis-service.js", async (orig) => {
   };
 });
 
-const { GET } = await import("../../app/api/action/route.js");
+const { GET, PATCH } = await import("../../app/api/action/route.js");
 
-function req(qs: string): Request {
+function getReq(qs: string): Request {
   return new Request(`http://localhost/api/action?${qs}`);
+}
+
+function patchReq(body: unknown): Request {
+  return new Request("http://localhost/api/action", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 const VALID_UUID = "00000000-0000-4000-8000-000000000abc";
@@ -86,10 +121,10 @@ function completedView(): DiagnosisView {
   };
 }
 
-describe("GET /api/action (P2-R5 / P3-R1)", () => {
+describe("GET/PATCH /api/action (P2-R5 / P3-R1)", () => {
   it("diagnosisId 누락/비UUID 시 400 (Validation)", async () => {
     state.tier = "free";
-    const res = await GET(req("diagnosisId=not-a-uuid"));
+    const res = await GET(getReq("diagnosisId=not-a-uuid"));
     expect(res.status).toBe(400);
     const body = (await res.json()) as { success: boolean; code?: string };
     expect(body.success).toBe(false);
@@ -99,7 +134,7 @@ describe("GET /api/action (P2-R5 / P3-R1)", () => {
   it("진단을 찾을 수 없으면 404", async () => {
     state.tier = "free";
     state.view = null;
-    const res = await GET(req(`diagnosisId=${VALID_UUID}`));
+    const res = await GET(getReq(`diagnosisId=${VALID_UUID}`));
     expect(res.status).toBe(404);
     const body = (await res.json()) as { success: boolean; code?: string };
     expect(body.success).toBe(false);
@@ -109,8 +144,9 @@ describe("GET /api/action (P2-R5 / P3-R1)", () => {
   it("완료 진단 → actions 배열 + todayOne + intro + isPaid + paywall 반환 (200)", async () => {
     state.tier = "free";
     state.gapRows = [];
+    state.completions = {};
     state.view = completedView();
-    const res = await GET(req(`diagnosisId=${VALID_UUID}`));
+    const res = await GET(getReq(`diagnosisId=${VALID_UUID}`));
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       success: boolean;
@@ -132,37 +168,39 @@ describe("GET /api/action (P2-R5 / P3-R1)", () => {
   it("★ 보안: free 세션이 ?paid=1 을 보내도 무시 — isPaid=false (서버 강제, 우회 0)", async () => {
     state.tier = "free";
     state.view = completedView();
-    const res = await GET(req(`diagnosisId=${VALID_UUID}&paid=1`));
+    const res = await GET(getReq(`diagnosisId=${VALID_UUID}&paid=1`));
     const body = (await res.json()) as { data: { isPaid: boolean } };
     expect(body.data.isPaid).toBe(false);
   });
 
-  it("★ 서버 plan 판정: paid 세션 → isPaid=true(전체 행동), 익명/free → false(오늘딱하나+일부)", async () => {
-    state.view = completedView();
-    state.tier = "free";
-    const free = (await (await GET(req(`diagnosisId=${VALID_UUID}`))).json()) as {
-      data: { isPaid: boolean };
-    };
-    expect(free.data.isPaid).toBe(false);
+  it("tier 필터를 반영해 선택한 분류만 돌려준다", async () => {
     state.tier = "paid";
-    const paid = (await (await GET(req(`diagnosisId=${VALID_UUID}`))).json()) as {
-      data: { isPaid: boolean };
+    state.view = completedView();
+    state.gapRows = [
+      { id: "gap-1", item: "영업시간이 안 적혀 있어요", competitorHas: true, isMyGap: true, actionTier: "self_fix" },
+      { id: "gap-2", item: "가게 소개 문구가 없어요", competitorHas: true, isMyGap: true, actionTier: "snippet" },
+      { id: "gap-3", item: "리뷰를 꾸준히 모아야 해요", competitorHas: true, isMyGap: true, actionTier: "ongoing" },
+    ];
+    const res = await GET(getReq(`diagnosisId=${VALID_UUID}&tier=yellow_copy`));
+    const body = (await res.json()) as {
+      data: { actions: Array<{ tier: string }>; paywall: { lockedCount: number } };
     };
-    expect(paid.data.isPaid).toBe(true);
+    expect(body.data.actions).toHaveLength(1);
+    expect(body.data.actions[0]?.tier).toBe("yellow_copy");
+    expect(body.data.paywall.lockedCount).toBe(0);
   });
 
   it("★ 오늘 딱 하나는 무료 보장 — free 에서도 잠금 뒤가 아님(isPaid=false), 잠긴 행동 content 미노출", async () => {
-    // 내 갭 5개 → 무료는 Top3 행동만(오늘 딱 하나 포함). 잠긴 2개 행동 title(content)은 응답에 0.
     state.tier = "free";
     state.view = completedView();
     state.gapRows = [
-      { item: "영업시간이 안 적혀 있어요", competitorHas: true, isMyGap: true },
-      { item: "가게 소개 문구가 없어요", competitorHas: true, isMyGap: true },
-      { item: "자주 묻는 질문 안내가 없어요", competitorHas: true, isMyGap: true },
-      { item: "리뷰 모음 안내가 없어요(잠금행동)", competitorHas: true, isMyGap: true },
-      { item: "첫 화면이 늦게 떠요(잠금행동)", competitorHas: true, isMyGap: true },
+      { id: "gap-1", item: "영업시간이 안 적혀 있어요", competitorHas: true, isMyGap: true, actionTier: "self_fix" },
+      { id: "gap-2", item: "가게 소개 문구가 없어요", competitorHas: true, isMyGap: true, actionTier: "snippet" },
+      { id: "gap-3", item: "자주 묻는 질문 안내가 없어요", competitorHas: true, isMyGap: true, actionTier: "vendor" },
+      { id: "gap-4", item: "리뷰 모음 안내가 없어요(잠금행동)", competitorHas: true, isMyGap: true, actionTier: "ongoing" },
+      { id: "gap-5", item: "첫 화면이 늦게 떠요(잠금행동)", competitorHas: true, isMyGap: true, actionTier: "snippet" },
     ];
-    const res = await GET(req(`diagnosisId=${VALID_UUID}&paid=1`));
+    const res = await GET(getReq(`diagnosisId=${VALID_UUID}&paid=1`));
     const body = (await res.json()) as {
       data: {
         actions: { title: string; isTodayOne: boolean; isPaid: boolean }[];
@@ -170,23 +208,41 @@ describe("GET /api/action (P2-R5 / P3-R1)", () => {
         paywall: { locked: boolean; lockedCount: number };
       };
     };
-    // 무료는 Top3 기반 행동만 — 정확히 3개.
     expect(body.data.actions).toHaveLength(3);
-    // 오늘 딱 하나는 무료 보장(isPaid=false, 잠금 뒤 아님).
     expect(body.data.todayOne).not.toBeNull();
     expect(body.data.todayOne?.isPaid).toBe(false);
-    // ★ 잠긴 행동의 실제 content(title)는 응답 어디에도 없어야 한다.
     expect(JSON.stringify(body.data.actions)).not.toContain("잠금행동");
-    // 잠금 메타는 개수만.
     expect(body.data.paywall.locked).toBe(true);
     expect(body.data.paywall.lockedCount).toBe(2);
+  });
+
+  it("PATCH 완료 토글 → action completion mutation 응답", async () => {
+    state.tier = "paid";
+    state.view = completedView();
+    state.gapRows = [
+      { id: "gap-1", item: "영업시간이 안 적혀 있어요", competitorHas: true, isMyGap: true, actionTier: "self_fix" },
+    ];
+    state.completions = {};
+    const res = await PATCH(
+      patchReq({ diagnosisId: VALID_UUID, actionId: "gap-1", completed: true }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      success: boolean;
+      data: { actionId: string; isCompleted: boolean; completedAt: string | null };
+    };
+    expect(body.success).toBe(true);
+    expect(body.data.actionId).toBe("gap-1");
+    expect(body.data.isCompleted).toBe(true);
+    expect(body.data.completedAt).toBeTruthy();
   });
 
   it("v1 폴백: 원자료 미영속화 → 추측 행동 0(빈 배열) + todayOne null + 응원 인트로(룰코드/인과 0)", async () => {
     state.tier = "free";
     state.gapRows = [];
+    state.completions = {};
     state.view = completedView();
-    const res = await GET(req(`diagnosisId=${VALID_UUID}`));
+    const res = await GET(getReq(`diagnosisId=${VALID_UUID}`));
     const body = (await res.json()) as {
       data: { actions: unknown[]; todayOne: unknown; intro: string };
     };
