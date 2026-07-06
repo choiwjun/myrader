@@ -15,7 +15,6 @@
 // 엔진 경계(07 §2): @boina/engine 의 선언된 배럴 export(runDiagnosisPipeline)와
 // @boina/contracts 타입으로만 통신한다. deep import 금지.
 
-import type { Category, SourceType } from "@boina/contracts/enums";
 import type { DbClient } from "@boina/db/client";
 // 타입만 정적 import(빌드 시 erase) — 무거운 엔진 값(Playwright 등 server-only 의존)은
 // 실행 시점에 lazy import 한다(07 §2 경계는 배럴 export 유지, 읽기 경로 비번들).
@@ -29,6 +28,8 @@ import {
   deriveCompetitorInput,
 } from "./competitor-derivation.js";
 import { mapCrawlFailureToReason } from "./crawl-failure.js";
+import type { DiagnosisJobPayload } from "./job-payload.js";
+export type { DiagnosisJobPayload } from "./job-payload.js";
 import { buildPersistencePlan } from "./diagnosis-persistence.js";
 import {
   type DiagnosisRepository,
@@ -52,37 +53,6 @@ export class NoCompetitorDataInProductionError extends Error {
     );
     this.name = "NoCompetitorDataInProductionError";
   }
-}
-
-/** 진단 잡 페이로드 — 엔진 입력에 필요한 비즈니스 프로파일 + 대상. */
-export interface DiagnosisJobPayload {
-  /** 반영할 diagnoses 행 id. */
-  diagnosisId: string;
-  /** 진단 대상 URL(또는 플랫폼 URL). */
-  target: string;
-  /** 진단 surface 유형 (기본 website). */
-  sourceType?: SourceType;
-  /** 엔진 분석에 필요한 비즈니스 프로파일. */
-  businessProfile: {
-    businessName: string;
-    industry: string;
-    region: string;
-    mainServices: string[];
-    targetKeywords: string[];
-  };
-  /** 분석 모듈(seo/aeo/geo …). */
-  modules: Category[];
-  /**
-   * grounded LLM 가시성 검증(HERO 신호)을 이번 진단에서 요청하는지.
-   * 요청해도 비용 게이트 통과 + 키 존재일 때만 실제 활성(무분별 호출 금지).
-   * 기본 false — 무료/기본 경로는 엔진 mock/rule-based 로 완주(실외부호출 0).
-   */
-  requestLlmValidation?: boolean;
-  /**
-   * 역공학 갭(GapAnalyzer) 라이브 호출용 수동/mock competitorUrls.
-   * FR-012 MVP: 실 SERP 자동발견 키 0(OQ-4 [OPEN]) — 수동 주입만. 비면 갭 0(추측 0).
-   */
-  competitorUrls?: string[];
 }
 
 /** 파이프라인 러너 시그니처(주입 가능 — 테스트 mock). 기본은 엔진 배럴 export. */
@@ -186,6 +156,7 @@ async function decideLlmValidation(
   const ctx: CostGateContext = {
     operation: "llm_validation",
     diagnosisId: payload.diagnosisId,
+    businessId: payload.businessId,
   };
   const decision = await costGate(ctx);
   return decision.allowed;

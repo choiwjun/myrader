@@ -30,7 +30,8 @@ interface PlaceCandidate {
 interface ConfirmedBusiness {
   id: string;
   name: string;
-  placeUrl: string;
+  placeUrl: string | null;
+  websiteUrl?: string | null;
 }
 
 type ScreenPhase = "search" | "candidates" | "confirm" | "progress";
@@ -155,11 +156,14 @@ export default function FindPage() {
   }
 
   async function enqueueWithBusiness(business: ConfirmedBusiness, candidate: PlaceCandidate) {
+    const target = business.websiteUrl?.trim() || business.placeUrl || candidate.placeUrl;
+    const sourceType = business.websiteUrl?.trim() ? "website" : "naver_place";
+
     const res = await fetch("/api/diagnosis", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        target: candidate.placeUrl,
+        target,
         businessId: business.id,
         businessProfile: {
           businessName: candidate.name,
@@ -168,7 +172,7 @@ export default function FindPage() {
           mainServices: [candidate.category || "일반"],
           targetKeywords: [candidate.name],
         },
-        sourceType: "naver_place",
+        sourceType,
         requestLlmValidation: true,
       }),
     });

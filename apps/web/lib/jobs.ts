@@ -14,13 +14,11 @@
 
 import { type DbClient, createDb } from "@boina/db/client";
 import { DbBackedJobQueue, type JobPayloadResolver, type JobQueue } from "@boina/jobs";
-import {
-  type DiagnosisJobPayload as PipelineDiagnosisJobPayload,
-  buildDiagnosisHandler,
-} from "./diagnosis/diagnosis-handler.js";
+import { buildDiagnosisHandler } from "./diagnosis/diagnosis-handler.js";
 import { getDefaultDiagnosisRepository } from "./diagnosis/diagnosis-repository.js";
 import type { DiagnosisRepository } from "./diagnosis/diagnosis-service.js";
 import { resolveDiagnosisJobPayload } from "./diagnosis/job-payload-resolver.js";
+import type { DiagnosisJobPayload as PipelineDiagnosisJobPayload } from "./diagnosis/job-payload.js";
 
 /**
  * 진단 잡 페이로드 — 실제 파이프라인 핸들러 입력.

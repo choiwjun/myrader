@@ -88,6 +88,12 @@ CREATE TABLE "diagnoses" (
 	"crawl_failure_reason" "crawl_failure_reason",
 	"summary_text" text,
 	"overall_score" text,
+	"job_type" text,
+	"job_payload" jsonb,
+	"job_attempt_count" integer DEFAULT 0 NOT NULL,
+	"job_last_error" text,
+	"job_enqueued_at" timestamp with time zone,
+	"job_started_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"completed_at" timestamp with time zone

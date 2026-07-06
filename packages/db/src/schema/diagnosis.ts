@@ -9,8 +9,9 @@
  * status는 contracts/enums.ts의 ReportStatus (queued/running/completed/failed/partial/canceled/timeout).
  */
 
-import { index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { index, integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { crawlFailureReasonEnum, diagnosisStatusEnum } from "../enums.js";
+
 import { businesses } from "./business.js";
 
 export const diagnoses = pgTable(
@@ -44,6 +45,24 @@ export const diagnoses = pgTable(
      * 화면에는 신호등으로 변환하여 노출 (07 § 4 점수 비노출)
      */
     overallScore: text("overall_score"),
+
+    /** Queue job type persisted for same-process and cross-process recovery parity. */
+    jobType: text("job_type"),
+
+    /** Validated diagnosis job payload persisted durably for recovery parity. */
+    jobPayload: jsonb("job_payload").$type<Record<string, unknown>>(),
+
+    /** Number of worker attempts that actually claimed this job. */
+    jobAttemptCount: integer("job_attempt_count").notNull().default(0),
+
+    /** Last queue/handler error message (if any, non-sensitive). */
+    jobLastError: text("job_last_error"),
+
+    /** Last time the job was enqueued. */
+    jobEnqueuedAt: timestamp("job_enqueued_at", { withTimezone: true }),
+
+    /** Last time a worker claimed the job and started processing. */
+    jobStartedAt: timestamp("job_started_at", { withTimezone: true }),
 
     /** Diagnosis created timestamp */
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

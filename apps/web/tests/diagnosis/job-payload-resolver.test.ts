@@ -2,13 +2,14 @@
 // @SPEC apps/web/lib/diagnosis/job-payload-resolver.ts
 // @TEST apps/web/tests/diagnosis/job-payload-resolver.test.ts
 //
-// docker PG 로 실 행을 만들고 복원 payload 가 businesses 실데이터로 구성되는지 검증한다.
+// docker PG 로 실 행을 만들고 복원 payload 가 저장 원문 우선 / legacy fallback 순으로 구성되는지 검증한다.
 
 import { createDb } from "@boina/db/client";
 import { accounts, businesses, diagnoses } from "@boina/db/schema";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { resolveDiagnosisJobPayload } from "../../lib/diagnosis/job-payload-resolver.js";
+import { buildDiagnosisJobPayload } from "../../lib/diagnosis/job-payload.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 const describeDb = DATABASE_URL ? describe : describe.skip;
@@ -41,48 +42,112 @@ describeDb("resolveDiagnosisJobPayload (수정R2-A-1 cross-process 복구)", () 
 
   async function makeDiagnosis(bizValues: {
     name: string;
+    category?: string;
     region?: string;
     homepageUrl?: string;
-  }): Promise<string> {
+    naverPlaceId?: string;
+    jobPayload?: Record<string, unknown>;
+    jobType?: string;
+  }): Promise<{ diagnosisId: string; businessId: string }> {
     const biz = firstOrThrow(
       await db
         .insert(businesses)
-        .values({ accountId, ...bizValues })
+        .values({
+          accountId,
+          name: bizValues.name,
+          ...(bizValues.category ? { category: bizValues.category } : {}),
+          ...(bizValues.region ? { region: bizValues.region } : {}),
+          ...(bizValues.homepageUrl ? { homepageUrl: bizValues.homepageUrl } : {}),
+          ...(bizValues.naverPlaceId ? { naverPlaceId: bizValues.naverPlaceId } : {}),
+        })
         .returning({ id: businesses.id }),
       "business",
     );
     const diag = firstOrThrow(
-      await db.insert(diagnoses).values({ businessId: biz.id, status: "queued" }).returning({
-        id: diagnoses.id,
-      }),
+      await db
+        .insert(diagnoses)
+        .values({
+          businessId: biz.id,
+          status: "queued",
+          ...(bizValues.jobPayload ? { jobPayload: bizValues.jobPayload } : {}),
+          ...(bizValues.jobType ? { jobType: bizValues.jobType } : {}),
+        })
+        .returning({ id: diagnoses.id }),
       "diagnosis",
     );
-    return diag.id;
+    return { diagnosisId: diag.id, businessId: biz.id };
   }
 
-  it("homepageUrl 있으면 website target 으로 복원한다", async () => {
-    const id = await makeDiagnosis({
+  it("stored job_payload 가 있으면 원문을 그대로 복원한다", async () => {
+    const created = await makeDiagnosis({
+      name: "저장우선가게",
+      category: "카페",
+      region: "서울 마포구",
+      homepageUrl: "https://saved.example.com",
+      naverPlaceId: "7654321",
+    });
+    const storedPayload = buildDiagnosisJobPayload({
+      diagnosisId: created.diagnosisId,
+      business: {
+        id: created.businessId,
+        homepageUrl: "https://saved.example.com",
+        naverPlaceId: "7654321",
+      },
+      businessProfile: {
+        businessName: "저장우선가게",
+        industry: "카페",
+        region: "서울 마포구",
+        mainServices: ["브런치", "커피"],
+        targetKeywords: ["합정 카페"],
+      },
+      modules: ["seo", "geo"],
+      requestLlmValidation: true,
+      competitorUrls: ["https://competitor.example.com"],
+      fallbackTarget: "https://place.naver.com/restaurant/7654321",
+      fallbackSourceType: "naver_place",
+    });
+
+    await db
+      .update(diagnoses)
+      .set({ jobType: "diagnosis", jobPayload: storedPayload })
+      .where(eq(diagnoses.id, created.diagnosisId));
+
+    const resolved = await resolveDiagnosisJobPayload(db, created.diagnosisId, "diagnosis");
+    expect(resolved).toEqual({ type: "diagnosis", payload: storedPayload });
+  });
+
+  it("legacy 행: homepageUrl 있으면 website target 으로 fallback 복원한다", async () => {
+    const created = await makeDiagnosis({
       name: "홈피가게",
+      category: "베이커리",
       region: "서울 마포구",
       homepageUrl: "https://myshop.example",
     });
-    const resolved = await resolveDiagnosisJobPayload(db, id, "diagnosis");
+    const resolved = await resolveDiagnosisJobPayload(db, created.diagnosisId, "diagnosis");
     expect(resolved).not.toBeNull();
     expect(resolved?.type).toBe("diagnosis");
-    expect(resolved?.payload.diagnosisId).toBe(id);
+    expect(resolved?.payload.diagnosisId).toBe(created.diagnosisId);
     expect(resolved?.payload.target).toBe("https://myshop.example");
     expect(resolved?.payload.sourceType).toBe("website");
     expect(resolved?.payload.businessProfile.businessName).toBe("홈피가게");
     expect(resolved?.payload.businessProfile.region).toBe("서울 마포구");
+    expect(resolved?.payload.businessProfile.industry).toBe("베이커리");
   });
 
-  it("homepageUrl 없으면 이름 기반 네이버 검색 target(naver_place)으로 복원한다", async () => {
-    const id = await makeDiagnosis({ name: "검색가게" });
-    const resolved = await resolveDiagnosisJobPayload(db, id, "diagnosis");
+  it("legacy 행: homepageUrl 없고 naverPlaceId 있으면 place target 으로 fallback 복원한다", async () => {
+    const created = await makeDiagnosis({ name: "플레이스가게", naverPlaceId: "7654321" });
+    const resolved = await resolveDiagnosisJobPayload(db, created.diagnosisId, "diagnosis");
+    expect(resolved?.payload.sourceType).toBe("naver_place");
+    expect(resolved?.payload.target).toBe("https://place.naver.com/restaurant/7654321");
+  });
+
+  it("legacy 행: homepageUrl/placeId 모두 없으면 이름 기반 네이버 검색 target 으로 fallback 복원한다", async () => {
+    const created = await makeDiagnosis({ name: "검색가게" });
+    const resolved = await resolveDiagnosisJobPayload(db, created.diagnosisId, "diagnosis");
     expect(resolved?.payload.sourceType).toBe("naver_place");
     expect(resolved?.payload.target).toContain("search.naver.com");
-    // region 미설정 → 보수적 기본 "전국".
     expect(resolved?.payload.businessProfile.region).toBe("전국");
+    expect(resolved?.payload.requestLlmValidation).toBe(false);
   });
 
   it("존재하지 않는 diagnosisId → null(복원 불가)", async () => {

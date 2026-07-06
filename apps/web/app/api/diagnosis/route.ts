@@ -22,43 +22,29 @@ import { getDefaultBusinessRepository } from "@/lib/business";
 import { findActiveDiagnosisForBusiness } from "@/lib/diagnosis/diagnosis-dedup";
 import { getDefaultDiagnosisRepository } from "@/lib/diagnosis/diagnosis-repository";
 import { getDiagnosisView } from "@/lib/diagnosis/diagnosis-service";
+import {
+  DEFAULT_DIAGNOSIS_MODULES,
+  DiagnosisBusinessProfileSchema,
+  buildDiagnosisJobPayload,
+} from "@/lib/diagnosis/job-payload";
 import { DIAGNOSIS_JOB_TYPE, getJobQueue, kickBackgroundDrain } from "@/lib/jobs";
 import { diagnosisCreateLimiter, enforceRateLimit } from "@/lib/shared/api-rate-limit";
+import { CategorySchema, SourceTypeSchema } from "@boina/contracts/enums";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 // DB/잡 큐에 의존하는 동적 route — 빌드타임 prerender 제외(env 없이 build 성공).
 export const dynamic = "force-dynamic";
 
-// 진단 대상 비즈니스 프로파일 (엔진 입력에 필요).
-const BusinessProfileSchema = z.object({
-  businessName: z.string().min(1).max(50),
-  industry: z.string().min(1),
-  region: z.string().min(1),
-  mainServices: z.array(z.string().max(50)).min(1).max(5),
-  targetKeywords: z.array(z.string().max(30)).min(1).max(10),
-});
-
 // 입력 검증 (헌법 §3 Zod).
 const EnqueueDiagnosisSchema = z
   .object({
-    target: z.string().min(1).max(2048),
+    target: z.string().url().max(2048),
     /** 진단 대상 가게 id — 있으면 diagnoses 행을 만들고 파이프라인을 배선한다. */
     businessId: z.string().uuid().optional(),
-    businessProfile: BusinessProfileSchema.optional(),
-    modules: z.array(z.enum(["seo", "aeo", "geo", "a11y", "backlink", "perf"])).optional(),
-    sourceType: z
-      .enum([
-        "website",
-        "naver_place",
-        "naver_blog",
-        "instagram",
-        "kakao_place",
-        "youtube",
-        "facebook",
-        "other_platform",
-      ])
-      .optional(),
+    businessProfile: DiagnosisBusinessProfileSchema.optional(),
+    modules: z.array(CategorySchema).optional(),
+    sourceType: SourceTypeSchema.optional(),
     /** grounded LLM 가시성 검증 요청(게이트 통과 시에만 실제 활성). */
     requestLlmValidation: z.boolean().optional(),
   })
@@ -113,19 +99,21 @@ export async function POST(request: Request) {
       }
 
       const diagnosis = await repo.create({ businessId: input.businessId });
+      const payload = buildDiagnosisJobPayload({
+        diagnosisId: diagnosis.id,
+        business,
+        businessProfile: input.businessProfile,
+        modules: input.modules ?? DEFAULT_DIAGNOSIS_MODULES,
+        requestLlmValidation: input.requestLlmValidation ?? false,
+        fallbackTarget: input.target,
+        fallbackSourceType: input.sourceType,
+      });
 
       const queue = getJobQueue();
       const job = await queue.enqueue({
         type: DIAGNOSIS_JOB_TYPE,
         diagnosisId: diagnosis.id,
-        payload: {
-          diagnosisId: diagnosis.id,
-          target: input.target,
-          sourceType: input.sourceType ?? "website",
-          businessProfile: input.businessProfile,
-          modules: input.modules ?? ["seo", "aeo", "geo"],
-          requestLlmValidation: input.requestLlmValidation ?? false,
-        },
+        payload,
       });
 
       // ★ 워커 트리거(수정R2-A-1): enqueue 직후 백그라운드 drain 을 띄운다(응답을 막지 않음).

@@ -78,7 +78,8 @@ describeDb("DbBackedJobQueue (P0-T3 diagnoses.status 반영)", () => {
       seenInsideHandler = job.status; // 핸들러는 running 상태에서 실행
     });
 
-    await queue.enqueue({ type: "diagnosis", payload: {}, diagnosisId });
+    const payload = { diagnosisId, businessId, target: "https://example.com" };
+    await queue.enqueue({ type: "diagnosis", payload, diagnosisId });
     expect(await queue.getStatus(diagnosisId)).toBe("queued");
 
     const processed = await queue.drain();
@@ -87,12 +88,27 @@ describeDb("DbBackedJobQueue (P0-T3 diagnoses.status 반영)", () => {
 
     const after = firstOrThrow(
       await db
-        .select({ status: diagnoses.status, completedAt: diagnoses.completedAt })
+        .select({
+          status: diagnoses.status,
+          jobType: diagnoses.jobType,
+          jobPayload: diagnoses.jobPayload,
+          jobAttemptCount: diagnoses.jobAttemptCount,
+          jobLastError: diagnoses.jobLastError,
+          jobEnqueuedAt: diagnoses.jobEnqueuedAt,
+          jobStartedAt: diagnoses.jobStartedAt,
+          completedAt: diagnoses.completedAt,
+        })
         .from(diagnoses)
         .where(eq(diagnoses.id, diagnosisId)),
       "diagnosis after",
     );
     expect(after.status).toBe("completed");
+    expect(after.jobType).toBe("diagnosis");
+    expect(after.jobPayload).toMatchObject(payload);
+    expect(after.jobAttemptCount).toBe(1);
+    expect(after.jobLastError).toBeNull();
+    expect(after.jobEnqueuedAt).not.toBeNull();
+    expect(after.jobStartedAt).not.toBeNull();
     expect(after.completedAt).not.toBeNull();
   });
 
@@ -103,12 +119,24 @@ describeDb("DbBackedJobQueue (P0-T3 diagnoses.status 반영)", () => {
       throw new Error("pipeline boom");
     });
 
-    await queue.enqueue({ type: "diagnosis", payload: {}, diagnosisId });
+    await queue.enqueue({ type: "diagnosis", payload: { diagnosisId }, diagnosisId });
     await queue.drain();
 
     const status = await queue.getStatus(diagnosisId);
     expect(status).toBe("failed");
     const job = await queue.getJob(diagnosisId);
     expect(job?.error).toBe("pipeline boom");
+    const after = firstOrThrow(
+      await db
+        .select({
+          jobAttemptCount: diagnoses.jobAttemptCount,
+          jobLastError: diagnoses.jobLastError,
+        })
+        .from(diagnoses)
+        .where(eq(diagnoses.id, diagnosisId)),
+      "failed diagnosis",
+    );
+    expect(after.jobAttemptCount).toBe(1);
+    expect(after.jobLastError).toBe("pipeline boom");
   });
 });

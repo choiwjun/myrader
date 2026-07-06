@@ -29,8 +29,17 @@ export {
 } from "./diagnosis-repository.js";
 
 export {
-  type DiagnosisHandlerDeps,
+  type DiagnosisBusinessProfile,
   type DiagnosisJobPayload,
+  DEFAULT_DIAGNOSIS_MODULES,
+  DiagnosisBusinessProfileSchema,
+  DiagnosisJobPayloadSchema,
+  buildDiagnosisJobPayload,
+  parseStoredDiagnosisJobPayload,
+  resolveDiagnosisTarget,
+} from "./job-payload.js";
+export {
+  type DiagnosisHandlerDeps,
   type RunDiagnosisPipeline,
   buildDiagnosisHandler,
 } from "./diagnosis-handler.js";

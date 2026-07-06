@@ -22,7 +22,8 @@
 
 import type { DbClient } from "@boina/db/client";
 import { diagnoses } from "@boina/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
+
 import { isDiagnosisCompletionStatus, jobStatusToDiagnosisStatus } from "./diagnosis-status.js";
 import { InvalidJobTransitionError } from "./errors.js";
 import {
@@ -60,6 +61,11 @@ export interface DbBackedJobQueueOptions {
   concurrency?: number;
   /** cross-process 복구용 페이로드 복원기(없으면 메타 있는 잡만 처리). */
   payloadResolver?: JobPayloadResolver;
+}
+
+function toPersistedPayload(payload: unknown): Record<string, unknown> | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+  return payload as Record<string, unknown>;
 }
 
 /**
@@ -101,10 +107,19 @@ export class DbBackedJobQueue implements JobQueue {
       );
     }
 
-    // diagnoses.status = 'queued' 반영 (행은 이미 존재한다고 가정).
+    const queuedAt = new Date();
     await this.db
       .update(diagnoses)
-      .set({ status: "queued", updatedAt: new Date() })
+      .set({
+        status: "queued",
+        updatedAt: queuedAt,
+        jobType: spec.type,
+        jobPayload: toPersistedPayload(spec.payload),
+        jobAttemptCount: 0,
+        jobLastError: null,
+        jobEnqueuedAt: queuedAt,
+        jobStartedAt: null,
+      })
       .where(eq(diagnoses.id, diagnosisId));
 
     this.meta.set(diagnosisId, {
@@ -186,7 +201,13 @@ export class DbBackedJobQueue implements JobQueue {
     const now = new Date();
     const updated = await this.db
       .update(diagnoses)
-      .set({ status: "running", updatedAt: now })
+      .set({
+        status: "running",
+        updatedAt: now,
+        jobStartedAt: now,
+        jobLastError: null,
+        jobAttemptCount: sql`${diagnoses.jobAttemptCount} + 1`,
+      })
       .where(and(eq(diagnoses.id, diagnosisId), eq(diagnoses.status, "queued")))
       .returning({ id: diagnoses.id });
     return updated.length === 1;
@@ -242,12 +263,18 @@ export class DbBackedJobQueue implements JobQueue {
       status: ReturnType<typeof jobStatusToDiagnosisStatus>;
       updatedAt: Date;
       completedAt?: Date;
+      jobLastError?: string | null;
     } = {
       status: jobStatusToDiagnosisStatus(to),
       updatedAt: now,
     };
     if (isDiagnosisCompletionStatus(to)) {
       patch.completedAt = now;
+    }
+    if (to === "completed") {
+      patch.jobLastError = null;
+    } else if (error !== undefined) {
+      patch.jobLastError = error;
     }
 
     await this.db.update(diagnoses).set(patch).where(eq(diagnoses.id, jobId));
@@ -261,6 +288,10 @@ export class DbBackedJobQueue implements JobQueue {
       .select({
         id: diagnoses.id,
         status: diagnoses.status,
+        jobType: diagnoses.jobType,
+        jobPayload: diagnoses.jobPayload,
+        jobAttemptCount: diagnoses.jobAttemptCount,
+        jobLastError: diagnoses.jobLastError,
         createdAt: diagnoses.createdAt,
         updatedAt: diagnoses.updatedAt,
       })
@@ -274,12 +305,16 @@ export class DbBackedJobQueue implements JobQueue {
     const meta = this.meta.get(jobId);
     const job: Job<TPayload> = {
       id: row.id,
-      type: meta?.type ?? "unknown",
-      payload: (meta?.payload ?? null) as TPayload,
+      type: meta?.type ?? row.jobType ?? "unknown",
+      payload: (meta?.payload ?? row.jobPayload ?? null) as TPayload,
       diagnosisId: row.id,
       status: row.status as JobStatus,
-      attempts: meta?.attempts ?? 0,
-      ...(meta?.error !== undefined ? { error: meta.error } : {}),
+      attempts: meta?.attempts ?? row.jobAttemptCount,
+      ...(meta?.error !== undefined
+        ? { error: meta.error }
+        : row.jobLastError !== null
+          ? { error: row.jobLastError }
+          : {}),
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };
