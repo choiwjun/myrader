@@ -41,7 +41,11 @@ const state: {
   view: DiagnosisView | null;
   tier: PlanTier;
   gapRows: GapRowStub[];
-  competitors: Array<{ name: string; source: "naver_serp" | "gpt_grounded" | "manual"; collectedAt: string }>;
+  competitors: Array<{
+    name: string;
+    source: "naver_serp" | "gpt_grounded" | "manual";
+    collectedAt: string;
+  }>;
 } = {
   view: null,
   tier: "free",

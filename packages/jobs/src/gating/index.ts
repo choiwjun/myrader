@@ -199,8 +199,8 @@ function readBooleanEnv(env: NodeJS.ProcessEnv, key: string, fallback: boolean):
 function readFallbackEnv(
   env: NodeJS.ProcessEnv,
   key: string,
-  fallback: CostGateDecision["fallback"],
-): CostGateDecision["fallback"] {
+  fallback: CostGatePolicyConfig["fallbackOnDeny"],
+): CostGatePolicyConfig["fallbackOnDeny"] {
   const raw = env[key]?.trim();
   return raw === "use_cache" || raw === "defer" || raw === "skip" ? raw : fallback;
 }

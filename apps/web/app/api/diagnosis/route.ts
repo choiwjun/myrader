@@ -98,11 +98,23 @@ export async function POST(request: Request) {
         );
       }
 
+      const businessProfile = input.businessProfile;
+      if (!businessProfile) {
+        return NextResponse.json(
+          {
+            error: "businessProfile is required when businessId is provided",
+            code: "BAD_REQUEST",
+            success: false,
+          },
+          { status: 400 },
+        );
+      }
+
       const diagnosis = await repo.create({ businessId: input.businessId });
       const payload = buildDiagnosisJobPayload({
         diagnosisId: diagnosis.id,
         business,
-        businessProfile: input.businessProfile,
+        businessProfile,
         modules: input.modules ?? DEFAULT_DIAGNOSIS_MODULES,
         requestLlmValidation: input.requestLlmValidation ?? false,
         fallbackTarget: input.target,

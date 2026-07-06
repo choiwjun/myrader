@@ -22,15 +22,15 @@
 
 import type { DiagnosisJson, LlmValidation, NaverPresence } from "@boina/contracts/diagnosis";
 import type { HealthBand } from "@boina/contracts/enums";
+import type { Channel, Signal } from "../shared/ui-labels.js";
 import {
   BUSINESS_PRESENCE_MEASUREMENT_CODE,
+  LLM_VALIDATION_MEASUREMENT_CODE,
+  type MeasurementLabel,
   getBusinessPresenceMeasurement,
   getLlmValidationMeasurement,
-  LLM_VALIDATION_MEASUREMENT_CODE,
   pickLatestTimestamp,
-  type MeasurementLabel,
 } from "./measurement.js";
-import type { Channel, Signal } from "../shared/ui-labels.js";
 
 /**
  * 화면(S2)용 채널 신호등 — resources.yaml channelStatus 필드와 1:1.
@@ -435,11 +435,13 @@ export function deriveChannelStatusesFromPersisted(
 
   const measurementRows = rows.filter(
     (row) =>
-      row.code === BUSINESS_PRESENCE_MEASUREMENT_CODE || row.code === LLM_VALIDATION_MEASUREMENT_CODE,
+      row.code === BUSINESS_PRESENCE_MEASUREMENT_CODE ||
+      row.code === LLM_VALIDATION_MEASUREMENT_CODE,
   );
   const signalRows = rows.filter(
     (row) =>
-      row.code !== BUSINESS_PRESENCE_MEASUREMENT_CODE && row.code !== LLM_VALIDATION_MEASUREMENT_CODE,
+      row.code !== BUSINESS_PRESENCE_MEASUREMENT_CODE &&
+      row.code !== LLM_VALIDATION_MEASUREMENT_CODE,
   );
   const naverRows = signalRows.filter((r) => r.channel === "naver");
   const googleRows = signalRows.filter((r) => r.channel === "google");
@@ -460,12 +462,16 @@ export function deriveChannelStatusesFromPersisted(
       ...(businessPresence?.found !== undefined ? { found: businessPresence.found } : {}),
       source: businessPresence?.source ?? "engine_results",
       collectedAt:
-        businessPresence?.collectedAt ?? pickLatestTimestamp(naverRows.map((row) => row.collectedAt)),
+        businessPresence?.collectedAt ??
+        pickLatestTimestamp(naverRows.map((row) => row.collectedAt)),
       evidence:
         businessPresence?.payload ??
         naverRows.map((row) => row.evidence).filter((evidence) => evidence !== null),
-      measurementLabel: businessPresence?.measurementLabel ?? (naverRows.length > 0 ? "estimated" : "unavailable"),
-      ...(businessPresence ? {} : { note: "네이버 표면 수집이 없어서 준비도 기준으로 보여드려요." }),
+      measurementLabel:
+        businessPresence?.measurementLabel ?? (naverRows.length > 0 ? "estimated" : "unavailable"),
+      ...(businessPresence
+        ? {}
+        : { note: "네이버 표면 수집이 없어서 준비도 기준으로 보여드려요." }),
     },
     {
       channel: "google",

@@ -96,7 +96,10 @@ const TYPE_ICON: Record<AssetType, string> = {
   vendor_prescription: "mail",
 };
 
-function buildWriteHref(searchParams: { toString(): string }, overrides: Record<string, string | null>) {
+function buildWriteHref(
+  searchParams: { toString(): string },
+  overrides: Record<string, string | null>,
+) {
   const next = new URLSearchParams(searchParams.toString());
   for (const [key, value] of Object.entries(overrides)) {
     if (value === null) next.delete(key);
@@ -111,7 +114,10 @@ function recommendedAssetKeywords(asset: GeneratedAsset, keyword: string | null)
   return keyword ? [keyword] : [];
 }
 
-function fallbackAssetEvidence(asset: GeneratedAsset, selectedAction: ActionItem | null): EvidenceItem[] {
+function fallbackAssetEvidence(
+  asset: GeneratedAsset,
+  selectedAction: ActionItem | null,
+): EvidenceItem[] {
   const typeLabel = assetTypeToLabel(asset.type);
   return [
     {
@@ -290,7 +296,9 @@ function WritePageInner() {
 
       {keyword ? (
         <section className="mb-5 rounded-[20px] border border-[var(--boina-line)] bg-[var(--boina-brand-soft)] p-5">
-          <p className="text-[14px] font-bold text-[var(--boina-brand-deep)]">이번 주 검색어로 시작</p>
+          <p className="text-[14px] font-bold text-[var(--boina-brand-deep)]">
+            이번 주 검색어로 시작
+          </p>
           <h2 className="mt-1 text-[20px] font-extrabold leading-[28px] text-[var(--boina-ink)]">
             {keyword}
           </h2>
@@ -309,7 +317,9 @@ function WritePageInner() {
         <section className="mb-5 rounded-[16px] border border-[#E0E7FF] bg-[#F8FAFC] px-4 py-3">
           <p className="text-[13px] font-bold text-[#4338CA]">선택한 할 일</p>
           <p className="mt-1 text-[14px] leading-[20px] text-[#475569]">
-            {selectedAction ? `${selectedAction.title}부터 이어서 봐요.` : "선택한 할 일을 중심으로 문안을 모아 보여드려요."}
+            {selectedAction
+              ? `${selectedAction.title}부터 이어서 봐요.`
+              : "선택한 할 일을 중심으로 문안을 모아 보여드려요."}
           </p>
         </section>
       ) : null}
@@ -385,7 +395,8 @@ function WritePageInner() {
                 .map((action) => {
                   const style = TIER_STYLE[action.tier];
                   const tierLabel = actionTierToLabel(action.tier);
-                  const highlighted = actionId === action.id || (!actionId && focusTier === action.tier);
+                  const highlighted =
+                    actionId === action.id || (!actionId && focusTier === action.tier);
                   return (
                     <article
                       key={action.id}
@@ -399,7 +410,9 @@ function WritePageInner() {
                         <div
                           className={`flex h-11 w-11 items-center justify-center rounded-[12px] ${style.tile} ${style.text}`}
                         >
-                          <span className="material-symbols-outlined text-[24px]">{style.icon}</span>
+                          <span className="material-symbols-outlined text-[24px]">
+                            {style.icon}
+                          </span>
                         </div>
                         <div className="flex flex-col items-end gap-2">
                           <span
@@ -426,7 +439,9 @@ function WritePageInner() {
                           onClick={() => startAction(action)}
                           className="inline-flex min-h-10 items-center rounded-[12px] bg-[#EEF2FF] px-3 py-2 text-[14px] font-bold text-[var(--boina-brand)]"
                         >
-                          {action.tier === "green_self" && action.deeplink ? "바로 가기" : "문안 보기"}
+                          {action.tier === "green_self" && action.deeplink
+                            ? "바로 가기"
+                            : "문안 보기"}
                         </button>
                         <button
                           type="button"
@@ -444,7 +459,9 @@ function WritePageInner() {
           </div>
         ) : (
           <div className="rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-5 py-6 text-center">
-            <p className="text-[17px] font-bold text-[var(--boina-ink)]">아직 추천할 행동을 못 찾았어요</p>
+            <p className="text-[17px] font-bold text-[var(--boina-ink)]">
+              아직 추천할 행동을 못 찾았어요
+            </p>
             <p className="mt-1 text-[14px] leading-[20px] text-[var(--boina-ink-2)]">
               진단이 완료되면 오늘 할 일을 여기에 보여드릴게요.
             </p>
@@ -492,16 +509,22 @@ function WritePageInner() {
                 >
                   <div className="mb-4 flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#E0E7FF] text-[var(--boina-brand)]">
-                      <span className="material-symbols-outlined text-[22px]">{TYPE_ICON[asset.type]}</span>
+                      <span className="material-symbols-outlined text-[22px]">
+                        {TYPE_ICON[asset.type]}
+                      </span>
                     </div>
                     <div>
-                      <h3 className="text-[17px] font-bold text-[var(--boina-ink)]">{typeLabel.label}</h3>
+                      <h3 className="text-[17px] font-bold text-[var(--boina-ink)]">
+                        {typeLabel.label}
+                      </h3>
                       <p className="text-[12px] font-medium text-[var(--boina-ink-3)]">
                         문안 근거와 sourceKeywords를 함께 확인해요.
                       </p>
                     </div>
                   </div>
-                  <p className="mb-2 text-[15px] font-bold text-[var(--boina-ink)]">{asset.title}</p>
+                  <p className="mb-2 text-[15px] font-bold text-[var(--boina-ink)]">
+                    {asset.title}
+                  </p>
                   <p className="mb-3 text-[13px] leading-[19px] text-[var(--boina-ink-2)]">
                     {typeLabel.description}
                   </p>
@@ -542,7 +565,8 @@ function WritePageInner() {
 
       {!loading && (
         <p className="mt-6 max-w-2xl text-[13px] leading-[19px] text-[#94A3B8]">
-          아래 글은 참고용입니다. 가게 사정에 맞게 살짝 다듬으면 더 좋아요. 효과나 순위를 보장하지 않아요.
+          아래 글은 참고용입니다. 가게 사정에 맞게 살짝 다듬으면 더 좋아요. 효과나 순위를 보장하지
+          않아요.
         </p>
       )}
     </main>
@@ -554,7 +578,9 @@ export default function WriteClient() {
     <Suspense
       fallback={
         <main className="mx-auto max-w-[720px] px-5 py-10">
-          <p className="text-[16px] font-medium text-[var(--boina-ink-2)]">문안 화면을 불러오는 중...</p>
+          <p className="text-[16px] font-medium text-[var(--boina-ink-2)]">
+            문안 화면을 불러오는 중...
+          </p>
         </main>
       }
     >

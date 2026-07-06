@@ -53,7 +53,9 @@ export function getLlmValidationMeasurement(
 }
 
 export function pickLatestTimestamp(values: Array<string | null | undefined>): string | undefined {
-  const filtered = values.filter((value): value is string => typeof value === "string" && value.length > 0);
+  const filtered = values.filter(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  );
   if (filtered.length === 0) return undefined;
   return [...filtered].sort().at(-1);
 }

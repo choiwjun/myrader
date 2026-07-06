@@ -1,8 +1,8 @@
 "use client";
 
 import { RadarPreviewCard } from "@/app/components/shared/RadarPreviewCard";
-import type { Signal } from "@/lib/shared/ui-labels";
 import type { UnsubscribedRadarPreview } from "@/lib/radar/radar-preview";
+import type { Signal } from "@/lib/shared/ui-labels";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";

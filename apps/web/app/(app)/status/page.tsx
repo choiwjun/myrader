@@ -418,13 +418,17 @@ function StatusPageInner() {
                   className="rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] p-4 text-left transition hover:border-[#4F46E5]"
                 >
                   <p className="text-[16px] font-bold text-[#0F172A]">{fix.title}</p>
-                  <p className="mt-1 text-[14px] leading-[20px] text-[#64748B]">{fix.description}</p>
+                  <p className="mt-1 text-[14px] leading-[20px] text-[#64748B]">
+                    {fix.description}
+                  </p>
                 </button>
               ))}
             </div>
           ) : (
             <div className="rounded-[16px] border border-[#A7F3D0] bg-[#ECFDF5] px-5 py-6">
-              <p className="text-[17px] font-bold text-[#065F46]">지금은 안정적으로 보이고 있어요.</p>
+              <p className="text-[17px] font-bold text-[#065F46]">
+                지금은 안정적으로 보이고 있어요.
+              </p>
               <p className="mt-1 text-[14px] leading-[20px] text-[#047857]">
                 복붙 문안이나 꾸준히 할 일을 보고 싶다면 /write에서 이어서 볼 수 있어요.
               </p>
@@ -454,7 +458,9 @@ function StatusPageInner() {
                     <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
                       <div>
                         <p className="text-[15px] font-bold text-[#0F172A]">{label}</p>
-                        <p className="text-[13px] text-[#64748B]">{measurementLabelToText(measurementLabel)}</p>
+                        <p className="text-[13px] text-[#64748B]">
+                          {measurementLabelToText(measurementLabel)}
+                        </p>
                       </div>
                       <span className="text-[13px] font-medium text-[#64748B]">
                         {channel.collectedAt ?? "수집 시각 기록 전"}

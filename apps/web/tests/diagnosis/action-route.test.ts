@@ -6,8 +6,8 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { DiagnosisView } from "../../lib/diagnosis/diagnosis-service.js";
-import type { PlanTier } from "../../lib/diagnosis/plan-tier.js";
 import type { GapActionTier } from "../../lib/diagnosis/gap-service.js";
+import type { PlanTier } from "../../lib/diagnosis/plan-tier.js";
 
 interface GapRowStub {
   id?: string;
@@ -56,20 +56,22 @@ vi.mock("../../lib/diagnosis/persistence-repository.js", () => ({
       completedAt: value.completedAt,
     })),
   ),
-  setPersistedActionCompletion: vi.fn(async (_db, _diagnosisId: string, actionId: string, completed: boolean) => {
-    const matched = state.gapRows.find((row) => row.id === actionId);
-    if (!matched) return null;
-    const completedAt = completed ? new Date("2026-07-06T07:55:00.000Z") : null;
-    state.completions[actionId] = { isCompleted: completed, completedAt };
-    return {
-      id: `persisted-${actionId}`,
-      actionRef: actionId,
-      actionTier: "low" as const,
-      isTodayOne: false,
-      isCompleted: completed,
-      completedAt,
-    };
-  }),
+  setPersistedActionCompletion: vi.fn(
+    async (_db, _diagnosisId: string, actionId: string, completed: boolean) => {
+      const matched = state.gapRows.find((row) => row.id === actionId);
+      if (!matched) return null;
+      const completedAt = completed ? new Date("2026-07-06T07:55:00.000Z") : null;
+      state.completions[actionId] = { isCompleted: completed, completedAt };
+      return {
+        id: `persisted-${actionId}`,
+        actionRef: actionId,
+        actionTier: "low" as const,
+        isTodayOne: false,
+        isCompleted: completed,
+        completedAt,
+      };
+    },
+  ),
 }));
 
 vi.mock("../../lib/diagnosis/plan-tier.js", async (orig) => {
@@ -177,9 +179,27 @@ describe("GET/PATCH /api/action (P2-R5 / P3-R1)", () => {
     state.tier = "paid";
     state.view = completedView();
     state.gapRows = [
-      { id: "gap-1", item: "영업시간이 안 적혀 있어요", competitorHas: true, isMyGap: true, actionTier: "self_fix" },
-      { id: "gap-2", item: "가게 소개 문구가 없어요", competitorHas: true, isMyGap: true, actionTier: "snippet" },
-      { id: "gap-3", item: "리뷰를 꾸준히 모아야 해요", competitorHas: true, isMyGap: true, actionTier: "ongoing" },
+      {
+        id: "gap-1",
+        item: "영업시간이 안 적혀 있어요",
+        competitorHas: true,
+        isMyGap: true,
+        actionTier: "self_fix",
+      },
+      {
+        id: "gap-2",
+        item: "가게 소개 문구가 없어요",
+        competitorHas: true,
+        isMyGap: true,
+        actionTier: "snippet",
+      },
+      {
+        id: "gap-3",
+        item: "리뷰를 꾸준히 모아야 해요",
+        competitorHas: true,
+        isMyGap: true,
+        actionTier: "ongoing",
+      },
     ];
     const res = await GET(getReq(`diagnosisId=${VALID_UUID}&tier=yellow_copy`));
     const body = (await res.json()) as {
@@ -194,11 +214,41 @@ describe("GET/PATCH /api/action (P2-R5 / P3-R1)", () => {
     state.tier = "free";
     state.view = completedView();
     state.gapRows = [
-      { id: "gap-1", item: "영업시간이 안 적혀 있어요", competitorHas: true, isMyGap: true, actionTier: "self_fix" },
-      { id: "gap-2", item: "가게 소개 문구가 없어요", competitorHas: true, isMyGap: true, actionTier: "snippet" },
-      { id: "gap-3", item: "자주 묻는 질문 안내가 없어요", competitorHas: true, isMyGap: true, actionTier: "vendor" },
-      { id: "gap-4", item: "리뷰 모음 안내가 없어요(잠금행동)", competitorHas: true, isMyGap: true, actionTier: "ongoing" },
-      { id: "gap-5", item: "첫 화면이 늦게 떠요(잠금행동)", competitorHas: true, isMyGap: true, actionTier: "snippet" },
+      {
+        id: "gap-1",
+        item: "영업시간이 안 적혀 있어요",
+        competitorHas: true,
+        isMyGap: true,
+        actionTier: "self_fix",
+      },
+      {
+        id: "gap-2",
+        item: "가게 소개 문구가 없어요",
+        competitorHas: true,
+        isMyGap: true,
+        actionTier: "snippet",
+      },
+      {
+        id: "gap-3",
+        item: "자주 묻는 질문 안내가 없어요",
+        competitorHas: true,
+        isMyGap: true,
+        actionTier: "vendor",
+      },
+      {
+        id: "gap-4",
+        item: "리뷰 모음 안내가 없어요(잠금행동)",
+        competitorHas: true,
+        isMyGap: true,
+        actionTier: "ongoing",
+      },
+      {
+        id: "gap-5",
+        item: "첫 화면이 늦게 떠요(잠금행동)",
+        competitorHas: true,
+        isMyGap: true,
+        actionTier: "snippet",
+      },
     ];
     const res = await GET(getReq(`diagnosisId=${VALID_UUID}&paid=1`));
     const body = (await res.json()) as {
@@ -220,7 +270,13 @@ describe("GET/PATCH /api/action (P2-R5 / P3-R1)", () => {
     state.tier = "paid";
     state.view = completedView();
     state.gapRows = [
-      { id: "gap-1", item: "영업시간이 안 적혀 있어요", competitorHas: true, isMyGap: true, actionTier: "self_fix" },
+      {
+        id: "gap-1",
+        item: "영업시간이 안 적혀 있어요",
+        competitorHas: true,
+        isMyGap: true,
+        actionTier: "self_fix",
+      },
     ];
     state.completions = {};
     const res = await PATCH(

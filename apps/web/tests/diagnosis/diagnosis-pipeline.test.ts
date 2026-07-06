@@ -97,6 +97,7 @@ function mockPipelineOutput(overall: number): DiagnosisPipelineOutput {
 
 const PAYLOAD: DiagnosisJobPayload = {
   diagnosisId: "diag-1",
+  businessId: "biz-1",
   target: "https://example.com",
   businessProfile: {
     businessName: "테스트가게",

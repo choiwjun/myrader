@@ -132,7 +132,12 @@ describe("GET /api/competitor (P2-R3)", () => {
             geo: { mentionRate: 0.2, directMentionRate: 0.1 },
             aeo: { appearanceRate: 0.3, prominenceScore: 0.4 },
             competitors: [
-              { name: "옆집카페", mentionedInQueries: 3, sampleQuery: "강남 카페", source: "gpt_grounded" },
+              {
+                name: "옆집카페",
+                mentionedInQueries: 3,
+                sampleQuery: "강남 카페",
+                source: "gpt_grounded",
+              },
             ],
           },
         },

@@ -293,7 +293,9 @@ function RivalsPageInner() {
                       {TIER_SHORT[tier]}
                     </span>
                     <span className="rounded-full bg-[#EEF2FF] px-2 py-0.5 text-[11px] font-bold text-[#4338CA]">
-                      {measurementLabelToText(item.measurementLabel ?? fallbackMeasurementLabel(item.source))}
+                      {measurementLabelToText(
+                        item.measurementLabel ?? fallbackMeasurementLabel(item.source),
+                      )}
                     </span>
                   </div>
                   <h3 className="mt-3 text-[17px] font-bold leading-[24px] text-[var(--boina-ink)]">
@@ -357,41 +359,48 @@ function RivalsPageInner() {
                   evidence: [],
                 },
               ]
-          ).concat(
-            gaps.map((item) => ({
-              id: `gap-${item.id}`,
-              title: item.label,
-              source: item.source ?? "gap",
-              collectedAt: item.collectedAt ?? null,
-              measurementLabel: item.measurementLabel ?? fallbackMeasurementLabel(item.source),
-              evidence: item.evidence ?? [],
-            })),
-          ).map((item) => (
-            <div key={item.id} className="rounded-[14px] border border-[#E2E8F0] bg-white px-4 py-3">
-              <div className="flex items-start justify-between gap-3">
-                <p className="text-[14px] font-bold text-[var(--boina-ink)]">{item.title}</p>
-                <span className="rounded-full bg-[#EEF2FF] px-2 py-0.5 text-[11px] font-bold text-[#4338CA]">
-                  {measurementLabelToText(item.measurementLabel)}
-                </span>
-              </div>
-              <p className="mt-1 text-[13px] leading-[19px] text-[var(--boina-ink-2)]">
-                {sourceToLabel(item.source)} · {item.collectedAt ?? sourceToCollectedAtLabel(item.source)}
-              </p>
-              {(item.evidence?.length ?? 0) > 0 ? (
-                <ul className="mt-2 grid gap-1 text-[12px] leading-[18px] text-[#64748B]">
-                  {item.evidence?.map((evidence) => (
-                    <li key={`${item.id}-${evidence.label}`}>
-                      {evidence.label}: {evidence.detail}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-2 text-[12px] leading-[18px] text-[#64748B]">
-                  measured/unavailable/estimated 라벨과 함께 원본 근거가 쌓이면 여기에서 보여드릴게요.
+          )
+            .concat(
+              gaps.map((item) => ({
+                id: `gap-${item.id}`,
+                title: item.label,
+                source: item.source ?? "gap",
+                collectedAt: item.collectedAt ?? null,
+                measurementLabel: item.measurementLabel ?? fallbackMeasurementLabel(item.source),
+                evidence: item.evidence ?? [],
+              })),
+            )
+            .map((item) => (
+              <div
+                key={item.id}
+                className="rounded-[14px] border border-[#E2E8F0] bg-white px-4 py-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-[14px] font-bold text-[var(--boina-ink)]">{item.title}</p>
+                  <span className="rounded-full bg-[#EEF2FF] px-2 py-0.5 text-[11px] font-bold text-[#4338CA]">
+                    {measurementLabelToText(item.measurementLabel)}
+                  </span>
+                </div>
+                <p className="mt-1 text-[13px] leading-[19px] text-[var(--boina-ink-2)]">
+                  {sourceToLabel(item.source)} ·{" "}
+                  {item.collectedAt ?? sourceToCollectedAtLabel(item.source)}
                 </p>
-              )}
-            </div>
-          ))}
+                {(item.evidence?.length ?? 0) > 0 ? (
+                  <ul className="mt-2 grid gap-1 text-[12px] leading-[18px] text-[#64748B]">
+                    {item.evidence?.map((evidence) => (
+                      <li key={`${item.id}-${evidence.label}`}>
+                        {evidence.label}: {evidence.detail}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-[12px] leading-[18px] text-[#64748B]">
+                    measured/unavailable/estimated 라벨과 함께 원본 근거가 쌓이면 여기에서
+                    보여드릴게요.
+                  </p>
+                )}
+              </div>
+            ))}
         </div>
         <p className="mt-3 text-[13px] leading-[19px] text-[#94A3B8]">
           검색 결과와 AI 응답에서 확인된 자료만 사용하며, 실제 매출이나 순위를 단정하지 않아요.

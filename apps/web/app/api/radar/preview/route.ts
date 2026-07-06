@@ -49,7 +49,10 @@ export async function GET(request: Request) {
     if (subscription?.status === "active" || subscription?.status === "trialing") {
       try {
         const latestScan = await radarRepository.latestScanForSubscription(subscription.id);
-        if (!latestScan || ["queued", "expanding", "scoring", "probing"].includes(latestScan.status)) {
+        if (
+          !latestScan ||
+          ["queued", "expanding", "scoring", "probing"].includes(latestScan.status)
+        ) {
           return NextResponse.json({ data: waitingSubscribedRadarPreview(), success: true });
         }
         if (latestScan.status === "failed") {
@@ -58,7 +61,9 @@ export async function GET(request: Request) {
 
         const keywords = await radarRepository.latestKeywordsForSubscription(subscription.id, 5);
         const preview =
-          keywords.length > 0 ? buildSubscribedRadarPreview(keywords) : emptySubscribedRadarPreview();
+          keywords.length > 0
+            ? buildSubscribedRadarPreview(keywords)
+            : emptySubscribedRadarPreview();
         return NextResponse.json({ data: preview, success: true });
       } catch {
         return NextResponse.json({ data: failedSubscribedRadarPreview(), success: true });

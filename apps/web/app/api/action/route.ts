@@ -99,7 +99,8 @@ export async function GET(request: Request) {
       ]),
     );
 
-    const allGapItems = gapRows.length > 0 ? deriveGapViewFromPersisted(gapRows, { isPaid: true }).items : [];
+    const allGapItems =
+      gapRows.length > 0 ? deriveGapViewFromPersisted(gapRows, { isPaid: true }).items : [];
     const allActionView =
       allGapItems.length > 0
         ? deriveActionViewFromGapItems(allGapItems, { isPaid: true })
@@ -122,7 +123,11 @@ export async function GET(request: Request) {
     const todayOne = visibleActionView.todayOne
       ? decorateAction(visibleActionView.todayOne, completionMap)
       : null;
-    const paywall = computePaywallMeta(totalActions.length, actions.length, visibleActionView.isPaid);
+    const paywall = computePaywallMeta(
+      totalActions.length,
+      actions.length,
+      visibleActionView.isPaid,
+    );
 
     return NextResponse.json({
       data: {

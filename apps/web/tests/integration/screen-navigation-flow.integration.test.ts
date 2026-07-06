@@ -87,7 +87,6 @@ function expectRedirectTarget(digest: string, target: string) {
   );
 }
 
-
 async function expectNextRedirect(run: () => Promise<unknown> | unknown, target: string) {
   try {
     await Promise.resolve(run());

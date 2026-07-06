@@ -204,6 +204,7 @@ function makeFakeRepo(): DiagnosisRepository & { rows: Map<string, DiagnosisReco
 
 const PAYLOAD: DiagnosisJobPayload = {
   diagnosisId: "diag-1",
+  businessId: "biz-1",
   target: "https://place.naver.com/restaurant/1",
   sourceType: "naver_place",
   businessProfile: {
