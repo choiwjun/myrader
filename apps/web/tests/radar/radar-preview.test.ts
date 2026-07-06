@@ -5,6 +5,7 @@ import {
   buildUnsubscribedRadarPreview,
   emptySubscribedRadarPreview,
   failedSubscribedRadarPreview,
+  waitingSubscribedRadarPreview,
 } from "../../lib/radar/radar-preview.js";
 
 describe("buildUnsubscribedRadarPreview", () => {
@@ -84,10 +85,14 @@ describe("buildSubscribedRadarPreview", () => {
     expect(preview.sheetEnabled).toBe(false);
   });
 
-  it("defines empty and failed subscribed states without fake measured rows", () => {
+  it("defines waiting, empty, and failed subscribed states without fake measured rows", () => {
+    const waiting = waitingSubscribedRadarPreview();
     const empty = emptySubscribedRadarPreview();
     const failed = failedSubscribedRadarPreview();
 
+    expect(waiting.mode).toBe("waiting");
+    expect(waiting.rows).toHaveLength(0);
+    expect(waiting.ctaLabel).toBe("첫 결과 준비 중");
     expect(empty.mode).toBe("empty");
     expect(empty.rows).toHaveLength(0);
     expect(empty.ctaLabel).toBe("다음 주에도 지켜볼게요");

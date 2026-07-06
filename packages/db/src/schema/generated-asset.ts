@@ -4,9 +4,9 @@
  *
  * generated_asset table — 생성물 (스니펫/소개글/리뷰문구/처방전 이메일)
  *
- * 개념: x-sag의 snippets 테이블을 차용하되, boina에서는
- * 'kind' 컬럼으로 snippet/place_intro/review_request/prescription_email 구분.
- * isLatest 플래그로 버전 관리.
+ * 개념: x-sag snippets 저장 방식을 차용하되, DB `type` 컬럼은 엔진 enum
+ * (LOCAL_BUSINESS/ORGANIZATION/SERVICE/FAQ_HTML...)을 그대로 저장한다.
+ * 앱 레이어가 이를 snippet/place_intro/review_request/vendor_prescription으로 복원한다.
  *
  * REQ-006: 생성물 타입과 액션 클래스(🟢🟡🔴⏳) 저장.
  */
@@ -37,8 +37,8 @@ export const generatedAssets = pgTable(
       .references(() => diagnoses.id, { onDelete: "cascade" }),
 
     /**
-     * Asset type: LOCAL_BUSINESS, ORGANIZATION, SERVICE, FAQ_SCHEMA,
-     * BREADCRUMB, LLMS_TXT, FAQ_HTML
+     * Engine-level stored type: LOCAL_BUSINESS, ORGANIZATION, SERVICE, FAQ_SCHEMA,
+     * BREADCRUMB, LLMS_TXT, FAQ_HTML. Product-facing asset names are restored in app code.
      */
     type: generatedAssetTypeEnum("type").notNull(),
 

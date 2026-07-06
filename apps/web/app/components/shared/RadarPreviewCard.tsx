@@ -29,7 +29,9 @@ export function RadarPreviewCard({ preview, loading = false }: RadarPreviewCardP
   const emptyCaption =
     preview?.mode === "failed"
       ? (preview.caption ?? "스캔 결과를 불러오지 못했어요.")
-      : (preview?.caption ?? "아직 보여줄 검색어가 충분하지 않아요.");
+      : preview?.mode === "waiting"
+        ? (preview.caption ?? "첫 결과를 준비하고 있어요.")
+        : (preview?.caption ?? "아직 보여줄 검색어가 충분하지 않아요.");
 
   return (
     <section
@@ -127,11 +129,15 @@ export function RadarPreviewCard({ preview, loading = false }: RadarPreviewCardP
       ) : (
         <button
           type="button"
-          disabled={preview?.mode === "empty"}
+          disabled={preview?.mode === "empty" || preview?.mode === "waiting"}
           className="mt-4 flex w-full items-center justify-center gap-2 rounded-[14px] bg-[var(--boina-ink)] px-4 py-3.5 text-[16px] font-bold text-white disabled:bg-[var(--boina-ink-3)]"
         >
           {preview?.ctaLabel ??
-            (preview?.mode === "failed" ? "다시 시도" : "다음 주에도 지켜볼게요")}
+            (preview?.mode === "failed"
+              ? "다시 시도"
+              : preview?.mode === "waiting"
+                ? "첫 결과 준비 중"
+                : "다음 주에도 지켜볼게요")}
         </button>
       )}
       <p className="mt-2 text-center text-[14px] font-medium leading-[20px] text-[var(--boina-ink-3)]">

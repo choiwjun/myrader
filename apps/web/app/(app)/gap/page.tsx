@@ -1,11 +1,15 @@
 import { redirect } from "next/navigation";
 
 interface GapPageProps {
-  searchParams: Promise<{ diagnosisId?: string }>;
+  searchParams: Promise<{ diagnosisId?: string; businessId?: string; tier?: string }>;
 }
 
 export default async function GapPage({ searchParams }: GapPageProps) {
-  const { diagnosisId } = await searchParams;
-  const query = diagnosisId ? `?diagnosisId=${encodeURIComponent(diagnosisId)}` : "";
-  redirect(`/rivals${query}`);
+  const params = await searchParams;
+  const query = new URLSearchParams();
+  if (params.diagnosisId) query.set("diagnosisId", params.diagnosisId);
+  if (params.businessId) query.set("businessId", params.businessId);
+  if (params.tier) query.set("tier", params.tier);
+  const suffix = query.toString();
+  redirect(`/rivals${suffix ? `?${suffix}` : ""}`);
 }

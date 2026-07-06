@@ -62,15 +62,14 @@ components:
   - id: generated_asset_section
     type: copy_panel
     position: main
-    function: 소개글, 리뷰 요청, 메뉴/사진 설명, FAQ/snippet, 업체 처방전 문안을 복사 가능하게 제공한다.
+    function: 가게 소개글, 리뷰 요청, 검색 답변글, 업체 처방전 문안을 복사 가능하게 제공한다.
     data_source:
       resource: generatedAsset
     asset_types:
       - place_intro
       - review_request
-      - menu_photo_description
-      - faq_snippet
-      - vendor_brief
+      - snippet
+      - vendor_prescription
     events:
       - on: click:copy
         do: 클립보드 복사 후 완료 상태 표시

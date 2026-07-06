@@ -6,6 +6,7 @@ interface AssetsPageProps {
     type?: string;
     keyword?: string;
     radarKeywordId?: string;
+    actionId?: string;
   }>;
 }
 
@@ -16,6 +17,7 @@ export default async function AssetsPage({ searchParams }: AssetsPageProps) {
   if (params.type) query.set("type", params.type);
   if (params.keyword) query.set("keyword", params.keyword);
   if (params.radarKeywordId) query.set("radarKeywordId", params.radarKeywordId);
+  if (params.actionId) query.set("actionId", params.actionId);
   const suffix = query.toString();
   redirect(`/write${suffix ? `?${suffix}` : ""}`);
 }

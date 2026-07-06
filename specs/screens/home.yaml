@@ -35,7 +35,7 @@ cards:
   - id: channel_status
     order: 2
     component: M-03 Signal Row
-    purpose: 네이버, 구글, SNS, AI 인용 재료 상태를 요약한다.
+    purpose: 네이버, 구글, AI 인용 재료 상태를 요약한다.
     states:
       - good
       - needs_work

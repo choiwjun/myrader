@@ -406,7 +406,7 @@ describe("P2-S1~S7-V: 화면 연결점 통합 검증 + AC 회귀", () => {
     });
 
     describe("범위 경계", () => {
-      it("legacy compare/gap routes redirect to the owned rivals menu with diagnosisId", async () => {
+      it("legacy compare/gap routes redirect to the owned rivals menu with preserved query", async () => {
         await expectNextRedirect(
           () =>
             ComparePage({
@@ -417,9 +417,13 @@ describe("P2-S1~S7-V: 화면 연결점 통합 검증 + AC 회귀", () => {
         await expectNextRedirect(
           () =>
             GapPage({
-              searchParams: Promise.resolve({ diagnosisId: ROUTE_FLOW_DIAGNOSIS_ID }),
+              searchParams: Promise.resolve({
+                diagnosisId: ROUTE_FLOW_DIAGNOSIS_ID,
+                businessId: "biz-legacy-1",
+                tier: "red_vendor",
+              }),
             }),
-          `/rivals?diagnosisId=${ROUTE_FLOW_DIAGNOSIS_ID}`,
+          `/rivals?diagnosisId=${ROUTE_FLOW_DIAGNOSIS_ID}&businessId=biz-legacy-1&tier=red_vendor`,
         );
       });
 
@@ -444,9 +448,10 @@ describe("P2-S1~S7-V: 화면 연결점 통합 검증 + AC 회귀", () => {
                 type: "snippet",
                 keyword: "강남 브런치",
                 radarKeywordId: "kw-1",
+                actionId: "action-7",
               }),
             }),
-          `/write?diagnosisId=${ROUTE_FLOW_DIAGNOSIS_ID}&type=snippet&keyword=%EA%B0%95%EB%82%A8+%EB%B8%8C%EB%9F%B0%EC%B9%98&radarKeywordId=kw-1`,
+          `/write?diagnosisId=${ROUTE_FLOW_DIAGNOSIS_ID}&type=snippet&keyword=%EA%B0%95%EB%82%A8+%EB%B8%8C%EB%9F%B0%EC%B9%98&radarKeywordId=kw-1&actionId=action-7`,
         );
       });
 

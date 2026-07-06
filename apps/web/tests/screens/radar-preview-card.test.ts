@@ -21,6 +21,7 @@ describe("A3-1 radar unsubscribed home card", () => {
     expect(source).toContain("문안 만들기");
     expect(source).toContain("다음 주에도 지켜볼게요");
     expect(source).toContain("다시 시도");
+    expect(source).toContain("첫 결과 준비 중");
     expect(source).toContain("/write");
     expect(source).not.toMatch(/Toss|카카오|문자|SMS/i);
     expect(previewSource).toContain("예시 미리보기");

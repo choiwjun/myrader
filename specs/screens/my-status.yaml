@@ -9,7 +9,7 @@ screen:
   route: /status
   layout: mobile_single_column
   auth: false
-  purpose: 네이버, 구글, SNS, AI 인용 재료 상태와 고칠 우선순위를 보여준다.
+  purpose: 네이버, 구글, AI 인용 재료 상태와 고칠 우선순위를 보여준다.
 
 data_requirements:
   - resource: diagnosis
@@ -42,7 +42,6 @@ components:
     channels:
       - naver
       - google
-      - sns
       - ai
     state_symbols:
       good: "● 좋음"

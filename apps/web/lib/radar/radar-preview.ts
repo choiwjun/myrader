@@ -2,7 +2,7 @@ import { expand } from "@radar/keyword-pipeline";
 
 export type RadarPreviewSource = "measured" | "example";
 export type RadarPreviewStatus = "good" | "mid" | "wait";
-export type RadarPreviewMode = "unsubscribed" | "subscribed" | "empty" | "failed";
+export type RadarPreviewMode = "unsubscribed" | "subscribed" | "waiting" | "empty" | "failed";
 
 export interface RadarPreviewBusiness {
   readonly businessName: string;
@@ -48,6 +48,7 @@ export interface SubscribedRadarKeyword {
 const CTA_LABEL = "매주 검색어 받아보기";
 const PRICE_LINE = "결제 없이 홈에서 먼저 받아볼 수 있어요";
 const SUBSCRIBED_CTA_LABEL = "문안 만들기";
+const WAITING_CTA_LABEL = "첫 결과 준비 중";
 const EMPTY_CTA_LABEL = "다음 주에도 지켜볼게요";
 const FAILED_CTA_LABEL = "다시 시도";
 
@@ -137,6 +138,19 @@ export function buildSubscribedRadarPreview(
     ctaLabel: SUBSCRIBED_CTA_LABEL,
     priceLine: "이번 주 검색어를 문안에 바로 써볼 수 있어요.",
     caption: "이번 주 키워드와 변화예요.",
+    sheetEnabled: false,
+  };
+}
+
+export function waitingSubscribedRadarPreview(): RadarHomePreview {
+  return {
+    mode: "waiting",
+    source: "measured",
+    fallbackLabel: null,
+    rows: [],
+    ctaLabel: WAITING_CTA_LABEL,
+    priceLine: "이번 주 검색어를 모으는 중이에요.",
+    caption: "첫 결과를 준비하고 있어요.",
     sheetEnabled: false,
   };
 }

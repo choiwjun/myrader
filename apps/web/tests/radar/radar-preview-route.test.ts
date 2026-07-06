@@ -115,6 +115,24 @@ describe("GET /api/radar/preview", () => {
     expect(body.data.rows.filter((row) => row.locked)).toHaveLength(2);
   });
 
+  it("returns a waiting preview while the first subscribed scan is still preparing", async () => {
+    state.diagnosis = { businessId: VALID_BUSINESS_ID };
+    state.business = { name: "비건빵집", region: "성수동", category: "베이커리" };
+    state.subscription = { id: "sub-1", status: "active" };
+
+    const res = await GET(req(`?diagnosisId=${VALID_DIAGNOSIS_ID}`));
+    const body = (await res.json()) as {
+      success: boolean;
+      data: { mode: string; ctaLabel: string; rows: unknown[] };
+    };
+
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.mode).toBe("waiting");
+    expect(body.data.ctaLabel).toBe("첫 결과 준비 중");
+    expect(body.data.rows).toHaveLength(0);
+  });
+
   it("returns subscribed weekly keywords for an active radar subscription", async () => {
     state.diagnosis = { businessId: VALID_BUSINESS_ID };
     state.business = { name: "비건빵집", region: "성수동", category: "베이커리" };
