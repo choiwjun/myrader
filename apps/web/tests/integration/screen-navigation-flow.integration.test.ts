@@ -71,6 +71,22 @@ function redirectDigest(error: unknown): string {
 
   return String(error);
 }
+function redirectTargetUrl(digest: string): string {
+  const parts = digest.split(";");
+  return parts.find((part) => part.startsWith("/")) ?? digest;
+}
+
+function expectRedirectTarget(digest: string, target: string) {
+  const actual = redirectTargetUrl(digest);
+  const expected = new URL(target, "https://boina.test");
+  const received = new URL(actual, "https://boina.test");
+
+  expect(received.pathname).toBe(expected.pathname);
+  expect(Object.fromEntries(received.searchParams.entries())).toEqual(
+    Object.fromEntries(expected.searchParams.entries()),
+  );
+}
+
 
 async function expectNextRedirect(run: () => Promise<unknown> | unknown, target: string) {
   try {
@@ -78,7 +94,7 @@ async function expectNextRedirect(run: () => Promise<unknown> | unknown, target:
   } catch (error) {
     const digest = redirectDigest(error);
     expect(digest).toContain("NEXT_REDIRECT");
-    expect(digest).toContain(target);
+    expectRedirectTarget(digest, target);
     expect(digest).not.toContain("/checkout");
     return;
   }
