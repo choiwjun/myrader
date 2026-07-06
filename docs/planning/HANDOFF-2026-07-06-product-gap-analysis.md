@@ -102,9 +102,10 @@
 - `/assets` redirect는 `actionId`를 보존하지 않는다.
 - `generated_assets.type`은 제품 asset type이 아니라 엔진 enum에 제품 의미를 덧씌운 매핑이라 장기적으로 취약하다.
 
-## 현재 범위 제외 또는 정상 처리
+## 명시적 비범위 — 구현하지 말 것
 
-- Toss 결제, Kakao/SMS 알림, checkout primary flow는 현재 범위 제외이며 구현도 `/checkout -> /home`, `/api/payment -> PAYMENT_DISABLED`로 맞춰져 있다.
+- Toss 결제는 사용하지 않는다. `/checkout -> /home`, `/api/payment -> PAYMENT_DISABLED` 상태가 현재 기획과 일치한다.
+- SMS와 Kakao 알림도 사용하지 않는다. 알림톡, 문자 fallback, 결제/알림 설정 화면은 누락이 아니라 의도된 제외다.
 - Settings의 재진단은 v1.5 placeholder로 문서화되어 있어 현재 MVP 누락으로 보지 않는다.
 - Google real SERP / AI Overview rank / REQ-007 재진단·추이는 OPEN/v1.5 범위다.
 
