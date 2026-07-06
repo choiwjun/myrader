@@ -13,10 +13,9 @@
 // 클라 `?paid=1` 무시 — 무료는 미리보기 일부만(유료 생성물 본문 미노출). 잠긴 생성물의 content
 // (본문)는 무료 응답에 없고 lockedCount 만 메타로 싣는다. (?type 은 보기 필터일 뿐 경계 우회 아님.)
 //
-// v1 한계(정직): DB(04 스키마)는 business 프로필/FAQ 를 생성물 형태로 영속화하지 않으므로
-// (스키마/잡 수정 금지), route 는 진단 view(완료 여부)만으로 정직 폴백을 산출한다
-// (deriveGeneratedAssetViewFromView): 추측 생성물 0(빈 배열) + 응원 인트로. 원자료 영속화 후
-// deriveGeneratedAssets(business 프로필+FAQ → 4종)로 승급([OPEN]).
+// v1 정직성: route 는 저장된 generated_assets 를 우선 사용한다.
+// 저장된 생성물이 없으면 진단 view(완료 여부)만으로 정직 폴백
+// (deriveGeneratedAssetViewFromView)을 산출한다: 추측 생성물 0(빈 배열) + 응원 인트로.
 
 import { dbToAssetType } from "@/lib/diagnosis/diagnosis-persistence";
 import { getDefaultDiagnosisRepository } from "@/lib/diagnosis/diagnosis-repository";

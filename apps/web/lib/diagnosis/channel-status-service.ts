@@ -282,15 +282,12 @@ export function deriveChannelStatuses(diagnosis: DiagnosisJson): ChannelStatus[]
 }
 
 // ---------------------------------------------------------------------------
-// route 경로용: 전체 DiagnosisJson 영속화 전(v1) 폴백
+// route 경로용: measured engine_results 부재 시 폴백
 // ---------------------------------------------------------------------------
 //
-// v1 DB(04 스키마)는 채널 원자료(naverPresence/llmValidation)를 영속화하지 않는다
-// (overallScore/summaryText/engine_results 만). DB 스키마는 수정 금지 대상이므로,
-// 전체 DiagnosisJson 이 손에 없는 read 경로(route)는 "아직 채널별로는 측정 전" 상태를
-// 정직하게 노출한다 — 점수/인과 단정 없이, 신호등은 보수적으로, note 로 한계를 밝힌다.
-//
-// 전체 DiagnosisJson 이 있는 경로(잡 핸들러·미래 영속화)는 위 deriveChannelStatuses 를 쓴다.
+// 저장된 채널 measurement(engine_results evidence)가 없는 read 경로(route)는
+// "아직 채널별로는 측정 전" 상태를 정직하게 노출한다 — 점수/인과 단정 없이,
+// 신호등은 보수적으로, note 로 한계를 밝힌다.
 
 /** route(view) 경로용 입력 — 전달 레이어가 가진 최소 정보(전체 신호등 한 가지). */
 export interface ChannelStatusViewInput {
@@ -301,9 +298,9 @@ export interface ChannelStatusViewInput {
 }
 
 /**
- * 전체 DiagnosisJson 없이(view 만으로) 채널 신호등을 산출한다(v1 정직 폴백).
+ * 저장된 채널 measurement 없이(view 만으로) 채널 신호등을 산출한다(v1 정직 폴백).
  *
- * 정직성: 채널 원자료가 없으므로 채널별 단정은 하지 않는다.
+ * 정직성: 채널 원자료가 없으면 채널별 단정은 하지 않는다.
  *   - 미완료 → 3채널 모두 "준비 중"(yellow) + note.
  *   - 완료 → naver/google 은 전체 신호등을 보수적으로 반영하되 "맛보기/다음 단계" note,
  *            ai 는 grounded 실인용 근거가 없으므로 green 절대 불가(게이팅) → red + 미래지향 note.
@@ -388,8 +385,8 @@ function googleViewLine(signal: Signal): string {
 // 추측/전체신호등 폴백 대신 채널별(naver/google/ai_citation) 실데이터로 신호등을 산출한다.
 //
 // 점수 비노출(07 §4): impactScore/priority 는 내부 신호 — 신호등 판정에만 쓰고 응답엔 signal 만.
-// AI 게이팅 유지: engine_results 에는 grounded 실인용 근거가 없으므로 ai 채널은 green 불가
-// (실인용은 llmValidation 영속화 [OPEN] 이후). 미진단(빈 배열)이면 정직 빈 상태(준비 중)로.
+// AI 게이팅 유지: grounded 실인용 measurement 가 없으면 ai 채널은 green 불가.
+// 미진단(빈 배열)이면 정직 빈 상태(준비 중)로.
 
 /** 영속화된 engine_result 한 줄(앱層 — persistence-repository 가 반환). */
 export interface PersistedEngineResultLike {

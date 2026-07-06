@@ -203,15 +203,12 @@ export function deriveCompetitorsFromDiagnosis(
 }
 
 // ---------------------------------------------------------------------------
-// route(view) 경로용: 전체 DiagnosisJson 영속화 전(v1) 정직 폴백
+// route(view) 경로용: persisted competitors 부재 시 정직 폴백
 // ---------------------------------------------------------------------------
 //
-// v1 DB(04 스키마)는 진단 원자료(naverPresence.competitorTop / llmValidation.competitors)를
-// 영속화하지 않는다(competitors 테이블은 P0-T2 로 존재하나 잡 파이프라인이 아직 채우지 않음 —
-// [OPEN]). DB 스키마/잡 로직은 수정 금지 대상이므로, 전체 원자료가 손에 없는 read 경로(route)는
-// "신뢰 경쟁사 없음"을 정직하게 노출한다 — 추측 경쟁사 0(빈 배열) + 응원 헤드라인.
-//
-// 전체 DiagnosisJson(또는 competitors 테이블 영속화)이 있는 경로는 위 함수들을 쓴다.
+// 저장된 competitors/measurement 가 없는 read 경로(route)는 "신뢰 경쟁사 없음"을 정직하게
+// 노출한다 — 추측 경쟁사 0(빈 배열) + 응원 헤드라인.
+// 저장된 competitors 가 있으면 deriveCompetitorViewFromPersisted 를 쓴다.
 
 /** route(view) 폴백 결과 — 화면이 그대로 렌더. */
 export interface CompetitorViewResult {
@@ -221,9 +218,9 @@ export interface CompetitorViewResult {
 }
 
 /**
- * 전체 원자료 없이(view 만으로) 실측 라이벌을 산출한다(v1 정직 폴백).
+ * 저장된 competitors 없이(view 만으로) 실측 라이벌을 산출한다(v1 정직 폴백).
  *
- * 정직성: 신뢰 경쟁사 원자료가 없으므로 추측 경쟁사를 만들지 않는다(빈 배열 = 카드 생략).
+ * 정직성: 신뢰 경쟁사 원자료가 없으면 추측 경쟁사를 만들지 않는다(빈 배열 = 카드 생략).
  * 헤드라인은 손실 단정 금지 → 측정 부재 표시("아직 비교 데이터를 못 모았어요" — 승리 단정 0).
  * 점수/전문용어/인과 0.
  */

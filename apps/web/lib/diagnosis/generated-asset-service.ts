@@ -25,9 +25,8 @@
 // (deep import 금지). 동기 경로는 SnippetGenPort 주입(기본=FAQ 답변글 합성), 실엔진은 async
 // 배선 지점(deriveGeneratedAssetsWithEngine)에서 lazy import — diagnosis-handler 패턴과 동형.
 //
-// [OPEN] 영속화: business 프로필/FAQ 는 v1 DB(04 스키마)에 생성물 형태로 영속화되지 않는다
-// (스키마/잡 수정 금지 대상). 원자료가 없는 read 경로(route)는 deriveGeneratedAssetViewFromView
-// 로 정직 폴백(추측 생성물 0). 영속화 후 deriveGeneratedAssets 로 승급.
+// 저장된 generated_assets 가 있는 route 는 deriveGeneratedAssetViewFromPersisted 로 복붙 생성물을 만든다.
+// 저장된 생성물이 없는 read 경로는 deriveGeneratedAssetViewFromView 로 정직 폴백(추측 생성물 0).
 
 import { type AssetType, assetTypeToLabel } from "../shared/ui-labels.js";
 import { passesCopyGuard } from "./copy-guard.js";
@@ -249,12 +248,11 @@ export function buildAssetsIntro(assetCount: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// route(view) 경로용: business 프로필/FAQ 영속화 전(v1) 정직 폴백
+// route(view) 경로용: persisted generated_assets 부재 시 정직 폴백
 // ---------------------------------------------------------------------------
 //
-// v1 DB(04 스키마)는 business 프로필/FAQ 를 생성물 형태로 영속화하지 않는다(스키마/잡 수정
-// 금지). 원자료가 손에 없는 read 경로(route)는 "생성물 없음"을 정직하게 노출한다 — 추측 생성물
-// 0(빈 배열) + 응원 인트로. 원자료 영속화 후 deriveGeneratedAssets 로 승급(P2-R2~R5 폴백과 동형).
+// 저장된 generated_assets 가 없는 read 경로(route)는 "생성물 없음"을 정직하게 노출한다 —
+// 추측 생성물 0(빈 배열) + 응원 인트로. 저장된 생성물이 있으면 deriveGeneratedAssetViewFromPersisted 를 쓴다.
 
 /** route(view) 폴백 결과 — 화면이 그대로 렌더(S6 assets_intro + 4종 카드 + paid lock). */
 export interface GeneratedAssetViewResult {
@@ -267,10 +265,10 @@ export interface GeneratedAssetViewResult {
 }
 
 /**
- * 전체 원자료 없이(view 만으로) 생성물을 산출한다(v1 정직 폴백).
+ * 저장된 generated_assets 없이(view 만으로) 생성물을 산출한다(v1 정직 폴백).
  *
- * 정직성: business 프로필/FAQ 원자료가 없으므로 추측 생성물을 만들지 않는다(빈 배열 = 카드 생략).
- * 인트로는 응원 톤. 효과 보장·전문용어·인과 0. 원자료 영속화 후 deriveGeneratedAssets 로 승급.
+ * 정직성: 생성물 원자료가 없으면 추측 생성물을 만들지 않는다(빈 배열 = 카드 생략).
+ * 인트로는 응원 톤. 효과 보장·전문용어·인과 0.
  */
 export function deriveGeneratedAssetViewFromView(
   options: { isPaid?: boolean } = {},

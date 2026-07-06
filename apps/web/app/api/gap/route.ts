@@ -13,11 +13,9 @@
 // 클라이언트의 `?paid=1`·요청 변조는 무시한다 — 무료가 유료 content(Top3 밖 전체 갭)에 접근 불가.
 // 무료 응답엔 잠긴 갭의 실제 content 가 없고(서비스가 Top3 슬라이스), 잠금 개수(lockedCount)만 메타로 싣는다.
 //
-// v1 한계(정직): DB(04 스키마)는 진단 원자료(competitorUrls·경쟁사 진단·GapResult)를
-// 영속화하지 않으므로(FR-012 §5 영속화 [OPEN], 스키마/잡 수정 금지), route 는 GapResult
-// 원자료 없이 정직 폴백을 산출한다(deriveGapViewFromView): 추측 갭 0(빈 배열) + 응원 인트로.
-// 자동발견 SERP 호출 0(FR-012 MVP — 수동 competitorUrls만). 원자료 영속화 후
-// deriveGapItems(GapAnalyzer 실배선)로 승급([OPEN]).
+// v1 정직성: 자동발견 SERP 호출은 여전히 0(FR-012 MVP — 수동/파이프라인 저장 결과만 사용).
+// route 는 먼저 저장된 gap_rows/competitors 를 읽고, gap_rows 가 없으면 경쟁사 측정은 있었지만
+// GapResult 가 없다는 measured-unavailable 상태를 반환한다. 추측 갭 생성은 하지 않는다.
 
 import { getDefaultDiagnosisRepository } from "@/lib/diagnosis/diagnosis-repository";
 import { getDiagnosisView } from "@/lib/diagnosis/diagnosis-service";

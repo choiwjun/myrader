@@ -1,6 +1,6 @@
 // @TASK P2-R1 - business 리소스 서비스 (후보 확정 → 진단 대상 가게, 앱↔DB 경계)
 // @SPEC specs/domain/resources.yaml#business (id, name, category, region, placeUrl, websiteUrl)
-// @SPEC docs/planning/04-database-design.md#business-table (불변 스키마: name/region/naverPlaceId/homepageUrl)
+// @SPEC docs/planning/04-database-design.md#business-table (name/category/region/naverPlaceId/homepageUrl)
 // @SPEC docs/planning/07-coding-convention.md §2 (앱은 서비스 레이어 경유, DB 직접접근 금지)
 // @TEST apps/web/tests/business/business-service.test.ts
 //
@@ -8,16 +8,15 @@
 // 단방향 의존: route → service(인터페이스) → repository(DB 구현)). 구체 구현은
 // ./business-repository.ts.
 //
-// [필드 매핑 — businesses 스키마 불변(P0-T2)]
+// [필드 매핑 — businesses 스키마]
 //   resources.yaml          ↔  businesses 컬럼
 //   ----------------------------------------------
 //   id (UUID v4)            ↔  id (DB defaultRandom)
 //   name                    ↔  name
+//   category                ↔  category
 //   region                  ↔  region
 //   placeUrl                ↔  naver_place_id (URL → id 파싱 저장, 조회 시 URL 복원)
 //   websiteUrl              ↔  homepage_url
-//   category                ↔  (컬럼 없음 — [OPEN]) 확정 입력에서 받아 응답엔 싣되,
-//                              DB round-trip 시엔 null. 스키마 변경 금지 제약 준수.
 
 import { z } from "zod";
 import type { PlaceCandidate } from "./place-search.js";
@@ -43,7 +42,7 @@ export interface BusinessRecord {
 /**
  * 화면(S1/S7)용 business 뷰 — resources.yaml#business 6필드.
  * placeUrl 은 naverPlaceId 로 복원, websiteUrl 은 homepageUrl 별칭.
- * category 는 DB 컬럼이 없어 confirm 입력에서만 채워지고 round-trip 시 null([OPEN]).
+ * category 는 businesses.category 에 저장되어 round-trip 된다.
  */
 export interface BusinessView {
   id: string;

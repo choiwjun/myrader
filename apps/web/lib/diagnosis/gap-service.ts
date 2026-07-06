@@ -291,15 +291,12 @@ export function buildGapIntro(gapCount: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// route(view) 경로용: 전체 GapResult 영속화 전(v1) 정직 폴백
+// route(view) 경로용: persisted GapResult 부재 시 정직 폴백
 // ---------------------------------------------------------------------------
 //
-// v1 DB(04 스키마)는 진단 원자료(competitorUrls·경쟁사 진단·GapResult)를 영속화하지 않는다
-// (FR-012 §5 영속화는 [OPEN] — contracts CompetitorGap Zod + jsonb 컬럼은 오케스트레이터 몫,
-// db 스키마/잡 수정 금지). 전체 GapResult 가 손에 없는 read 경로(route)는 "역공학 갭 없음"을
-// 정직하게 노출한다 — 추측 갭 0(빈 배열) + 응원 인트로. 자동발견 SERP 호출도 0(FR-012 MVP).
-//
-// 전체 GapResult(또는 영속화)이 있는 경로는 deriveGapItems / deriveGapItemsFromResult 를 쓴다.
+// 저장된 gap_rows/GapResult 가 없는 read 경로(route)는 "역공학 갭 없음"을 정직하게
+// 노출한다 — 추측 갭 0(빈 배열) + 응원 인트로. 자동발견 SERP 호출도 0(FR-012 MVP).
+// 저장된 gap_rows 가 있으면 deriveGapViewFromPersisted 를 쓴다.
 
 export interface GapViewResult {
   items: GapItem[];
@@ -314,11 +311,10 @@ export interface GapViewResult {
 }
 
 /**
- * 전체 원자료 없이(view 만으로) 역공학 갭을 산출한다(v1 정직 폴백).
+ * 저장된 gap_rows 없이(view 만으로) 역공학 갭을 산출한다(v1 정직 폴백).
  *
- * 정직성: GapResult 원자료가 없으므로 추측 갭을 만들지 않는다(빈 배열 = 카드 생략).
+ * 정직성: GapResult 원자료가 없으면 추측 갭을 만들지 않는다(빈 배열 = 카드 생략).
  * 인트로는 손실 단정 금지 → 응원("기본은 잘 갖추고 계세요"). 코드값/전문용어/인과 0.
- * 원자료 영속화(FR-012 §5 [OPEN]) 후 deriveGapItems 로 승급.
  */
 export function deriveGapViewFromView(options: GapItemOptions = {}): GapViewResult {
   const items: GapItem[] = [];

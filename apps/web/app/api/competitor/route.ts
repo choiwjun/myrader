@@ -8,11 +8,9 @@
 // 리소스 중심(REST): GET /api/competitor?diagnosisId= → 실측 라이벌 + 손실 헤드라인.
 // S3 의 비교 카드(누가) 데이터. 점수 비노출 — source 로 출처 정직 표기.
 //
-// v1 한계(정직): DB(04 스키마)는 진단 원자료(naverPresence.competitorTop /
-// llmValidation.competitors)를 영속화하지 않으므로(competitors 테이블은 P0-T2 로 존재하나
-// 잡 파이프라인이 아직 채우지 않음 — [OPEN], 스키마/잡 수정 금지), route 는 신뢰 경쟁사
-// 원자료 없이 정직 폴백을 산출한다(deriveCompetitorViewFromView): 추측 경쟁사 0(빈 배열) +
-// 응원 헤드라인. 원자료 영속화 후 deriveCompetitorsFromDiagnosis 로 승급([OPEN]).
+// v1 정직성: route 는 저장된 competitors 와 측정 evidence 를 우선 사용한다.
+// 저장된 경쟁사 행이 없으면 신뢰 경쟁사를 추측하지 않고 정직 빈 상태
+// (deriveCompetitorViewFromView)와 응원 헤드라인을 반환한다.
 
 import {
   deriveCompetitorViewFromPersisted,
