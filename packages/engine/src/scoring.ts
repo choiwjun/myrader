@@ -133,6 +133,19 @@ export interface ScoringOutput {
 function clamp(value: number, min: number, max: number): number {
 	return Math.max(min, Math.min(max, value));
 }
+export function isScoredRule(result: RuleResult): boolean {
+	if (result.ruleWeight <= 0) return false;
+	if (result.ruleId.startsWith("NLP-")) return false;
+	if (
+		result.scoreImpact === "informational" ||
+		result.scoreImpact === "not_applicable" ||
+		result.scoreImpact === "unavailable"
+	) {
+		return false;
+	}
+	return true;
+}
+
 
 /**
  * Calculates a single category score from its rule results.
@@ -157,6 +170,7 @@ function calcCategoryScore(results: RuleResult[]): number {
 	let rawScore = 100;
 
 	for (const result of results) {
+		if (!isScoredRule(result)) continue;
 		if (result.passed) continue;
 
 		const impactScore = result.ruleWeight * 10; // 0-100 range
@@ -181,6 +195,8 @@ function calcCategoryScoreGraded(results: RuleResult[]): number {
 	let earned = 0;
 	let total = 0;
 	for (const result of results) {
+		if (!isScoredRule(result)) continue;
+
 		const weight = result.ruleWeight * 10 * PRIORITY_WEIGHT[result.severity];
 		total += weight;
 		if (result.passed) earned += weight;
@@ -206,7 +222,7 @@ function calcCategoryScoreGraded(results: RuleResult[]): number {
  * @returns Scores object with per-category and overall scores
  */
 export interface ScoreDiagnosisOptions {
-	/** 채점 모드. 기본 "v2"(프로덕션 무변경). "graded"는 WS6 비포화(검증/승격 후보). */
+	/** 채점 모드. 기본 "graded"(2.1.0). "v2"는 명시 opt-in 레거시 차감모델. */
 	mode?: ScoringMode;
 }
 

@@ -123,6 +123,7 @@ describe("SEO-HREFLANG-001: hreflang alternate <link> 실측 (Phase 4 승격)", 
 	it("단일 언어 사이트(linkTags 미정의)는 정보성 통과", () => {
 		const r = seoHreflang001(makeCtx({}));
 		expect(r.passed).toBe(true);
+		expect(r.scoreImpact).toBe("not_applicable");
 	});
 
 	it("깨진 선언: rel=alternate hreflang 인데 href 누락 → 부드러운 실패(passed=false, weight 3)", () => {
@@ -132,6 +133,7 @@ describe("SEO-HREFLANG-001: hreflang alternate <link> 실측 (Phase 4 승격)", 
 		];
 		const r = seoHreflang001(makeCtx({ linkTags }));
 		expect(r.passed).toBe(false);
+		expect(r.scoreImpact).toBe("scored");
 		expect(r.ruleWeight).toBe(3);
 		expect(r.evidence.join(" ")).toMatch(/href 누락/);
 	});
@@ -146,6 +148,7 @@ describe("SEO-HREFLANG-001: hreflang alternate <link> 실측 (Phase 4 승격)", 
 		];
 		const r = seoHreflang001(makeCtx({ linkTags }));
 		expect(r.passed).toBe(true);
+		expect(r.scoreImpact).toBe("not_applicable");
 		expect(r.evidence.join(" ")).toContain("0개");
 	});
 });
@@ -163,6 +166,7 @@ describe("SEO-PAGINATION-001: rel=prev/next <link> 실측 (Phase 4 승격)", () 
 		];
 		const r = seoPagination001(makeCtx({ linkTags }));
 		expect(r.passed).toBe(true);
+		expect(r.scoreImpact).toBe("scored");
 		expect(r.evidence.join(" ")).toMatch(/rel="next"> 수: 1/);
 		expect(r.evidence.join(" ")).toMatch(/rel="prev"> 수: 1/);
 	});
@@ -189,12 +193,14 @@ describe("SEO-PAGINATION-001: rel=prev/next <link> 실측 (Phase 4 승격)", () 
 			),
 		);
 		expect(r.passed).toBe(true);
+		expect(r.scoreImpact).toBe("not_applicable");
 		expect(r.evidence.join(" ")).toMatch(/rel="next"> 수: 0/);
 	});
 
 	it("비페이지네이션 사이트(linkTags 미정의)는 정보성 통과", () => {
 		const r = seoPagination001(makeCtx({}));
 		expect(r.passed).toBe(true);
+		expect(r.scoreImpact).toBe("not_applicable");
 	});
 
 	it("깨진 선언: rel=next 인데 href 누락 → 부드러운 실패(passed=false, weight 3)", () => {
@@ -203,6 +209,7 @@ describe("SEO-PAGINATION-001: rel=prev/next <link> 실측 (Phase 4 승격)", () 
 		];
 		const r = seoPagination001(makeCtx({ linkTags }));
 		expect(r.passed).toBe(false);
+		expect(r.scoreImpact).toBe("scored");
 		expect(r.ruleWeight).toBe(3);
 		expect(r.evidence.join(" ")).toMatch(/href 누락/);
 	});

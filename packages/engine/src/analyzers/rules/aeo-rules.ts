@@ -65,6 +65,36 @@ function nodeTypeIncludes(node: Record<string, unknown>, ...types: string[]): bo
 	return false;
 }
 
+function getBodyParagraphs(
+	page: {
+		paragraphs?: string[] | undefined;
+		textBlocks?: { tag: string; text: string }[] | undefined;
+		bodyText: string;
+	},
+	fallbackSplitPattern: RegExp,
+): string[] {
+	const normalize = (items: string[] | undefined): string[] =>
+		(items ?? []).map((p) => p.trim()).filter((p) => p.length > 0);
+
+	const paragraphs = normalize(page.paragraphs);
+	if (paragraphs.length > 0) return paragraphs;
+
+	const paragraphBlocks = normalize(
+		page.textBlocks
+			?.filter((block) => block.tag === "p")
+			.map((block) => block.text),
+	);
+	if (paragraphBlocks.length > 0) return paragraphBlocks;
+
+	const textBlocks = normalize(page.textBlocks?.map((block) => block.text));
+	if (textBlocks.length > 0) return textBlocks;
+
+	return page.bodyText
+		.split(fallbackSplitPattern)
+		.map((p) => p.trim())
+		.filter((p) => p.length > 0);
+}
+
 // ---------------------------------------------------------------------------
 // Phase 2 (AEO 시맨틱 마이그레이션) 공통 헬퍼
 // ---------------------------------------------------------------------------
@@ -342,17 +372,7 @@ export const aeoFaq001: Rule = (ctx): RuleResult => {
 // ---------------------------------------------------------------------------
 export const aeoFaqSchema001: Rule = (ctx): RuleResult => {
 	const page = ctx.mainPage;
-	const hasFaqSchema = page.schemaJsonLd.some((schema) => {
-		if (typeof schema === "object" && schema !== null) {
-			const s = schema as Record<string, unknown>;
-			return (
-				s["@type"] === "FAQPage" ||
-				(Array.isArray(s["@type"]) &&
-					(s["@type"] as string[]).includes("FAQPage"))
-			);
-		}
-		return false;
-	});
+	const hasFaqSchema = getSchemaNodes(page.schemaJsonLd).some(isFaqPageNode);
 	return {
 		ruleId: "AEO-FAQ-SCHEMA-001",
 		category: "aeo",
@@ -739,12 +759,22 @@ export const aeoDurationInfo001: Rule = (ctx): RuleResult => {
 	// negative lookahead 로 한글 연속 차단.
 	const durationNumberUnit =
 		/\d+\s*(?:[~\-]\s*\d+\s*)?(?:분|시간|시간\s*반|일|주|주일|개월|달)(?![가-힣])/g;
-	// "약 30분", "30분 소요/이내/정도" 처럼 소요 문맥 보강 키워드 (보너스 신호; 단독으론 안 봄).
+	// "약 30분", "30분 소요/이내/정도" 처럼 실제 소요 문맥이 인접해야 한다.
+	// 단독 날짜(예: 2025년 1월 1일)의 "1일"은 소요시간으로 보지 않는다.
+	const durationContextPattern =
+		/소요|걸립|걸려|이내|이상|이하|정도|완료|처리|예약|대기|배송|시공|상담|수업|코스|기간|평균|약|당일|즉시|바로/;
 	const immediacyPattern = /(?:당일|즉시|바로)\s*(?:완료|처리|가능|마감)|당일\s*(?:완료|처리)/;
 
 	let bodySignal: string | null = null;
 	for (const m of body.matchAll(durationNumberUnit)) {
-		bodySignal = m[0].replace(/\s+/g, " ").trim();
+		const idx = m.index ?? 0;
+		const around = body.slice(Math.max(0, idx - 30), idx + m[0].length + 30);
+		const unit = m[0].replace(/\s+/g, " ").trim();
+		if (/년\s*\d{1,2}\s*월\s*\d{1,2}\s*일/.test(around)) continue;
+		if (/[월]\s*\d{1,2}\s*일/.test(around) && /\d+\s*일/.test(unit))
+			continue;
+		if (!durationContextPattern.test(around)) continue;
+		bodySignal = unit;
 		break;
 	}
 	if (bodySignal === null) {
@@ -845,10 +875,10 @@ export const aeoDirectAnswer001: Rule = (ctx): RuleResult => {
 	// 카운트 → FP. 비-콘텐츠(breadcrumb/placeholder/form-label) 단락을 거르고,
 	// 남은 단락이 splitSentences 기준 실제 문장(종결형)을 담고 있어야 직답형으로 본다.
 	// ---------------------------------------------------------------------
-	const rawParagraphs = page.bodyText
-		.split(/\n{2,}|(?<=[.!?])\s+/)
-		.map((p) => p.trim())
-		.filter((p) => p.length > 0);
+	const rawParagraphs = getBodyParagraphs(
+		page,
+		/\n{2,}|(?<=[.!?])\s+/,
+	);
 
 	// breadcrumb 류: 구분자(>·»·/·| 등)가 2개 이상이면 내비게이션 조각.
 	const isBreadcrumbLike = (p: string): boolean =>
@@ -937,13 +967,24 @@ export const aeoLocalService001: Rule = (ctx): RuleResult => {
 	}
 
 	const regionLower = region.toLowerCase();
+	const positionsOf = (needle: string): number[] => {
+		const out: number[] = [];
+		if (needle.length === 0) return out;
+		let from = 0;
+		while (true) {
+			const idx = allText.indexOf(needle, from);
+			if (idx === -1) return out;
+			out.push(idx);
+			from = idx + Math.max(needle.length, 1);
+		}
+	};
+	const regionPositions = positionsOf(regionLower);
 	const foundCombinations = services.filter((service) => {
 		const serviceLower = service.toLowerCase();
-		// 지역과 서비스가 같은 문장(200자) 내에 함께 등장하는지 확인
-		const regionIdx = allText.indexOf(regionLower);
-		const serviceIdx = allText.indexOf(serviceLower);
-		if (regionIdx === -1 || serviceIdx === -1) return false;
-		return Math.abs(regionIdx - serviceIdx) <= 200;
+		const servicePositions = positionsOf(serviceLower);
+		return regionPositions.some((regionIdx) =>
+			servicePositions.some((serviceIdx) => Math.abs(regionIdx - serviceIdx) <= 200),
+		);
 	});
 
 	const passed = foundCombinations.length > 0;
@@ -1054,10 +1095,9 @@ export const aeoDefinition001: Rule = (ctx): RuleResult => {
 // ---------------------------------------------------------------------------
 export const aeoParagraphStructure001: Rule = (ctx): RuleResult => {
 	const page = ctx.mainPage;
-	const paragraphs = page.bodyText
-		.split(/\n{2,}/)
-		.map((p) => p.trim())
-		.filter((p) => p.length >= 30);
+	const paragraphs = getBodyParagraphs(page, /\n{2,}/).filter(
+		(p) => p.length >= 30,
+	);
 	const passed = paragraphs.length >= 3;
 	return {
 		ruleId: "AEO-PARAGRAPH-STRUCTURE-001",
@@ -1256,6 +1296,10 @@ export const aeoContactDirect001: Rule = (ctx): RuleResult => {
 	// ---------------------------------------------------------------------
 	const nodes = getSchemaNodes(page.schemaJsonLd);
 	const hasSchemaTel = nodes.some((n) => getTelephone(n) !== null);
+	const hasTelLink = (page.contactLinks ?? []).some((link) => link.kind === "tel");
+	const hasMailtoLink = (page.contactLinks ?? []).some(
+		(link) => link.kind === "mailto",
+	);
 
 	const realPhones = extractPhones(body).filter((p) => {
 		const idx = body.indexOf(p.raw);
@@ -1265,32 +1309,39 @@ export const aeoContactDirect001: Rule = (ctx): RuleResult => {
 		if (!areaCodeMatchesRegion(p.areaCode, region)) return false;
 		return true;
 	});
-	const hasPhone = hasSchemaTel || realPhones.length > 0;
+	const hasPhone = hasSchemaTel || realPhones.length > 0 || hasTelLink;
 
-	// 카카오 매치 위치가 example 문맥이면 제외.
-	let hasKakao = false;
-	for (const m of body.matchAll(/카카오|kakao|오픈채팅|open.?chat/gi)) {
+	const channelLinkPattern =
+		/(pf\.kakao\.com|open\.kakao\.com|kakao\.com\/(?:ch|talk)|talk\.naver|line\.me|instagram\.com|facebook\.com|t\.me|wa\.me)/i;
+	const hasChannelLink = page.externalLinks.some((l) =>
+		channelLinkPattern.test(l),
+	);
+	const channelKeyword =
+		/카카오\s*채널|카카오톡|카톡\s*(?:문의|상담|예약|채널|오픈채팅)|오픈채팅|open.?chat|네이버\s*톡톡|인스타\s*DM|텔레그램/gi;
+	let hasKakao = hasChannelLink;
+	for (const m of body.matchAll(channelKeyword)) {
 		const idx = m.index ?? 0;
 		if (hasExampleContextAround(body, idx)) continue;
 		hasKakao = true;
 		break;
 	}
-	const passed = hasPhone || hasKakao;
+	const passed = hasPhone || hasMailtoLink || hasKakao;
 	return {
 		ruleId: "AEO-CONTACT-DIRECT-001",
 		category: "aeo",
 		passed,
 		severity: "medium",
-		title: "직접 연락 수단 명확성 (전화/카카오)",
+		title: "직접 연락 수단 명확성 (전화/메일/카카오)",
 		description: passed
-			? `직접 연락 수단(전화: ${hasPhone ? "✓" : "✗"}, 카카오: ${hasKakao ? "✓" : "✗"})이 확인됩니다.`
-			: "전화번호나 카카오 채널 등 즉시 연락 가능한 수단이 없습니다. AI 검색 결과에서 '연락처'를 찾는 사용자가 이탈합니다.",
+			? `직접 연락 수단(전화: ${hasPhone ? "✓" : "✗"}, 메일: ${hasMailtoLink ? "✓" : "✗"}, 카카오: ${hasKakao ? "✓" : "✗"})이 확인됩니다.`
+			: "전화번호, 이메일, 카카오 채널 등 즉시 연락 가능한 수단이 없습니다. AI 검색 결과에서 '연락처'를 찾는 사용자가 이탈합니다.",
 		evidence: [
 			`전화번호: ${hasPhone ? "있음" : "없음"}`,
+			`mailto 링크: ${hasMailtoLink ? "있음" : "없음"}`,
 			`카카오채널: ${hasKakao ? "있음" : "없음"}`,
 		],
 		recommendation:
-			"전화번호 또는 카카오 오픈채팅 링크를 홈페이지 상단(헤더)에 잘 보이도록 배치하세요.",
+			"전화번호, 이메일 또는 카카오 오픈채팅 링크를 홈페이지 상단(헤더)에 잘 보이도록 배치하세요.",
 		actionType: "self_fix",
 		difficulty: "easy",
 		expectedImpact: "medium",
@@ -1530,10 +1581,10 @@ export const aeoDirectAnswerParagraph001: Rule = (ctx): RuleResult => {
 	// breadcrumb(구분자 >·»·/ 다수) / placeholder·form-label·example 조각은
 	// "실제 직답 단락" 후보에서 제외하고, 남은 첫 단락에 길이+정의 신호를 본다.
 	// ---------------------------------------------------------------------
-	const paragraphs = page.bodyText
-		.split(/\n{2,}|(?<=[.!?。])\s+/)
-		.map((p) => p.trim())
-		.filter((p) => p.length >= 30);
+	const paragraphs = getBodyParagraphs(
+		page,
+		/\n{2,}|(?<=[.!?。])\s+/,
+	).filter((p) => p.length >= 30);
 
 	// breadcrumb 류: '>' '»' '/' 또는 '·' 구분자가 2개 이상이고 종결부호가 없는 내비게이션 조각.
 	const isBreadcrumbLike = (p: string): boolean => {
@@ -1640,10 +1691,9 @@ export const aeoListAndTable001: Rule = (ctx): RuleResult => {
 // ---------------------------------------------------------------------------
 export const aeoScannable001: Rule = (ctx): RuleResult => {
 	const page = ctx.mainPage;
-	const paragraphs = page.bodyText
-		.split(/\n{2,}/)
-		.map((p) => p.trim())
-		.filter((p) => p.length >= 30);
+	const paragraphs = getBodyParagraphs(page, /\n{2,}/).filter(
+		(p) => p.length >= 30,
+	);
 	if (paragraphs.length === 0) {
 		return {
 			ruleId: "AEO-SCANNABLE-001",
@@ -1783,16 +1833,10 @@ export const aeoNumericFacts001: Rule = (ctx): RuleResult => {
 // ---------------------------------------------------------------------------
 export const aeoAuthorAttribution001: Rule = (ctx): RuleResult => {
 	const page = ctx.mainPage;
-	const hasAuthorSchema = page.schemaJsonLd.some((schema) => {
-		if (typeof schema === "object" && schema !== null) {
-			const s = schema as Record<string, unknown>;
-			if ("author" in s) return true;
-			const t = s["@type"];
-			if (t === "Person") return true;
-			if (Array.isArray(t) && (t as string[]).includes("Person")) return true;
-		}
-		return false;
-	});
+	const nodes = getSchemaNodes(page.schemaJsonLd);
+	const hasAuthorSchema =
+		anyNodeHasPresentKey(nodes, "author") ||
+		nodes.some((node) => nodeTypeIncludes(node, "Person"));
 	// ---------------------------------------------------------------------
 	// Phase 2 시맨틱 검증: 사람 작성자(E-E-A-T)여야 통과.
 	// 기존 룰은 raw '작성자'/'by X' 가 guest 작성자 입력란('작성자: (입력란)'),

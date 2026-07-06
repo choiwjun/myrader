@@ -4,11 +4,60 @@
 // @TEST apps/web/tests/diagnosis/diagnosis-route-guards.test.ts
 //
 // route 모듈을 직접 import 해 Request 로 호출(Next 런타임 없이 핸들러 단위 검증).
-// businessId 검증은 실 DB(getDefaultBusinessRepository) 조회 — 존재하지 않는 UUID → 404.
-// (DATABASE_URL 필요 — 통합 성격. DB 미가용이면 skip 가능하나 게이트는 DB 있이 실행.)
+// 저장소/큐는 mock 으로 고정해 검증 실패 경로가 create/enqueue 로 새지 않는지 확인한다.
 
-import { describe, expect, it } from "vitest";
-import { POST } from "../../app/api/diagnosis/route.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const guards = vi.hoisted(() => ({
+  businessFindById: vi.fn(),
+  diagnosisCreate: vi.fn(),
+  enqueue: vi.fn(),
+  kickBackgroundDrain: vi.fn(),
+}));
+
+vi.mock("@/lib/business", () => ({
+  getDefaultBusinessRepository: () => ({
+    findById: guards.businessFindById,
+  }),
+}));
+
+vi.mock("@/lib/diagnosis/diagnosis-dedup", () => ({
+  findActiveDiagnosisForBusiness: vi.fn(async () => null),
+}));
+
+vi.mock("@/lib/diagnosis/diagnosis-repository", () => ({
+  getDefaultDiagnosisRepository: () => ({
+    create: guards.diagnosisCreate,
+  }),
+}));
+
+vi.mock("@/lib/diagnosis/diagnosis-service", () => ({
+  getDiagnosisView: vi.fn(async () => null),
+}));
+
+vi.mock("@/lib/jobs", () => ({
+  DIAGNOSIS_JOB_TYPE: "diagnosis",
+  getJobQueue: () => ({
+    enqueue: guards.enqueue,
+    getStatus: vi.fn(async () => null),
+  }),
+  kickBackgroundDrain: guards.kickBackgroundDrain,
+}));
+
+vi.mock("next/server", () => ({
+  NextResponse: {
+    json: (body: unknown, init?: ResponseInit) => Response.json(body, init),
+  },
+}));
+
+const { POST } = await import("../../app/api/diagnosis/route.js");
+
+beforeEach(() => {
+  guards.businessFindById.mockReset();
+  guards.diagnosisCreate.mockReset();
+  guards.enqueue.mockReset();
+  guards.kickBackgroundDrain.mockReset();
+});
 
 const VALID_PROFILE = {
   businessName: "테스트가게",
@@ -51,6 +100,35 @@ describe("POST /api/diagnosis 가드 (수정라운드A-3)", () => {
     expect(res.status).toBe(400);
     const body = (await res.json()) as { code?: string };
     expect(body.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("businessId 만 있고 businessProfile 이 없으면 400 VALIDATION_ERROR 로 거절한다", async () => {
+    const res = await POST(
+      postReq(
+        {
+          target: "https://example.com",
+          businessId: "00000000-0000-4000-8000-000000000000",
+        },
+        "203.0.113.12",
+      ),
+    );
+
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { success: boolean; code?: string };
+    expect(body.success).toBe(false);
+    expect(body.code).toBe("VALIDATION_ERROR");
+    expect(guards.businessFindById).not.toHaveBeenCalled();
+    expect(guards.diagnosisCreate).not.toHaveBeenCalled();
+    expect(guards.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("businessId 가 없는 target-only 요청은 기존처럼 400 BUSINESS_ID_REQUIRED 를 반환한다", async () => {
+    const res = await POST(postReq({ target: "https://example.com" }, "203.0.113.13"));
+
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { success: boolean; code?: string };
+    expect(body.success).toBe(false);
+    expect(body.code).toBe("BUSINESS_ID_REQUIRED");
   });
 
   it("동일 IP 반복 호출 → rate limit 429 (무한 진단 생성 완화)", async () => {

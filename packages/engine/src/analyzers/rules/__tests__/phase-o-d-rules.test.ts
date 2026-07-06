@@ -18,6 +18,7 @@ import {
 	seoDuplicateMetaDesc001,
 	seoHeadingHierarchy001,
 	seoHttp2001,
+	seoLang001,
 	seoPageLangConsistency001,
 	seoPagination001,
 	seoRedirectChain001,
@@ -128,6 +129,14 @@ describe("AEO semantic copy guards", () => {
 		expect(r.passed).toBe(false);
 		expect(r.description).toContain("paragraphLimit=4");
 		expect(r.recommendation).toContain("paragraphLimit=4");
+	});
+});
+
+describe("SEO-LANG-001: lang 속성 존재 여부", () => {
+	it("lang=en 처럼 한국어가 아닌 lang 속성도 존재 신호로 통과한다", () => {
+		const ctx = makeCtx({ htmlLang: "en-US" });
+		const r = seoLang001(ctx);
+		expect(r.passed).toBe(true);
 	});
 });
 
@@ -282,6 +291,7 @@ describe("SEO-HEADING-HIERARCHY-001: 제목 위계 구조", () => {
 		});
 		const r = seoHeadingHierarchy001(ctx);
 		expect(r.passed).toBe(true);
+		expect(r.scoreImpact).toBeUndefined();
 	});
 
 	it("H1→H3 건너뛰면 실패", () => {
@@ -293,6 +303,14 @@ describe("SEO-HEADING-HIERARCHY-001: 제목 위계 구조", () => {
 		});
 		const r = seoHeadingHierarchy001(ctx);
 		expect(r.passed).toBe(false);
+		expect(r.scoreImpact).toBeUndefined();
+	});
+
+	it("headingStructure 미수집 fallback은 점수 중립 unavailable 처리", () => {
+		const ctx = makeCtx({ headingStructure: undefined });
+		const r = seoHeadingHierarchy001(ctx);
+		expect(r.passed).toBe(true);
+		expect(r.scoreImpact).toBe("unavailable");
 	});
 });
 
@@ -421,6 +439,19 @@ describe("AEO-SCANNABLE-001: 단락 평균 문장 수 ≤ 4", () => {
 		const ctx = makeCtx({ bodyText: `${longPara}\n\n${longPara}` });
 		const r = aeoScannable001(ctx);
 		expect(r.passed).toBe(false);
+	});
+
+	it("parser paragraphs 필드가 있으면 bodyText 개행 없이도 단락 경계를 사용한다", () => {
+		const ctx = makeCtx({
+			bodyText:
+				"강남 카페입니다. 핸드드립을 제공합니다. 신선한 원두를 사용합니다. 이용 시간은 오전 10시부터 오후 9시까지입니다. 예약은 전화로 받습니다.",
+			paragraphs: [
+				"강남 카페입니다. 핸드드립을 제공합니다. 신선한 원두를 사용합니다.",
+				"이용 시간은 오전 10시부터 오후 9시까지입니다. 예약은 전화로 받습니다.",
+			],
+		});
+		const r = aeoScannable001(ctx);
+		expect(r.passed).toBe(true);
 	});
 });
 
@@ -650,9 +681,17 @@ describe("GEO-BUSINESS-HOURS-DETAIL-001: 요일별 운영시간 상세", () => {
 });
 
 describe("GEO-PHONE-FORMAT-001: 전화번호 클릭 가능 (tel:)", () => {
-	it("전화번호 + tel: 단서가 있으면 통과", () => {
+	it("전화번호 + contactLinks tel: 단서가 있으면 통과", () => {
 		const ctx = makeCtx({
-			bodyText: "문의 전화: tel:02-1234-5678 또는 02-1234-5678",
+			bodyText: "문의 전화: 02-1234-5678",
+			contactLinks: [
+				{
+					kind: "tel",
+					href: "tel:0212345678",
+					value: "0212345678",
+					text: "전화 문의",
+				},
+			],
 		});
 		const r = geoPhoneFormat001(ctx);
 		expect(r.passed).toBe(true);

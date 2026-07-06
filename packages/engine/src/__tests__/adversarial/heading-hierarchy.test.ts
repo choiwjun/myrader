@@ -318,6 +318,26 @@ describe("heading hierarchy — headingStructure 필드", () => {
 		}
 	});
 
+	it("headingStructure 는 레벨별 그룹이 아니라 실제 문서 순서 interleaving 을 보존", () => {
+		const html = `<html><head><title>t</title></head><body>
+      <h2>먼저 나온 H2</h2>
+      <h4>깊은 제목</h4>
+      <h1>나중 H1</h1>
+      <h3>하위 H3</h3>
+      <h2>다음 H2</h2>
+    </body></html>`;
+		const page = mockParsedPage(html);
+		expect(page.h1).toBe("나중 H1");
+		expect(page.h2).toEqual(["먼저 나온 H2", "다음 H2"]);
+		expect(page.h3).toEqual(["하위 H3"]);
+		expect(page.headingStructure).toEqual([
+			{ level: 2, text: "먼저 나온 H2" },
+			{ level: 4, text: "깊은 제목" },
+			{ level: 1, text: "나중 H1" },
+			{ level: 3, text: "하위 H3" },
+			{ level: 2, text: "다음 H2" },
+		]);
+	});
 	it("listTableCount — ul/ol/table 카운트 정확", () => {
 		const html = `<html><head><title>t</title></head><body>
       <ul><li>a</li></ul>

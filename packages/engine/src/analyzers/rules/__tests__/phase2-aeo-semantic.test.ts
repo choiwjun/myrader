@@ -19,6 +19,7 @@ import type { RuleContext } from "../../types.js";
 import {
 	aeoAuthorAttribution001,
 	aeoContactDirect001,
+	aeoFaqSchema001,
 	aeoDirectAnswerParagraph001,
 	aeoLastUpdated001,
 	aeoOrgAnswer001,
@@ -126,6 +127,32 @@ describe("AEO-CONTACT-DIRECT-001: 직접 연락 수단 시맨틱 검증", () => 
 		);
 		expect(r.passed).toBe(true);
 	});
+
+	it("FALSE-POSITIVE: 카카오페이 결제 문구만 있으면 연락 채널로 보지 않는다", () => {
+		const r = aeoContactDirect001(
+			makeCtx({
+				bodyText: "카카오페이 결제가 가능합니다. 결제 후 예약 확정 문자를 보내드립니다.",
+			}),
+		);
+		expect(r.passed).toBe(false);
+	});
+
+	it("TRUE-POSITIVE: mailto contactLinks가 있으면 본문 이메일 없이도 통과", () => {
+		const r = aeoContactDirect001(
+			makeCtx({
+				bodyText: "문의 사항은 이메일 버튼을 눌러 주세요.",
+				contactLinks: [
+					{
+						kind: "mailto",
+						href: "mailto:reservation@lesignal.co.kr",
+						value: "reservation@lesignal.co.kr",
+						text: "이메일 문의",
+					},
+				],
+			}),
+		);
+		expect(r.passed).toBe(true);
+	});
 });
 
 // ===========================================================================
@@ -162,6 +189,29 @@ describe("AEO-ORG-ANSWER-001: 운영자 시점 시맨틱 검증", () => {
 					"저희 르시그널은 강남에서 직접 원두를 로스팅하는 브런치 카페를 운영하고 있습니다.",
 			}),
 		);
+		expect(r.passed).toBe(true);
+	});
+});
+
+describe("AEO-FAQ-SCHEMA-001: @graph FAQPage 평탄화", () => {
+	it("TRUE-POSITIVE: @graph 내부 FAQPage를 인식한다", () => {
+		const r = aeoFaqSchema001(
+			makeCtx({
+				schemaJsonLd: [
+					{
+						"@context": "https://schema.org",
+						"@graph": [
+							{ "@type": "WebSite", name: "르시그널" },
+							{
+								"@type": "FAQPage",
+								mainEntity: [],
+							},
+						],
+					},
+				],
+			}),
+		);
+
 		expect(r.passed).toBe(true);
 	});
 });
@@ -210,6 +260,21 @@ describe("AEO-AUTHOR-ATTRIBUTION-001: 작성자 시맨틱 검증", () => {
 			makeCtx({
 				bodyText:
 					"이 안내는 르시그널을 직접 운영하는 작성자 홍길동 대표가 정리했습니다.",
+			}),
+		);
+		expect(r.passed).toBe(true);
+	});
+
+	it("TRUE-POSITIVE: @graph 내부 Person schema면 통과", () => {
+		const r = aeoAuthorAttribution001(
+			makeCtx({
+				bodyText: "환영합니다.",
+				schemaJsonLd: [
+					{
+						"@context": "https://schema.org",
+						"@graph": [{ "@type": "Person", name: "홍길동" }],
+					},
+				],
 			}),
 		);
 		expect(r.passed).toBe(true);

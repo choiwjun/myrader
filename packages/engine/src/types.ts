@@ -150,9 +150,20 @@ export interface ParsedPage {
 	// -------------------------------------------------------------------------
 	/** H1~H6 전체 위계 구조 (SEO-HEADING-HIERARCHY-001 등) */
 	headingStructure?: { level: number; text: string }[];
+	/** 본문 내 구조화된 텍스트 블록 (문서 순서, block boundary 보존) */
+	textBlocks?: { tag: string; text: string }[];
+	/** <p> 단락 텍스트 (문서 순서, paragraph boundary 보존) */
+	paragraphs?: string[];
+	/** tel:/mailto: 연락처 링크 (HTTP 링크 배열과 분리) */
+	contactLinks?: {
+		kind: "tel" | "mailto";
+		href: string;
+		value: string;
+		text: string;
+	}[];
 	/** HTTP Last-Modified 헤더 또는 og:updated_time / article:modified_time 값 */
 	lastModified?: string | null;
-	/** HTTP 프로토콜 버전 ("1.1" | "2" | "3") */
+	/** HTTP 프로토콜 버전 ("1.1" | "2" | "3"). 런타임 근거가 없으면 null. */
 	httpProtocol?: "1.1" | "2" | "3" | null;
 	/** HTTP 응답 리다이렉트 체인 길이 (직접 응답: 0, 1회 리다이렉트: 1...) */
 	redirectChainLength?: number | null;

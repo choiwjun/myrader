@@ -40,27 +40,37 @@ const BusinessProfileSchema = z.object({
 });
 
 // 입력 검증 (헌법 §3 Zod).
-const EnqueueDiagnosisSchema = z.object({
-  target: z.string().min(1).max(2048),
-  /** 진단 대상 가게 id — 있으면 diagnoses 행을 만들고 파이프라인을 배선한다. */
-  businessId: z.string().uuid().optional(),
-  businessProfile: BusinessProfileSchema.optional(),
-  modules: z.array(z.enum(["seo", "aeo", "geo", "a11y", "backlink", "perf"])).optional(),
-  sourceType: z
-    .enum([
-      "website",
-      "naver_place",
-      "naver_blog",
-      "instagram",
-      "kakao_place",
-      "youtube",
-      "facebook",
-      "other_platform",
-    ])
-    .optional(),
-  /** grounded LLM 가시성 검증 요청(게이트 통과 시에만 실제 활성). */
-  requestLlmValidation: z.boolean().optional(),
-});
+const EnqueueDiagnosisSchema = z
+  .object({
+    target: z.string().min(1).max(2048),
+    /** 진단 대상 가게 id — 있으면 diagnoses 행을 만들고 파이프라인을 배선한다. */
+    businessId: z.string().uuid().optional(),
+    businessProfile: BusinessProfileSchema.optional(),
+    modules: z.array(z.enum(["seo", "aeo", "geo", "a11y", "backlink", "perf"])).optional(),
+    sourceType: z
+      .enum([
+        "website",
+        "naver_place",
+        "naver_blog",
+        "instagram",
+        "kakao_place",
+        "youtube",
+        "facebook",
+        "other_platform",
+      ])
+      .optional(),
+    /** grounded LLM 가시성 검증 요청(게이트 통과 시에만 실제 활성). */
+    requestLlmValidation: z.boolean().optional(),
+  })
+  .superRefine((input, ctx) => {
+    if (input.businessId && !input.businessProfile) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["businessProfile"],
+        message: "businessProfile is required when businessId is provided",
+      });
+    }
+  });
 
 // POST — 진단 행 생성 + 잡 enqueue (느린 분석 → 백그라운드)
 export async function POST(request: Request) {
@@ -71,10 +81,9 @@ export async function POST(request: Request) {
     const body = await request.json();
     const input = EnqueueDiagnosisSchema.parse(body);
 
-    // 실 진단 경로: businessId 가 있으면 diagnoses 행을 만들고 diagnosisId 를 항상 발급한다.
-    // (S1→S2 전파 보장: /status?diagnosisId= 로 넘어가려면 diagnosisId 가 반드시 필요.)
-    // businessProfile 이 함께 오면 엔진 파이프라인을 완주하고, 없으면(placeUrl-only 등)
-    // 후보 정보로 최소 프로파일을 구성해 enqueue 한다(diagnosisId 누락 방지).
+    // 실 진단 경로: businessId 가 있으면 businessProfile 로 엔진 입력 가능한 diagnoses 행을 만들고
+    // diagnosisId 를 항상 발급한다. (S1→S2 전파 보장: /status?diagnosisId= 로 넘어가려면
+    // diagnosisId 가 반드시 필요.)
     if (input.businessId) {
       // ★ businessId 검증(수정라운드A-3c): 존재하지 않는(또는 삭제된) business 로는
       //   진단을 만들지 않는다. capability token(비추측 UUID)이 유효한 자원을 가리키는지
@@ -113,7 +122,6 @@ export async function POST(request: Request) {
           diagnosisId: diagnosis.id,
           target: input.target,
           sourceType: input.sourceType ?? "website",
-          // 프로파일 없으면 파이프라인은 건너뛰되(핸들러 가드), diagnosisId 는 발급된다.
           businessProfile: input.businessProfile,
           modules: input.modules ?? ["seo", "aeo", "geo"],
           requestLlmValidation: input.requestLlmValidation ?? false,

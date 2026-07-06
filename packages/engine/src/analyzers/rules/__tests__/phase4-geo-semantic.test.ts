@@ -21,9 +21,20 @@ import type { ParsedPage } from "../../../types.js";
 import type { RuleContext } from "../../types.js";
 
 import {
+	geoAiSummary001,
+	geoBrandConsistency001,
+	geoBrandInH1001,
+	geoBrandInTitle001,
+	geoBusinessHoursDetail001,
+	geoBusinessName001,
+	geoIndustry001,
+	geoLocalBusinessSchema001,
+	geoLocationSchema001,
 	geoMultipleLang001,
+	geoOrganizationSchema001,
 	geoOgImage001,
 	geoPhoneFormat001,
+	geoRegion001,
 } from "../geo-rules.js";
 
 // ---------------------------------------------------------------------------
@@ -207,6 +218,7 @@ describe("GEO-PHONE-FORMAT-001: 전화 클릭 단서 실측", () => {
 		expect(r.ruleId).toBe("GEO-PHONE-FORMAT-001");
 		expect(r.passed).toBe(true);
 		expect(r.evidence.join(" ")).toContain("없음");
+		expect(r.scoreImpact).toBe("unavailable");
 	});
 
 	it("FALSE-NEGATIVE→FAIL: 실측 전화번호는 있는데 tel: 단서 없음 → 실패", () => {
@@ -220,13 +232,201 @@ describe("GEO-PHONE-FORMAT-001: 전화 클릭 단서 실측", () => {
 		expect(r.evidence.join(" ")).toContain("있음");
 	});
 
-	it("TRUE-POSITIVE: 실측 전화번호 + tel: 단서 → 통과", () => {
+	it("TRUE-POSITIVE: 실측 전화번호 + parser contactLinks tel: 단서 → 통과", () => {
 		const r = geoPhoneFormat001(
 			makeCtx({
-				bodyText:
-					"르시그널 강남점 예약: 02-1234-5678 (tel:0212345678 으로 바로 전화 걸기)",
+				bodyText: "르시그널 강남점 예약: 02-1234-5678",
+				contactLinks: [
+					{
+						kind: "tel",
+						href: "tel:0212345678",
+						value: "0212345678",
+						text: "바로 전화 걸기",
+					},
+				],
 			}),
 		);
 		expect(r.passed).toBe(true);
+	});
+
+	it("TRUE-POSITIVE: parser contactLinks의 tel: 링크를 클릭 가능 단서로 인정한다", () => {
+		const r = geoPhoneFormat001(
+			makeCtx({
+				bodyText: "르시그널 강남점 예약 전화 버튼을 눌러 주세요.",
+				contactLinks: [
+					{
+						kind: "tel",
+						href: "tel:0212345678",
+						value: "0212345678",
+						text: "전화 예약",
+					},
+				],
+			}),
+		);
+		expect(r.passed).toBe(true);
+	});
+});
+
+describe("GEO schema rules: @graph 평탄화", () => {
+	it("TRUE-POSITIVE: @graph 내부 Bakery LocalBusiness subtype을 인식한다", () => {
+		const r = geoLocalBusinessSchema001(
+			makeCtx({
+				schemaJsonLd: [
+					{
+						"@context": "https://schema.org",
+						"@graph": [
+							{
+								"@type": "Bakery",
+								name: "르시그널",
+								telephone: "02-1234-5678",
+							},
+						],
+					},
+				],
+			}),
+		);
+		expect(r.passed).toBe(true);
+	});
+
+	it("TRUE-POSITIVE: @graph 내부 Organization을 인식한다", () => {
+		const r = geoOrganizationSchema001(
+			makeCtx({
+				schemaJsonLd: [
+					{ "@graph": [{ "@type": "Organization", name: "르시그널" }] },
+				],
+			}),
+		);
+		expect(r.passed).toBe(true);
+	});
+
+	it("TRUE-POSITIVE: @graph 내부 address/geo 위치 신호를 인식한다", () => {
+		const r = geoLocationSchema001(
+			makeCtx({
+				schemaJsonLd: [
+					{
+						"@graph": [
+							{
+								"@type": "CafeOrCoffeeShop",
+								address: {
+									"@type": "PostalAddress",
+									streetAddress: "강남대로 100",
+								},
+							},
+						],
+					},
+				],
+			}),
+		);
+		expect(r.passed).toBe(true);
+	});
+});
+
+describe("GEO-AI-SUMMARY-001: parser paragraph contract", () => {
+	it("parser paragraphs 필드가 있으면 bodyText 개행 없이도 평균 단락 길이를 올바르게 계산한다", () => {
+		const r = geoAiSummary001(
+			makeCtx({
+				bodyText:
+					"첫 번째 단락은 강남 카페 르시그널의 대표 메뉴와 원두 특징, 예약 고객에게 제공되는 브런치 구성을 설명합니다. 두 번째 단락은 매장 위치, 대중교통 접근, 전화 예약 방법과 방문 전 확인할 내용을 설명합니다.",
+				paragraphs: [
+					"첫 번째 단락은 강남 카페 르시그널의 대표 메뉴와 원두 특징, 예약 고객에게 제공되는 브런치 구성을 설명합니다.",
+					"두 번째 단락은 매장 위치, 대중교통 접근, 전화 예약 방법과 방문 전 확인할 내용을 설명합니다.",
+				],
+			}),
+		);
+		expect(r.passed).toBe(true);
+	});
+});
+
+describe("GEO high-weight matching: boundary, spacing, synonyms", () => {
+	it("TRUE-POSITIVE: 업체명 띄어쓰기 변형을 인식한다", () => {
+		const r = geoBusinessName001(
+			makeCtx(
+				{
+					title: "르 쿠르 강남점",
+					h1: "르 쿠르",
+					bodyText: "르 쿠르는 강남의 카페입니다.",
+				},
+				{ businessName: "르쿠르" },
+			),
+		);
+		expect(r.passed).toBe(true);
+	});
+
+	it("FALSE-POSITIVE: 업체명이 더 긴 한글 토큰 내부에만 있으면 실패한다", () => {
+		const r = geoBusinessName001(
+			makeCtx(
+				{
+					title: "프르쿠르미엄 베이커리",
+					h1: "프르쿠르미엄",
+					bodyText: "프르쿠르미엄 브랜드 소개입니다.",
+				},
+				{ businessName: "르쿠르" },
+			),
+		);
+		expect(r.passed).toBe(false);
+	});
+
+	it("TRUE-POSITIVE: 영어 industry=cafe 입력이 한국어 카페 본문과 매칭된다", () => {
+		const r = geoIndustry001(
+			makeCtx(
+				{
+					title: "르시그널 강남 브런치",
+					description: "강남에서 운영하는 카페입니다.",
+					bodyText: "핸드드립과 브런치를 제공하는 동네 카페입니다.",
+				},
+				{ industry: "cafe" },
+			),
+		);
+		expect(r.passed).toBe(true);
+	});
+
+	it("FALSE-POSITIVE: 짧은 지역명은 부산 같은 합성 문자열 내부와 매칭하지 않는다", () => {
+		const r = geoRegion001(
+			makeCtx(
+				{
+					title: "부산 브런치 카페",
+					description: "부산에서 운영합니다.",
+					bodyText: "부산 지역 고객을 위한 안내입니다.",
+				},
+				{ region: "산" },
+			),
+		);
+		expect(r.passed).toBe(false);
+	});
+
+	it("TRUE-POSITIVE: 브랜드 일관성도 띄어쓰기 변형을 동일 브랜드로 본다", () => {
+		const r = geoBrandConsistency001(
+			makeCtx(
+				{
+					title: "르 쿠르 | 강남 카페",
+					h1: "르 쿠르",
+					description: "르쿠르 강남점 공식 홈페이지입니다.",
+					bodyText: "르 쿠르는 예약제로 운영됩니다.",
+				},
+				{ businessName: "르쿠르" },
+			),
+		);
+		expect(r.passed).toBe(true);
+	});
+
+	it("TRUE-POSITIVE: title/H1 브랜드 룰도 띄어쓰기 변형을 인정한다", () => {
+		const titleRule = geoBrandInTitle001(
+			makeCtx({ title: "르 쿠르 공식" }, { businessName: "르쿠르" }),
+		);
+		const h1Rule = geoBrandInH1001(
+			makeCtx({ h1: "르 쿠르" }, { businessName: "르쿠르" }),
+		);
+		expect(titleRule.passed).toBe(true);
+		expect(h1Rule.passed).toBe(true);
+	});
+
+	it("TRUE-POSITIVE: 세부 운영시간이 없으면 점수 중립 unavailable로 반환한다", () => {
+		const r = geoBusinessHoursDetail001(
+			makeCtx({
+				bodyText: "영업시간은 별도 공지로 안내합니다.",
+			}),
+		);
+		expect(r.passed).toBe(false);
+		expect(r.scoreImpact).toBe("unavailable");
 	});
 });

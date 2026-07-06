@@ -221,6 +221,7 @@ describe("SEO-LINK-NEWTAB-001: target/rel informational 강등", () => {
 		expect(r.ruleId).toBe("SEO-LINK-NEWTAB-001");
 		expect(r.passed).toBe(true);
 		expect(r.ruleWeight).toBe(6);
+		expect(r.scoreImpact).toBe("unavailable");
 		expect(r.evidence.join(" ")).toContain("미수집");
 	});
 

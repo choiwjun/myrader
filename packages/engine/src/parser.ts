@@ -7,12 +7,15 @@
 
 import type { CrawlFailureReason } from "@boina/contracts/enums";
 import * as cheerio from "cheerio";
+import { getSchemaNodes, isFaqPageNode } from "./analyzers/shared/schema-validator.js";
 import type { ParsedPage } from "./types.js";
 import { isSameDomain, normalizeUrl } from "./utils/url.js";
 
 export interface ParseHtmlOptions {
 	failureReason?: CrawlFailureReason | undefined;
 	contentLanguageHeader?: string | null | undefined;
+	httpProtocol?: ParsedPage["httpProtocol"] | undefined;
+	redirectChainLength?: number | null | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -70,31 +73,21 @@ export function parseHtml(
 		null;
 
 	// ---------------------------------------------------------------------------
-	// h1, h2
+	// h1, h2, h3 + document-order headingStructure
 	// ---------------------------------------------------------------------------
 	const h1 = $("h1").first().text().trim() || null;
 	const h2: string[] = [];
-	$("h2").each((_, el) => {
-		const text = $(el).text().trim();
-		if (text) h2.push(text);
-	});
-
-	// -------------------------------------------------------------------------
-	// Phase O-D — H1~H6 전체 위계 구조 + H3 텍스트
-	// -------------------------------------------------------------------------
-	const headingStructure: { level: number; text: string }[] = [];
 	const h3: string[] = [];
-	for (let level = 1; level <= 6; level++) {
-		$(`h${level}`).each((_, el) => {
-			const text = $(el).text().trim();
-			if (text) {
-				headingStructure.push({ level, text });
-				if (level === 3) h3.push(text);
-			}
-		});
-	}
-	// 문서 순서대로 정렬 (level별로 모았으므로 재정렬 필요 없음 — 그대로 사용)
-	// 정확한 문서 순서가 필요하면 별도 traversal 필요. 본 구현은 룰 요구사항(위계 위반 감지)에 충분.
+	const headingStructure: { level: number; text: string }[] = [];
+	$("h1,h2,h3,h4,h5,h6").each((_, el) => {
+		const tagName = el.tagName.toLowerCase();
+		const level = Number(tagName.slice(1));
+		const text = $(el).text().trim();
+		if (!text) return;
+		headingStructure.push({ level, text });
+		if (level === 2) h2.push(text);
+		if (level === 3) h3.push(text);
+	});
 
 	// -------------------------------------------------------------------------
 	// Phase O-D — <ul>/<ol>/<table> 요소 개수
@@ -162,6 +155,19 @@ export function parseHtml(
 	});
 
 	$("script, style, noscript").remove();
+
+	const textBlocks: { tag: string; text: string }[] = [];
+	$(
+		"body h1,body h2,body h3,body h4,body h5,body h6,body p,body li,body blockquote,body figcaption,body td,body th,body dt,body dd",
+	).each((_, el) => {
+		const tag = el.tagName.toLowerCase();
+		const text = $(el).text().replace(/\s+/g, " ").trim();
+		if (text) textBlocks.push({ tag, text });
+	});
+	const paragraphs = textBlocks
+		.filter((block) => block.tag === "p")
+		.map((block) => block.text);
+
 	const bodyText = $("body").text().replace(/\s+/g, " ").trim();
 
 	// ---------------------------------------------------------------------------
@@ -176,17 +182,28 @@ export function parseHtml(
 	// ---------------------------------------------------------------------------
 	const internalLinks: string[] = [];
 	const externalLinks: string[] = [];
+	const contactLinks: NonNullable<ParsedPage["contactLinks"]> = [];
 
 	$("a[href]").each((_, el) => {
-		const href = $(el).attr("href");
+		const href = $(el).attr("href")?.trim();
 		if (!href) return;
-		if (
-			href.startsWith("javascript:") ||
-			href.startsWith("mailto:") ||
-			href.startsWith("tel:")
-		)
+
+		const hrefLower = href.toLowerCase();
+		if (hrefLower.startsWith("mailto:") || hrefLower.startsWith("tel:")) {
+			const kind = hrefLower.startsWith("mailto:") ? "mailto" : "tel";
+			const value = href.slice(kind.length + 1).split(/[?#]/, 1)[0] ?? "";
+			contactLinks.push({
+				kind,
+				href,
+				value,
+				text: $(el).text().replace(/\s+/g, " ").trim(),
+			});
 			return;
+		}
+
+		if (hrefLower.startsWith("javascript:")) return;
 		if (href.startsWith("#")) return;
+
 
 		let absolute: string;
 		try {
@@ -244,25 +261,14 @@ export function parseHtml(
 	// ---------------------------------------------------------------------------
 	const hasSchema = schemaJsonLd.length > 0;
 
-	// FAQPage schema 여부
-	const hasFaqSchema = schemaJsonLd.some((s) => {
-		if (typeof s !== "object" || s === null) return false;
-		const obj = s as Record<string, unknown>;
-		const type = obj["@type"];
-		return (
-			type === "FAQPage" || (Array.isArray(type) && type.includes("FAQPage"))
-		);
-	});
+	// FAQPage schema 여부 (@graph / nested array 포함)
+	const hasFaqSchema = getSchemaNodes(schemaJsonLd).some(isFaqPageNode);
 
 	// H2/H3 텍스트에 FAQ 관련 키워드 포함 여부
 	const faqKeywords = /자주\s*묻는\s*질문|FAQ|Q&A/i;
-	const h3texts: string[] = [];
-	$("h3").each((_, el) => {
-		h3texts.push($(el).text().trim());
-	});
 	const hasFaqHeading =
 		h2.some((t) => faqKeywords.test(t)) ||
-		h3texts.some((t) => faqKeywords.test(t));
+		h3.some((t) => faqKeywords.test(t));
 
 	const hasFAQ = hasFaqSchema || hasFaqHeading;
 
@@ -290,11 +296,16 @@ export function parseHtml(
 		failureReason: options.failureReason,
 		// Phase O-D optional 필드
 		headingStructure,
+		textBlocks,
+		paragraphs,
+		contactLinks,
 		h3,
 		linkTags,
 		listTableCount,
 		lastModified,
 		contentLanguageHeader: options.contentLanguageHeader ?? null,
+		httpProtocol: options.httpProtocol ?? null,
+		redirectChainLength: options.redirectChainLength ?? null,
 		htmlLang,
 		// TRANSIENT: raw HTML for a11y analysis only — POLICY § 4.4/§ 8.4: never persisted, never sent to AI
 		rawHtml: html,

@@ -1,15 +1,15 @@
 /**
  * X-SAG Core Engine — Scoring Engine 단위 테스트 (TASK-CORE-006)
  *
- * 기존 5 케이스 + v2.0.0 신규 케이스 (Phase M-A):
+ * 기존 5 케이스 + graded 기본/명시적 legacy v2 케이스:
  * 1. 모든 규칙 pass=true → 100점
  * 2. 모든 규칙 fail (클립) → 0점 하한 보장
- * 3. 가중 평균 (v2: perf 미포함 재정규화 가중치)
- * 4. 차감 합계가 100 초과 시 0으로 클립
- * 5. scoringVersion === "2.0.0"
+ * 3. 가중 평균 (perf 미포함 재정규화 가중치)
+ * 4. legacy v2 차감 합계가 100 초과 시 0으로 클립
+ * 5. 기본 scoringVersion === "2.1.0"
  * 6. perf 미포함 → perfScore null
  * 7. perf 포함 → SEO35/AEO25/GEO25/PERF15 가중치
- * 8. v2.0.0 하위 호환 검증
+ * 8. 출력 필드/가중치 정규화 하위 호환 검증
  */
 
 import { describe, expect, it } from "vitest";
@@ -17,6 +17,7 @@ import type { AnalyzerResult, RuleResult } from "../analyzers/types.js";
 import {
 	GRADED_SCORING_VERSION,
 	SCORING_VERSION,
+	isScoredRule,
 	scoreDiagnosis,
 } from "../scoring.js";
 
@@ -382,10 +383,10 @@ describe("Case 7: perf 포함 → SEO35/AEO25/GEO25/PERF15 가중치", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Test Case 8: v2.0.0 하위 호환 — 출력 필드 검증
+// Test Case 8: 출력 필드/가중치 정규화 하위 호환 검증
 // ---------------------------------------------------------------------------
 
-describe("Case 8: v2.0.0 하위 호환성 검증", () => {
+describe("Case 8: 출력 필드/가중치 정규화 하위 호환성 검증", () => {
 	it("perf 없이 호출 시 모든 출력 필드가 존재한다", () => {
 		const output = scoreDiagnosis({
 			seo: makeAnalyzerResult("seo", []),
@@ -401,7 +402,7 @@ describe("Case 8: v2.0.0 하위 호환성 검증", () => {
 		expect(output).toHaveProperty("scoringVersion");
 	});
 
-	it("v2 가중치 정규화: seo=100, 나머지 0 → overall = round(100*(0.35/0.85)) = 41", () => {
+	it("graded 기본 가중치 정규화: seo=100, 나머지 0 → overall = round(100*(0.35/0.85)) = 41", () => {
 		const failFive = (category: "seo" | "aeo" | "geo") =>
 			Array.from({ length: 5 }, (_, i) =>
 				makeResult({
@@ -506,5 +507,87 @@ describe("WS6 graded 모드 (비포화)", () => {
 			geo: onePass("geo"),
 		});
 		expect(out.scoringVersion).toBe(SCORING_VERSION);
+	});
+});
+
+describe("score participation metadata", () => {
+	const oneScoredPass = (category: "aeo" | "geo") =>
+		makeAnalyzerResult(category, [makeResult({ category, passed: true })]);
+
+	it("isScoredRule truth table excludes neutral, zero-weight, and NLP rules", () => {
+		expect(isScoredRule(makeResult({ ruleWeight: 5 }))).toBe(true);
+		expect(
+			isScoredRule(makeResult({ ruleWeight: 5, scoreImpact: "scored" })),
+		).toBe(true);
+		expect(
+			isScoredRule(makeResult({ ruleWeight: 5, scoreImpact: "informational" })),
+		).toBe(false);
+		expect(
+			isScoredRule(makeResult({ ruleWeight: 5, scoreImpact: "not_applicable" })),
+		).toBe(false);
+		expect(
+			isScoredRule(makeResult({ ruleWeight: 5, scoreImpact: "unavailable" })),
+		).toBe(false);
+		expect(isScoredRule(makeResult({ ruleWeight: 0 }))).toBe(false);
+		expect(
+			isScoredRule(makeResult({ ruleId: "NLP-READABILITY-001", ruleWeight: 5 })),
+		).toBe(false);
+	});
+
+	it("graded totals exclude non-scored rules but keep ordinary absent metadata rules scored", () => {
+		const seo = makeAnalyzerResult("seo", [
+			makeResult({ ruleId: "SEO-PASS", passed: true, ruleWeight: 5 }),
+			makeResult({
+				ruleId: "SEO-INFO",
+				passed: false,
+				ruleWeight: 5,
+				scoreImpact: "informational",
+			}),
+			makeResult({ ruleId: "SEO-ZERO", passed: false, ruleWeight: 0 }),
+			makeResult({
+				ruleId: "NLP-FAIL",
+				passed: false,
+				ruleWeight: 10,
+			}),
+		]);
+		const out = scoreDiagnosis({
+			seo,
+			aeo: oneScoredPass("aeo"),
+			geo: oneScoredPass("geo"),
+		});
+
+		expect(out.seoScore).toBe(100);
+		expect(out.scoringVersion).toBe("2.1.0");
+	});
+
+	it("legacy v2 deductions exclude non-scored rules and preserve explicit v2 version", () => {
+		const seo = makeAnalyzerResult("seo", [
+			makeResult({
+				ruleId: "SEO-SCORED-FAIL",
+				passed: false,
+				severity: "medium",
+				ruleWeight: 5,
+			}),
+			makeResult({
+				ruleId: "SEO-INFO-FAIL",
+				passed: false,
+				severity: "high",
+				ruleWeight: 10,
+				scoreImpact: "informational",
+			}),
+			makeResult({
+				ruleId: "NLP-FAIL",
+				passed: false,
+				severity: "high",
+				ruleWeight: 10,
+			}),
+		]);
+		const out = scoreDiagnosis(
+			{ seo, aeo: oneScoredPass("aeo"), geo: oneScoredPass("geo") },
+			{ mode: "v2" },
+		);
+
+		expect(out.seoScore).toBe(95);
+		expect(out.scoringVersion).toBe("2.0.0");
 	});
 });

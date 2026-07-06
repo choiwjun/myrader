@@ -8,10 +8,35 @@
  *  - 혼합 인코딩 문자열도 graceful
  */
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { crawlSite } from "../../crawler.js";
 import { expectNoCrash, mockParsedPage } from "./helpers.js";
 
-const BASE = "https://example.co.kr/";
+afterEach(() => {
+	vi.unstubAllGlobals();
+	vi.restoreAllMocks();
+});
+
+function htmlBytesWithKoreanTitle(charsetDeclaration: string): Uint8Array {
+	const encoder = new TextEncoder();
+	const before = encoder.encode(`<html><head>${charsetDeclaration}<title>`);
+	const koreanEucKr = new Uint8Array([0xc7, 0xd1, 0xb1, 0xdb]);
+	const after = encoder.encode("</title></head><body></body></html>");
+	const bytes = new Uint8Array(before.length + koreanEucKr.length + after.length);
+	bytes.set(before, 0);
+	bytes.set(koreanEucKr, before.length);
+	bytes.set(after, before.length + koreanEucKr.length);
+	return bytes;
+}
+
+function supportsTextDecoderLabel(label: string): boolean {
+	try {
+		new TextDecoder(label);
+		return true;
+	} catch {
+		return false;
+	}
+}
 
 describe("charset-encoding — meta charset 표기", () => {
 	it("UTF-8 charset meta (HTML5 short form) 처리", () => {
@@ -98,6 +123,127 @@ describe("charset-encoding — meta charset 표기", () => {
 		const html = `<html><head><title>x</title></head><body><meta charset="utf-8"><h1>한글</h1></body></html>`;
 		const page = mockParsedPage(html);
 		expect(page.h1).toBe("한글");
+	});
+});
+
+describe("charset-encoding — crawler byte decoding", () => {
+	it("prefers Content-Type charset and decodes EUC-KR Korean response bytes", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (url: string | URL | Request) => {
+				const u = typeof url === "string" ? url : (url as URL).toString();
+				if (u.endsWith("/robots.txt")) {
+					return new Response("", { status: 404 });
+				}
+				return new Response(htmlBytesWithKoreanTitle(""), {
+					status: 200,
+					headers: { "content-type": "text/html; charset=euc-kr" },
+				});
+			}),
+		);
+
+		const result = await crawlSite("https://example.co.kr/", {
+			maxPagesPerSite: 1,
+			totalTimeoutMs: 5_000,
+			useSitemap: false,
+		});
+
+		if (supportsTextDecoderLabel("euc-kr")) {
+			expect(result.pages[0]?.title).toBe("한글");
+		} else {
+			expect(result.pages[0]?.title).not.toBeNull();
+		}
+	});
+
+	it("uses early meta charset when Content-Type has no charset", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (url: string | URL | Request) => {
+				const u = typeof url === "string" ? url : (url as URL).toString();
+				if (u.endsWith("/robots.txt")) {
+					return new Response("", { status: 404 });
+				}
+				return new Response(
+					htmlBytesWithKoreanTitle('<meta charset="euc-kr">'),
+					{
+						status: 200,
+						headers: { "content-type": "text/html" },
+					},
+				);
+			}),
+		);
+
+		const result = await crawlSite("https://example.co.kr/", {
+			maxPagesPerSite: 1,
+			totalTimeoutMs: 5_000,
+			useSitemap: false,
+		});
+
+		if (supportsTextDecoderLabel("euc-kr")) {
+			expect(result.pages[0]?.title).toBe("한글");
+		} else {
+			expect(result.pages[0]?.title).not.toBeNull();
+		}
+	});
+
+	it("uses early http-equiv content-type meta charset when Content-Type has no charset", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (url: string | URL | Request) => {
+				const u = typeof url === "string" ? url : (url as URL).toString();
+				if (u.endsWith("/robots.txt")) {
+					return new Response("", { status: 404 });
+				}
+				return new Response(
+					htmlBytesWithKoreanTitle(
+						'<meta http-equiv="Content-Type" content="text/html; charset=euc-kr">',
+					),
+					{
+						status: 200,
+						headers: { "content-type": "text/html" },
+					},
+				);
+			}),
+		);
+
+		const result = await crawlSite("https://example.co.kr/", {
+			maxPagesPerSite: 1,
+			totalTimeoutMs: 5_000,
+			useSitemap: false,
+		});
+
+		if (supportsTextDecoderLabel("euc-kr")) {
+			expect(result.pages[0]?.title).toBe("한글");
+		} else {
+			expect(result.pages[0]?.title).not.toBeNull();
+		}
+	});
+
+	it("uses http-equiv meta charset and safely falls back for unsupported labels", async () => {
+		const utf8Html =
+			'<html><head><meta http-equiv="Content-Type" content="text/html; charset=unsupported-x"><title>한글</title></head><body></body></html>';
+
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (url: string | URL | Request) => {
+				const u = typeof url === "string" ? url : (url as URL).toString();
+				if (u.endsWith("/robots.txt")) {
+					return new Response("", { status: 404 });
+				}
+				return new Response(new TextEncoder().encode(utf8Html), {
+					status: 200,
+					headers: { "content-type": "text/html" },
+				});
+			}),
+		);
+
+		const result = await crawlSite("https://example.co.kr/", {
+			maxPagesPerSite: 1,
+			totalTimeoutMs: 5_000,
+			useSitemap: false,
+		});
+
+		expect(result.pages[0]?.title).toBe("한글");
 	});
 });
 

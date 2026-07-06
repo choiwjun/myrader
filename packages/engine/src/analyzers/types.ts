@@ -51,6 +51,8 @@ export interface RuleContext {
 	backlinkResult?: BacklinkResult;
 	/** 접근성 분석 결과 (A11Y 룰 전용, 없으면 informational 처리) */
 	a11yResult?: A11yResult;
+	/** 크롤러가 sitemap.xml 을 실제 URL 선정에 사용했는지 여부 (SEO sitemap 룰 실측 신호) */
+	sitemapUsed?: boolean;
 	/**
 	 * Phase 0: bodyText 에서 1회 추출한 NAP 엔티티 (전화/주소/업체명 변형 등).
 	 * analyzeAEO/analyzeGEO 가 undefined 일 때 채운다. 룰은 inline-fallback
@@ -81,6 +83,8 @@ export interface RuleResult {
 	actionType: "self_fix" | "snippet_action" | "vendor_action" | "si_action";
 	difficulty: "easy" | "medium" | "hard";
 	expectedImpact: "low" | "medium" | "high";
+	/** Optional scoring participation metadata. Absent means scored for ordinary positive-weight rules. */
+	scoreImpact?: "scored" | "informational" | "not_applicable" | "unavailable";
 	/** 0~10. Scoring Engine 이 가중치 계산에 사용. high=10, medium=6, low=3 */
 	ruleWeight: number;
 }

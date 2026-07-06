@@ -451,6 +451,24 @@ describe("SEO-CTA-001: 행동 유도 문구 시맨틱 검증", () => {
 		);
 		expect(r.passed).toBe(true);
 	});
+
+	it("TRUE-POSITIVE: tel/mailto contactLinks가 있으면 HTTP 링크 배열 없이도 통과", () => {
+		const r = seoCta001(
+			makeCtx({
+				bodyText: "문의 사항은 아래 버튼으로 연락 주세요.",
+				externalLinks: [],
+				contactLinks: [
+					{
+						kind: "tel",
+						href: "tel:025551234",
+						value: "025551234",
+						text: "전화 문의",
+					},
+				],
+			}),
+		);
+		expect(r.passed).toBe(true);
+	});
 });
 
 // ===========================================================================
@@ -518,6 +536,7 @@ describe("SEO-FAVICON-001: 파비콘 정직한 스킵", () => {
 		expect(r.ruleId).toBe("SEO-FAVICON-001");
 		// 파서가 favicon 신호를 노출하지 않으므로 패널티 없이 informational pass.
 		expect(r.passed).toBe(true);
+		expect(r.scoreImpact).toBe("unavailable");
 		expect(r.evidence.join(" ")).toContain("미수집");
 	});
 
@@ -526,6 +545,7 @@ describe("SEO-FAVICON-001: 파비콘 정직한 스킵", () => {
 			makeCtx({ meta: { "apple-touch-icon": "/icon.png" } }),
 		);
 		expect(r.passed).toBe(true);
+		expect(r.scoreImpact).toBe("scored");
 		expect(r.evidence.join(" ")).toContain("apple-touch-icon");
 	});
 });

@@ -125,20 +125,28 @@ export function getSchemaNodes(
 
 /**
  * LocalBusiness 계열 여부.
- * literal 'LocalBusiness' 또는 *Store/*Shop/*Salon/*Restaurant/*Cafe/*School/*Service
- * 접미사 타입을 LocalBusiness 로 간주한다. @type 은 string|string[] 모두 처리.
+ * literal 'LocalBusiness', common Schema.org local business subtypes,
+ * or specific *Store/*Shop/*Salon/*Restaurant/*Cafe/*School/*Service subtypes.
+ * Bare generic 'Service' is not a LocalBusiness subtype. @type 은 string|string[] 모두 처리.
  */
 export function isLocalBusinessNode(node: unknown): boolean {
 	return typeTokens(node).some(
 		(t) =>
 			t === "LocalBusiness" ||
+			t === "Bakery" ||
+			t === "Dentist" ||
+			t === "MedicalClinic" ||
+			t === "Hotel" ||
+			t === "LodgingBusiness" ||
+			t === "HealthClub" ||
+			t === "AutoRepair" ||
 			t.endsWith("Store") ||
 			t.endsWith("Shop") ||
 			t.endsWith("Salon") ||
 			t.endsWith("Restaurant") ||
 			t.endsWith("Cafe") ||
 			t.endsWith("School") ||
-			t.endsWith("Service"),
+			(t !== "Service" && t.endsWith("Service")),
 	);
 }
 

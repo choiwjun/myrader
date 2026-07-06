@@ -87,6 +87,210 @@ afterEach(() => {
 	__setJsRenderAdapterFactory(null);
 });
 
+describe("crawlSite HTTP signal preservation", () => {
+	it("preserves secondary HTTP 404 and 410 status with failure reason", async () => {
+		const fetchMock = vi.fn(async (url: string | URL | Request) => {
+			const u = typeof url === "string" ? url : (url as URL).toString();
+
+			if (u.endsWith("/robots.txt")) {
+				return new Response("", { status: 404 });
+			}
+			if (u === "https://example.com/") {
+				return new Response(
+					`<html><head><title>Main</title></head><body>
+						<a href="/missing">missing</a>
+						<a href="/gone">gone</a>
+					</body></html>`,
+					{
+						status: 200,
+						headers: { "content-type": "text/html; charset=utf-8" },
+					},
+				);
+			}
+			if (u === "https://example.com/missing") {
+				return new Response("Not Found", { status: 404 });
+			}
+			if (u === "https://example.com/gone") {
+				return new Response("Gone", { status: 410 });
+			}
+
+			return new Response("", { status: 500 });
+		});
+		vi.stubGlobal("fetch", fetchMock);
+
+		const result = await crawlSite("https://example.com/", {
+			enableJsRendering: false,
+			maxPagesPerSite: 3,
+			requestIntervalMs: 0,
+			totalTimeoutMs: 5_000,
+			useSitemap: false,
+		});
+
+		expect(result.partialResult).toBe(true);
+		const missing = result.pages.find(
+			(page) => page.url === "https://example.com/missing",
+		);
+		const gone = result.pages.find(
+			(page) => page.url === "https://example.com/gone",
+		);
+
+		expect(missing?.statusCode).toBe(404);
+		expect(missing?.failureReason).toBe("HTTP_4xx");
+		expect(gone?.statusCode).toBe(410);
+		expect(gone?.failureReason).toBe("HTTP_4xx");
+	});
+
+	it("preserves secondary HTTP 5xx status with failure reason", async () => {
+		const fetchMock = vi.fn(async (url: string | URL | Request) => {
+			const u = typeof url === "string" ? url : (url as URL).toString();
+
+			if (u.endsWith("/robots.txt")) {
+				return new Response("", { status: 404 });
+			}
+			if (u === "https://example.com/") {
+				return new Response(
+					`<html><head><title>Main</title></head><body>
+						<a href="/server-error">server</a>
+					</body></html>`,
+					{
+						status: 200,
+						headers: { "content-type": "text/html; charset=utf-8" },
+					},
+				);
+			}
+			if (u === "https://example.com/server-error") {
+				return new Response("Server Error", { status: 500 });
+			}
+
+			return new Response("", { status: 404 });
+		});
+		vi.stubGlobal("fetch", fetchMock);
+
+		const result = await crawlSite("https://example.com/", {
+			enableJsRendering: false,
+			maxPagesPerSite: 2,
+			requestIntervalMs: 0,
+			totalTimeoutMs: 5_000,
+			useSitemap: false,
+		});
+
+		const failed = result.pages.find(
+			(page) => page.url === "https://example.com/server-error",
+		);
+		expect(result.partialResult).toBe(true);
+		expect(failed?.statusCode).toBe(500);
+		expect(failed?.failureReason).toBe("HTTP_5xx");
+	});
+
+	it("exposes secondary redirect final URL and exact hop count", async () => {
+		const fetchMock = vi.fn(async (url: string | URL | Request) => {
+			const u = typeof url === "string" ? url : (url as URL).toString();
+
+			if (u.endsWith("/robots.txt")) {
+				return new Response("", { status: 404 });
+			}
+			if (u === "https://example.com/") {
+				return new Response(
+					`<html><head><title>Main</title></head><body>
+						<a href="/redirect-me">redirect</a>
+					</body></html>`,
+					{
+						status: 200,
+						headers: { "content-type": "text/html; charset=utf-8" },
+					},
+				);
+			}
+			if (u === "https://example.com/redirect-me") {
+				return new Response("", {
+					status: 301,
+					headers: { location: "https://example.com/secondary-final" },
+				});
+			}
+			if (u === "https://example.com/secondary-final") {
+				return new Response(
+					"<html><head><title>Secondary</title></head><body></body></html>",
+					{
+						status: 200,
+						headers: { "content-type": "text/html; charset=utf-8" },
+					},
+				);
+			}
+
+			return new Response("", { status: 404 });
+		});
+		vi.stubGlobal("fetch", fetchMock);
+
+		const result = await crawlSite("https://example.com/", {
+			enableJsRendering: false,
+			maxPagesPerSite: 2,
+			requestIntervalMs: 0,
+			totalTimeoutMs: 5_000,
+			useSitemap: false,
+		});
+
+		const secondary = result.pages.find(
+			(page) => page.url === "https://example.com/secondary-final",
+		);
+		expect(secondary?.statusCode).toBe(200);
+		expect(secondary?.redirectChainLength).toBe(1);
+		expect(secondary?.httpProtocol).toBeNull();
+	});
+
+	it("exposes final URL, exact redirect hop count, and unavailable protocol as null", async () => {
+		const fetchMock = vi.fn(async (url: string | URL | Request) => {
+			const u = typeof url === "string" ? url : (url as URL).toString();
+
+			if (u.endsWith("/robots.txt")) {
+				return new Response("", { status: 404 });
+			}
+			if (u === "https://example.com/") {
+				return new Response("", {
+					status: 302,
+					headers: { location: "https://example.com/final" },
+				});
+			}
+			if (u === "https://example.com/final") {
+				return new Response(
+					"<html><head><title>Final</title></head><body></body></html>",
+					{
+						status: 200,
+						headers: { "content-type": "text/html; charset=utf-8" },
+					},
+				);
+			}
+
+			return new Response("", { status: 404 });
+		});
+		vi.stubGlobal("fetch", fetchMock);
+
+		const result = await crawlSite("https://example.com/", {
+			enableJsRendering: false,
+			maxPagesPerSite: 1,
+			totalTimeoutMs: 5_000,
+			useSitemap: false,
+		});
+
+		const main = result.pages[0];
+		expect(main?.url).toBe("https://example.com/final");
+		expect(main?.redirectChainLength).toBe(1);
+		expect(main?.httpProtocol).toBeNull();
+	});
+
+	it("records zero redirect hops for a direct response", async () => {
+		stubFetchWithHtml(SIMPLE_STATIC_HTML);
+
+		const result = await crawlSite("https://example.com/", {
+			enableJsRendering: false,
+			maxPagesPerSite: 1,
+			totalTimeoutMs: 5_000,
+			useSitemap: false,
+		});
+
+		expect(result.pages[0]?.redirectChainLength).toBe(0);
+		expect(result.pages[0]?.httpProtocol).toBeNull();
+	});
+});
+
 describe("crawlSite secondary JS-rendered pages", () => {
 	it("renders discovered secondary SPA pages when JS rendering is enabled", async () => {
 		const staticShell = `

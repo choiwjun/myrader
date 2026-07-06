@@ -201,6 +201,7 @@ function toPipelineInput(
     sourceType: payload.sourceType ?? "website",
     businessProfile: payload.businessProfile,
     modules: payload.modules,
+    scoringMode: "graded",
     // 무료/기본 경로: AI 추천·grounded 는 게이트 통과 시에만.
     enableAiRecommendation: false,
     enableLlmValidation,
@@ -300,14 +301,14 @@ export function buildDiagnosisHandler(deps: DiagnosisHandlerDeps): JobHandler<Di
     const payload = job.payload;
     const diagnosisId = payload.diagnosisId;
 
-    // 골격/하위호환 잡 가드: diagnosisId/businessProfile 가 없으면 파이프라인을 건너뛰고
-    // completed 로 마감한다(엔진 입력 불가 — 크래시 대신 무해 완료). 정상 진단 잡은 route 가
-    // 항상 두 값을 채운다. (이전 InMemory 핸들러의 동일 가드 동작을 보존.)
-    if (!diagnosisId || !payload.businessProfile) {
-      return;
+    if (!diagnosisId) {
+      throw new Error("diagnosis job payload missing diagnosisId");
     }
 
     try {
+      if (!payload.businessProfile) {
+        throw new Error("diagnosis job payload missing businessProfile");
+      }
       // ★ 타임아웃(수정R2-A-3): 핸들러 전체를 상한 시간으로 감싼다. 초과 시 DiagnosisTimeoutError →
       //   catch 에서 markDiagnosisFailed(reason=TIMEOUT). 멈춘 외부 의존이 잡을 영구 running 으로
       //   고착시키지 못하게 한다(고착 방지). 엔진 자체 스테이지 타임아웃과 중첩되는 상위 가드.

@@ -188,6 +188,15 @@ describe("AEO-DURATION-INFO-001: 소요 시간 시맨틱 검증", () => {
 		expect(r.passed).toBe(false);
 	});
 
+	it("FALSE-POSITIVE: 날짜의 '1일'은 소요시간으로 보지 않는다", () => {
+		const r = aeoDurationInfo001(
+			makeCtx({
+				bodyText: "공지사항은 2025년 1월 1일에 업데이트되었습니다.",
+			}),
+		);
+		expect(r.passed).toBe(false);
+	});
+
 	it("TRUE-POSITIVE: '소요시간 30분' 처럼 숫자+단위 소요 문맥이면 통과", () => {
 		const r = aeoDurationInfo001(
 			makeCtx({

@@ -117,7 +117,11 @@ async function parseFetchedPage(
 		fetchResult.html,
 		fetchResult.url,
 		fetchResult.statusCode,
-		{ contentLanguageHeader: fetchResult.contentLanguageHeader },
+		{
+			contentLanguageHeader: fetchResult.contentLanguageHeader,
+			httpProtocol: fetchResult.httpProtocol,
+			redirectChainLength: fetchResult.redirectChainLength,
+		},
 	);
 
 	if (jsRenderContext.type === "disabled") return staticPage;
@@ -144,6 +148,8 @@ async function parseFetchedPage(
 		);
 		return parseHtml(rendered.html, rendered.finalUrl, rendered.statusCode, {
 			contentLanguageHeader: fetchResult.contentLanguageHeader,
+			httpProtocol: fetchResult.httpProtocol,
+			redirectChainLength: fetchResult.redirectChainLength,
 		});
 	} catch (err) {
 		console.warn(
@@ -356,7 +362,17 @@ export async function crawlSite(
 
 				if (result.type === "error") {
 					// 개별 페이지 실패 → partialResult = true, 계속 진행
-					const failedPage = parseHtml("", url, 0, result.reason);
+					const failedPage = parseHtml(
+						"",
+						result.url ?? url,
+						result.statusCode ?? 0,
+						{
+							failureReason: result.reason,
+							contentLanguageHeader: result.contentLanguageHeader,
+							httpProtocol: result.httpProtocol,
+							redirectChainLength: result.redirectChainLength,
+						},
+					);
 					pages.push(failedPage);
 					partialResult = true;
 					continue;
@@ -398,12 +414,19 @@ type FetchSuccess = {
 	url: string;
 	statusCode: number;
 	contentLanguageHeader: string | null;
+	httpProtocol: ParsedPage["httpProtocol"];
+	redirectChainLength: number;
 };
 
 type FetchError = {
 	type: "error";
 	reason: CrawlFailureReason;
 	message?: string;
+	url?: string;
+	statusCode?: number;
+	contentLanguageHeader?: string | null;
+	httpProtocol?: ParsedPage["httpProtocol"];
+	redirectChainLength?: number;
 };
 
 async function fetchPage(
@@ -490,27 +513,38 @@ async function fetchPage(
 		const contentLanguageHeader = finalRes.headers.get("content-language");
 
 		if (statusCode >= 500) {
-			return { type: "error", reason: "HTTP_5xx" };
+			return {
+				type: "error",
+				reason: "HTTP_5xx",
+				url: finalUrl,
+				statusCode,
+				contentLanguageHeader,
+				httpProtocol: null,
+				redirectChainLength: redirectCount,
+			};
 		}
 		if (statusCode >= 400) {
-			return { type: "error", reason: "HTTP_4xx" };
+			return {
+				type: "error",
+				reason: "HTTP_4xx",
+				url: finalUrl,
+				statusCode,
+				contentLanguageHeader,
+				httpProtocol: null,
+				redirectChainLength: redirectCount,
+			};
 		}
 
 		// 응답 크기 제한 (POLICY § 4.2: 5MB)
-		const contentLength = Number.parseInt(
-			finalRes.headers.get("content-length") ?? "0",
-			10,
-		);
-		if (contentLength > options.maxResponseBytes) {
-			// 크기 초과 시 잘라서 읽기
-		}
+		// Fetch Response exposes bytes only after read in this runtime path; the slice
+		// below remains the enforcement point before handing HTML to the parser.
 
 		const buffer = await finalRes.arrayBuffer();
 		const sliced =
 			buffer.byteLength > options.maxResponseBytes
 				? buffer.slice(0, options.maxResponseBytes)
 				: buffer;
-		const html = new TextDecoder().decode(sliced);
+		const html = decodeHtmlBytes(sliced, finalRes.headers.get("content-type"));
 
 		return {
 			type: "success",
@@ -518,6 +552,8 @@ async function fetchPage(
 			url: finalUrl,
 			statusCode,
 			contentLanguageHeader,
+			httpProtocol: null,
+			redirectChainLength: redirectCount,
 		};
 	} catch (err: unknown) {
 		clearTimeout(timer);
@@ -558,6 +594,51 @@ function classifyFetchError(err: unknown): FetchError {
 		}
 	}
 	return { type: "error", reason: "CONNECTION_REFUSED" };
+}
+
+function decodeHtmlBytes(bytes: ArrayBuffer, contentType: string | null): string {
+	const declaredCharset =
+		extractCharset(contentType) ?? extractEarlyMetaCharset(bytes);
+	return decodeWithFallback(bytes, declaredCharset);
+}
+
+function extractCharset(value: string | null | undefined): string | null {
+	if (!value) return null;
+	const match = value.match(/charset\s*=\s*["']?\s*([^;"'\s]+)/i);
+	return match?.[1]?.trim() || null;
+}
+
+function extractEarlyMetaCharset(bytes: ArrayBuffer): string | null {
+	const prefix = new Uint8Array(bytes, 0, Math.min(bytes.byteLength, 4096));
+	let ascii = "";
+	for (const byte of prefix) {
+		ascii += byte <= 0x7f ? String.fromCharCode(byte) : " ";
+	}
+
+	const metaTags = ascii.match(/<meta\b[^>]*>/gi) ?? [];
+	for (const tag of metaTags) {
+		const directCharset = tag.match(/\bcharset\s*=\s*["']?\s*([^"'\s/>]+)/i);
+		if (directCharset?.[1]) return directCharset[1].trim();
+
+		if (/http-equiv\s*=\s*["']?content-type["']?/i.test(tag)) {
+			const contentTypeCharset = extractCharset(tag);
+			if (contentTypeCharset) return contentTypeCharset;
+		}
+	}
+
+	return null;
+}
+
+function decodeWithFallback(bytes: ArrayBuffer, charset: string | null): string {
+	if (charset) {
+		try {
+			return new TextDecoder(charset).decode(bytes);
+		} catch {
+			// Unsupported charset label: safely fall back to UTF-8 below.
+		}
+	}
+
+	return new TextDecoder("utf-8").decode(bytes);
 }
 
 // ---------------------------------------------------------------------------

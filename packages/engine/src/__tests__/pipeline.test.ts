@@ -19,8 +19,24 @@ import type { CrawlResult, ParsedPage } from "../types.js";
 vi.mock("../crawler.js", () => ({
 	crawlSite: vi.fn(),
 }));
+vi.mock("../v2/a11y/analyzer.js", () => ({
+	createA11yAnalyzer: vi.fn(async () => ({
+		analyze: vi.fn(async () => ({
+			violations: [],
+			passes: 1,
+			incomplete: 0,
+			inapplicable: 0,
+			totalRules: 1,
+			wcag21AaCompliance: 1,
+			source: "mock",
+			measuredAt: "2026-05-19T08:00:00.000Z",
+		})),
+	})),
+}));
+
 
 import { crawlSite } from "../crawler.js";
+import { createA11yAnalyzer } from "../v2/a11y/analyzer.js";
 import { runDiagnosisPipeline } from "../pipeline.js";
 
 // ---------------------------------------------------------------------------
@@ -106,7 +122,7 @@ describe("Case 1: 정상 흐름 — mock crawler + 파이프라인 전체 실행
 		expect(output.scores.seoScore).toBeGreaterThanOrEqual(0);
 		expect(output.scores.seoScore).toBeLessThanOrEqual(100);
 		expect(output.scores.overallScore).toBeGreaterThanOrEqual(0);
-		expect(output.scores.scoringVersion).toBe("2.0.0");
+		expect(output.scores.scoringVersion).toBe("2.1.0");
 
 		// items
 		expect(Array.isArray(output.items)).toBe(true);
@@ -702,8 +718,8 @@ describe("Case 5: enableA11yAnalysis — a11y items, score-neutrality, fail-soft
 		// a11y items may or may not be present (depends on providers in test env),
 		// but no pipeline error should be thrown
 		expect(Array.isArray(output?.items)).toBe(true);
-		// a11y 경로는 jsdom/axe-core 를 콜드 로드하므로 기본 5s 타임아웃을 부하 상황에서
-		// 우연히 초과할 수 있다(단독/warm 실행 시 ~0.7~2.2s). flaky 방지를 위해 15s 부여.
+		// a11y provider is mocked in this unit suite so the pipeline contract is
+		// verified without loading axe/jsdom or making the test environment flaky.
 	}, 15_000);
 
 	it("score-neutrality: scores identical with and without enableA11yAnalysis on same input", async () => {
@@ -732,10 +748,9 @@ describe("Case 5: enableA11yAnalysis — a11y items, score-neutrality, fail-soft
 	});
 
 	it("fail-soft: if a11y step throws, pipeline still returns without throwing", async () => {
-		// Mock createA11yAnalyzer to throw
-		vi.doMock("../v2/a11y/analyzer.js", () => ({
-			createA11yAnalyzer: vi.fn().mockRejectedValue(new Error("a11y provider unavailable")),
-		}));
+		vi.mocked(createA11yAnalyzer).mockRejectedValueOnce(
+			new Error("a11y provider unavailable"),
+		);
 
 		let thrownError: unknown;
 		let output: Awaited<ReturnType<typeof runDiagnosisPipeline>> | undefined;
@@ -754,7 +769,6 @@ describe("Case 5: enableA11yAnalysis — a11y items, score-neutrality, fail-soft
 		expect(output).toBeDefined();
 		expect(output?.scores).toBeDefined();
 
-		vi.doUnmock("../v2/a11y/analyzer.js");
 	});
 });
 
@@ -1113,6 +1127,6 @@ describe("GAP 3: per-stage timeout budgets", () => {
 		});
 
 		expect(output.crawlResult.pages).toHaveLength(1);
-		expect(output.scores.scoringVersion).toBe("2.0.0");
+		expect(output.scores.scoringVersion).toBe("2.1.0");
 	});
 });

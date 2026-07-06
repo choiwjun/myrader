@@ -38,6 +38,8 @@ describe("parseHtml — 케이스 1: 정상 HTML", () => {
         <a href="/menu">메뉴 보기</a>
         <a href="https://naver.com">네이버</a>
         <img src="/logo.png" alt="카페 로고" loading="lazy" width="200" height="80">
+        <a href="mailto:info@example.com?subject=문의">이메일 문의</a>
+        <a href="tel:+82-2-1234-5678">전화 문의</a>
         <img src="/food.jpg" alt="">
       </body>
     </html>
@@ -98,6 +100,40 @@ describe("parseHtml — 케이스 1: 정상 HTML", () => {
 		expect(page.images[1].loading).toBeUndefined();
 		expect(page.images[1].width).toBeUndefined();
 		expect(page.images[1].height).toBeUndefined();
+	});
+
+	it("paragraphs/textBlocks 가 bodyText 와 별개로 블록 경계를 보존한다", () => {
+		expect(page.bodyText).toContain(
+			"아메리카노 4,500원. 케이크도 있어요. 메뉴 보기",
+		);
+		expect(page.paragraphs).toEqual(["아메리카노 4,500원. 케이크도 있어요."]);
+		expect(page.textBlocks).toEqual([
+			{ tag: "h1", text: "강남 카페 메인" },
+			{ tag: "h2", text: "우리 메뉴" },
+			{ tag: "h2", text: "오시는 길" },
+			{ tag: "p", text: "아메리카노 4,500원. 케이크도 있어요." },
+		]);
+	});
+
+	it("contactLinks 에 tel/mailto 를 구조화하고 HTTP 링크 배열에서는 제외한다", () => {
+		expect(page.contactLinks).toEqual([
+			{
+				kind: "mailto",
+				href: "mailto:info@example.com?subject=문의",
+				value: "info@example.com",
+				text: "이메일 문의",
+			},
+			{
+				kind: "tel",
+				href: "tel:+82-2-1234-5678",
+				value: "+82-2-1234-5678",
+				text: "전화 문의",
+			},
+		]);
+		expect(page.internalLinks).not.toContain("mailto:info@example.com?subject=문의");
+		expect(page.internalLinks).not.toContain("tel:+82-2-1234-5678");
+		expect(page.externalLinks).not.toContain("mailto:info@example.com?subject=문의");
+		expect(page.externalLinks).not.toContain("tel:+82-2-1234-5678");
 	});
 
 	it("linkTags 에서 rel/href/hreflang 를 추출한다 (rel 소문자, 없으면 null)", () => {
@@ -216,6 +252,24 @@ describe("parseHtml — 케이스 3: FAQ Schema", () => {
 		expect(schemas.some((s) => s["@type"] === "FAQPage")).toBe(true);
 	});
 
+	it("@graph 내부 FAQPage 도 hasFAQ=true 로 인식한다", () => {
+		const graphSchema = JSON.stringify({
+			"@context": "https://schema.org",
+			"@graph": [
+				{ "@type": "WebSite", name: "르시그널" },
+				{ "@type": "FAQPage", mainEntity: [] },
+			],
+		});
+		const graphHtml = `
+      <html><head>
+        <script type="application/ld+json">${graphSchema}</script>
+      </head><body><h1>일반 안내</h1></body></html>
+    `;
+		const graphPage = parseHtml(graphHtml, BASE_URL, 200);
+
+		expect(graphPage.hasFAQ).toBe(true);
+	});
+
 	it("잘못된 JSON-LD 는 무시된다", () => {
 		const htmlWithBroken = `
       <html><head>
@@ -295,6 +349,57 @@ describe("parseHtml — 케이스 5: multiple H1", () => {
 	it("h2 는 H1 텍스트를 포함하지 않는다", () => {
 		expect(page.h2).not.toContain("첫 번째 H1");
 		expect(page.h2).not.toContain("두 번째 H1");
+	});
+});
+describe("parseHtml — structured parser signals", () => {
+	it("headingStructure 는 H1~H6 를 문서 순서대로 interleaving 보존한다", () => {
+		const html = `
+    <html><head><title>t</title></head>
+      <body>
+        <h2>먼저 나온 H2</h2>
+        <h1>나중 H1</h1>
+        <h3>하위 H3</h3>
+        <h2>다음 H2</h2>
+      </body>
+    </html>
+  `;
+		const page = parseHtml(html, BASE_URL, 200);
+
+		expect(page.h1).toBe("나중 H1");
+		expect(page.h2).toEqual(["먼저 나온 H2", "다음 H2"]);
+		expect(page.h3).toEqual(["하위 H3"]);
+		expect(page.headingStructure).toEqual([
+			{ level: 2, text: "먼저 나온 H2" },
+			{ level: 1, text: "나중 H1" },
+			{ level: 3, text: "하위 H3" },
+			{ level: 2, text: "다음 H2" },
+		]);
+	});
+
+	it("여러 단락과 텍스트 블록을 collapse 하지 않고 순서대로 노출한다", () => {
+		const html = `
+    <html><head><title>t</title></head>
+      <body>
+        <p>첫 문단입니다. 문장 경계를 유지합니다.</p>
+        <div>래퍼 텍스트 <p>두 번째 문단입니다.</p></div>
+        <ul><li>목록 블록</li></ul>
+      </body>
+    </html>
+  `;
+		const page = parseHtml(html, BASE_URL, 200);
+
+		expect(page.bodyText).toBe(
+			"첫 문단입니다. 문장 경계를 유지합니다. 래퍼 텍스트 두 번째 문단입니다. 목록 블록",
+		);
+		expect(page.paragraphs).toEqual([
+			"첫 문단입니다. 문장 경계를 유지합니다.",
+			"두 번째 문단입니다.",
+		]);
+		expect(page.textBlocks).toEqual([
+			{ tag: "p", text: "첫 문단입니다. 문장 경계를 유지합니다." },
+			{ tag: "p", text: "두 번째 문단입니다." },
+			{ tag: "li", text: "목록 블록" },
+		]);
 	});
 });
 

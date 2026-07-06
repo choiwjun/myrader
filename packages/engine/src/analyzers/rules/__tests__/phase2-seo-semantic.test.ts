@@ -17,7 +17,7 @@ import { describe, expect, it } from "vitest";
 import type { ParsedPage } from "../../../types.js";
 import type { RuleContext } from "../../types.js";
 
-import { seoAmpValid001, seoSitemap001 } from "../seo-rules.js";
+import { seoAmpValid001, seoBreadcrumb001, seoSitemap001, seoStructuredData001, seoXmlSitemapValid001 } from "../seo-rules.js";
 // NOTE: SEO-IMG-LAZY-001 / SEO-IMG-DIMENSIONS-001 은 Phase 2.5 에서 실측으로 승격되어
 // 커버리지가 phase25-seo-semantic.test.ts 로 이관되었다(여기서는 더 이상 테스트하지 않음).
 
@@ -54,6 +54,7 @@ function makePage(overrides: Partial<ParsedPage> = {}): ParsedPage {
 function makeCtx(
 	pageOverrides: Partial<ParsedPage> = {},
 	profileOverrides: Partial<RuleContext["businessProfile"]> = {},
+	sitemapUsed?: boolean,
 ): RuleContext {
 	const mainPage = makePage(pageOverrides);
 	return {
@@ -67,6 +68,7 @@ function makeCtx(
 			targetKeywords: ["강남 카페", "브런치"],
 			...profileOverrides,
 		},
+		...(sitemapUsed !== undefined && { sitemapUsed }),
 	};
 }
 
@@ -118,6 +120,58 @@ describe("SEO-SITEMAP-001: sitemap.xml 링크 기반 시맨틱 검증", () => {
 		);
 		expect(r.passed).toBe(true);
 	});
+
+	it("TRUE-POSITIVE: crawler sitemapUsed 실측 신호가 있으면 visible sitemap 링크 없이도 통과", () => {
+		const r = seoSitemap001(
+			makeCtx(
+				{
+					bodyText: "르시그널에 오신 것을 환영합니다.",
+					internalLinks: [],
+					externalLinks: [],
+				},
+				{},
+				true,
+			),
+		);
+		expect(r.passed).toBe(true);
+	});
+
+	it("TRUE-POSITIVE: XML sitemap valid 룰도 crawler sitemapUsed 실측 신호를 사용한다", () => {
+		const r = seoXmlSitemapValid001(makeCtx({}, {}, true));
+		expect(r.passed).toBe(true);
+	});
+});
+
+describe("SEO-BREADCRUMB-001: @graph BreadcrumbList 평탄화", () => {
+	it("TRUE-POSITIVE: @graph 내부 BreadcrumbList를 인식한다", () => {
+		const r = seoBreadcrumb001(
+			makeCtx({
+				schemaJsonLd: [
+					{
+						"@context": "https://schema.org",
+						"@graph": [
+							{ "@type": "WebSite", name: "르시그널" },
+							{ "@type": "BreadcrumbList", itemListElement: [] },
+						],
+					},
+				],
+			}),
+		);
+
+		expect(r.passed).toBe(true);
+	});
+});
+
+describe("SEO-STRUCTURED-DATA-001: valid JSON-LD record counting", () => {
+	it("FALSE-POSITIVE: primitive JSON-LD payload alone is not counted as structured data", () => {
+		const r = seoStructuredData001(
+			makeCtx({
+				schemaJsonLd: ["not a schema node"],
+			}),
+		);
+
+		expect(r.passed).toBe(false);
+	});
 });
 
 // ===========================================================================
@@ -142,6 +196,7 @@ describe("SEO-AMP-VALID-001: AMP informational 강등", () => {
 		expect(r.ruleId).toBe("SEO-AMP-VALID-001");
 		expect(r.passed).toBe(true);
 		expect(r.ruleWeight).toBe(3);
+		expect(r.scoreImpact).toBe("unavailable");
 		expect(r.evidence.join(" ")).toContain("미수집");
 	});
 

@@ -122,7 +122,7 @@ function fakeJob(payload: DiagnosisJobPayload) {
 }
 
 describe("진단 파이프라인 배선 (P1-R2, mock 엔진)", () => {
-  it("핸들러가 파이프라인을 실행하고 DiagnosisJson 결과를 diagnoses 행에 반영한다 (completed + overallSignal)", async () => {
+  it("핸들러가 production scoring 기본값 결함을 막기 위해 graded scoring 을 명시하고 DiagnosisJson 결과를 diagnoses 행에 반영한다", async () => {
     const repo = makeFakeRepo();
     const runPipeline = vi.fn().mockResolvedValue(mockPipelineOutput(82));
 
@@ -130,6 +130,8 @@ describe("진단 파이프라인 배선 (P1-R2, mock 엔진)", () => {
     await handler(fakeJob(PAYLOAD));
 
     expect(runPipeline).toHaveBeenCalledTimes(1);
+    const passedInput = runPipeline.mock.calls[0]?.[0] as { scoringMode?: unknown };
+    expect(passedInput.scoringMode).toBe("graded");
     const row = await repo.findById("diag-1");
     expect(row?.status).toBe("completed");
     // 엔진 점수(82) → diagnoses.overallScore 반영, completedAt stamp.
@@ -149,7 +151,40 @@ describe("진단 파이프라인 배선 (P1-R2, mock 엔진)", () => {
     expect(row?.completedAt).not.toBeNull();
   });
 
-  it("비용 게이팅: 게이트 차단 시 llmValidation/grounded 비활성(실외부호출 0)으로 파이프라인 실행", async () => {
+  it("diagnosisId 는 있지만 businessProfile 이 누락된 malformed 잡은 파이프라인을 건너뛰지 않고 failed 로 전이한 뒤 reject 한다", async () => {
+    const repo = makeFakeRepo();
+    const runPipeline = vi.fn().mockResolvedValue(mockPipelineOutput(82));
+    const malformedPayload = {
+      ...PAYLOAD,
+      businessProfile: undefined,
+    } as unknown as DiagnosisJobPayload;
+
+    const handler = buildDiagnosisHandler({ repo, runPipeline });
+    await expect(handler(fakeJob(malformedPayload))).rejects.toThrow(/businessProfile/);
+
+    expect(runPipeline).not.toHaveBeenCalled();
+    const row = await repo.findById("diag-1");
+    expect(row?.status).toBe("failed");
+    expect(row?.completedAt).not.toBeNull();
+  });
+
+  it("diagnosisId 가 누락된 malformed 잡도 success 반환 없이 reject 한다", async () => {
+    const repo = makeFakeRepo();
+    const runPipeline = vi.fn().mockResolvedValue(mockPipelineOutput(82));
+    const malformedPayload = {
+      ...PAYLOAD,
+      diagnosisId: undefined,
+    } as unknown as DiagnosisJobPayload;
+
+    const handler = buildDiagnosisHandler({ repo, runPipeline });
+    await expect(handler(fakeJob(malformedPayload))).rejects.toThrow(/diagnosisId/);
+
+    expect(runPipeline).not.toHaveBeenCalled();
+    const row = await repo.findById("diag-1");
+    expect(row?.status).toBe("running");
+  });
+
+  it("비용 게이팅: 게이트 차단 시 llmValidation/grounded 비활성(실외부호출 0)으로 파이프라인 실행하되 scoringMode 는 graded 유지", async () => {
     const repo = makeFakeRepo();
     const runPipeline = vi.fn().mockResolvedValue(mockPipelineOutput(70));
 
@@ -163,8 +198,12 @@ describe("진단 파이프라인 배선 (P1-R2, mock 엔진)", () => {
 
     // 게이트가 호출되었고(비용 작업 보호), 파이프라인은 grounded/llm 비활성으로 받았다.
     expect(denyGate).toHaveBeenCalled();
-    const passedInput = runPipeline.mock.calls[0]?.[0] as { enableLlmValidation?: boolean };
+    const passedInput = runPipeline.mock.calls[0]?.[0] as {
+      enableLlmValidation?: boolean;
+      scoringMode?: unknown;
+    };
     expect(passedInput.enableLlmValidation).toBe(false);
+    expect(passedInput.scoringMode).toBe("graded");
   });
 
   it("비용 게이팅 허용 + LLM 미요청: 기본은 llmValidation 비활성(무분별 호출 금지)", async () => {

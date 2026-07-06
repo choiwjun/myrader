@@ -312,12 +312,12 @@ describe("malformed-html — inline 페이로드", () => {
 		expect(page.externalLinks).toHaveLength(0);
 	});
 
-	it("a 태그의 href 가 javascript:/mailto:/tel: 이면 link 에 포함되지 않음", () => {
+	it("a 태그의 href 가 javascript:/mailto:/tel: 이면 HTTP link 에는 포함되지 않고 연락처는 분리 수집", () => {
 		const html = `
       <html><head><title>t</title></head>
       <body>
         <a href="javascript:void(0)">js</a>
-        <a href="mailto:a@b.com">메일</a>
+        <a href="mailto:a@b.com?subject=x">메일</a>
         <a href="tel:+82-2-1234">전화</a>
         <a href="#section">앵커</a>
         <a href="/page">정상</a>
@@ -327,6 +327,20 @@ describe("malformed-html — inline 페이로드", () => {
 		// /page 만 internal 에 포함
 		expect(page.internalLinks).toEqual([`${BASE_URL}page`]);
 		expect(page.externalLinks).toEqual([]);
+		expect(page.contactLinks).toEqual([
+			{
+				kind: "mailto",
+				href: "mailto:a@b.com?subject=x",
+				value: "a@b.com",
+				text: "메일",
+			},
+			{
+				kind: "tel",
+				href: "tel:+82-2-1234",
+				value: "+82-2-1234",
+				text: "전화",
+			},
+		]);
 	});
 
 	it("a 태그의 href 가 비표준 scheme (ftp://, file://) 이면 http 만 수집되므로 link 에 포함되지 않음", () => {
@@ -388,5 +402,40 @@ describe("malformed-html — inline 페이로드", () => {
 		const page = mockParsedPage(html);
 		expect(page.schemaJsonLd).toEqual([]);
 		expect(page.hasSchema).toBe(false);
+	});
+	it("malformed HTML 에서도 paragraphs/textBlocks 경계를 best-effort 로 노출한다", () => {
+		const html =
+			"<html><body><p>첫 문단</p><p>두 번째 <strong>문단</strong></p><ul><li>목록 항목</li></ul>";
+		const page = parseHtml(html, BASE_URL, 200);
+		expect(page.paragraphs).toEqual(["첫 문단", "두 번째 문단"]);
+		expect(page.textBlocks).toEqual([
+			{ tag: "p", text: "첫 문단" },
+			{ tag: "p", text: "두 번째 문단" },
+			{ tag: "li", text: "목록 항목" },
+		]);
+	});
+
+	it("잘못된 JSON-LD skip 동작은 structured text/contact 추출과 함께 유지된다", () => {
+		const html = `
+      <html><head>
+        <script type="application/ld+json">{ broken json }</script>
+        <script type="application/ld+json">{"@type":"LocalBusiness"}</script>
+      </head><body>
+        <p>본문 단락</p>
+        <a href="mailto:owner@example.co.kr">메일</a>
+      </body></html>
+    `;
+		const page = parseHtml(html, BASE_URL, 200);
+		expect(page.schemaJsonLd).toEqual([{ "@type": "LocalBusiness" }]);
+		expect(page.hasSchema).toBe(true);
+		expect(page.paragraphs).toEqual(["본문 단락"]);
+		expect(page.contactLinks).toEqual([
+			{
+				kind: "mailto",
+				href: "mailto:owner@example.co.kr",
+				value: "owner@example.co.kr",
+				text: "메일",
+			},
+		]);
 	});
 });

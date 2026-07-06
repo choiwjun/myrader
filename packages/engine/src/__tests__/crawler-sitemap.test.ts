@@ -119,6 +119,33 @@ describe("crawlSite + sitemap (BACKLOG-G P3) — sitemap 발견", () => {
 		expect(result.pages[1]?.title).toBe("P1");
 	});
 
+	it("sitemapUsed remains true when a sitemap-selected secondary page fails", async () => {
+		const sitemapResult: SitemapResult = {
+			source: "sitemap",
+			fetchedAt: new Date().toISOString(),
+			urls: [{ loc: "https://example.com/missing-from-sitemap", priority: 0.9 }],
+		};
+		__setSitemapFetcher(async () => sitemapResult);
+
+		stubFetchByMap({
+			"https://example.com/robots.txt": { status: 404 },
+			"https://example.com/": { status: 200, body: STATIC_HTML },
+			"https://example.com/missing-from-sitemap": { status: 404 },
+		});
+
+		const result = await crawlSite("https://example.com/", {
+			maxPagesPerSite: 5,
+			totalTimeoutMs: 10_000,
+			requestIntervalMs: 0,
+		});
+
+		expect(result.sitemapUsed).toBe(true);
+		expect(result.partialResult).toBe(true);
+		expect(result.pages[1]?.url).toBe("https://example.com/missing-from-sitemap");
+		expect(result.pages[1]?.statusCode).toBe(404);
+		expect(result.pages[1]?.failureReason).toBe("HTTP_4xx");
+	});
+
 	it("sitemap URL 이 maxPagesPerSite 보다 많으면 priority 내림차순으로 truncate", async () => {
 		const sitemapResult: SitemapResult = {
 			source: "sitemap",

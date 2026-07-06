@@ -30,6 +30,8 @@ import {
 	getPostalAddress,
 	getSchemaNodes,
 	getTelephone,
+	isLocalBusinessNode,
+	isOrganizationNode,
 	isPresent,
 } from "../shared/schema-validator.js";
 import { extractSentencesAround } from "../shared/text-utils.js";
@@ -79,10 +81,28 @@ function realAddresses(
 	});
 }
 
-/** <a href="tel:..."> / <a href="mailto:..."> 힌트가 bodyText/meta 에 노출됐는지. */
-function hasTelOrMailtoHint(bodyText: string): boolean {
-	const lower = bodyText.toLowerCase();
-	return lower.includes("tel:") || lower.includes("mailto:");
+function getBodyParagraphs(page: {
+	paragraphs?: string[] | undefined;
+	textBlocks?: { tag: string; text: string }[] | undefined;
+	bodyText: string;
+}): string[] {
+	const normalize = (items: string[] | undefined): string[] =>
+		(items ?? []).map((p) => p.trim()).filter((p) => p.length > 0);
+
+	const paragraphs = normalize(page.paragraphs);
+	if (paragraphs.length > 0) return paragraphs;
+
+	const paragraphBlocks = normalize(
+		page.textBlocks
+			?.filter((block) => block.tag === "p")
+			.map((block) => block.text),
+	);
+	if (paragraphBlocks.length > 0) return paragraphBlocks;
+
+	return page.bodyText
+		.split(/\n{2,}/)
+		.map((p) => p.trim())
+		.filter((p) => p.length > 0);
 }
 
 /** 예시/문서용 이메일 (example@test.com 등) 여부. */
@@ -133,6 +153,121 @@ const hasValidHoursRange = (text: string): boolean => {
 	return false;
 };
 
+const KOREAN_TRAILING_PARTICLES = [
+	"으로", "에서", "에게", "께서", "부터", "까지", "처럼", "보다", "이라", "라고",
+	"이며", "이고", "입니다", "였다", "으로서", "은", "는", "이", "가", "을", "를",
+	"에", "의", "도", "만", "과", "와", "로", "랑", "께", "입", "예", "였", "라",
+	"고", "며", "지", "서",
+];
+
+const KOREAN_PLACE_SUFFIXES = [
+	"특별자치시", "특별자치도", "특별시", "광역시", "시", "군", "구", "동", "읍",
+	"면", "리", "로", "길", "대로", "역", "점",
+];
+
+const isBoundaryChar = (ch: string | undefined): boolean =>
+	ch === undefined || !/[가-힣A-Za-z0-9]/.test(ch);
+
+const hasAllowedKoreanTail = (
+	tail: string,
+	allowPlaceSuffixes: boolean,
+): boolean => {
+	if (tail.length === 0) return true;
+	if (!/^[가-힣]/.test(tail)) return !/^[A-Za-z0-9]/.test(tail);
+	const allowed = allowPlaceSuffixes
+		? [...KOREAN_PLACE_SUFFIXES, ...KOREAN_TRAILING_PARTICLES]
+		: KOREAN_TRAILING_PARTICLES;
+	return allowed.some((suffix) => tail.startsWith(suffix));
+};
+
+function hasBoundaryAwareMatch(
+	text: string,
+	rawNeedle: string,
+	options: { variants?: string[]; allowPlaceSuffixes?: boolean } = {},
+): boolean {
+	const variants = (options.variants ?? [rawNeedle])
+		.map((v) => v.trim().toLowerCase())
+		.filter((v) => v.length > 0)
+		.sort((a, b) => b.length - a.length);
+	const haystack = text.toLowerCase();
+
+	for (const variant of variants) {
+		let pos = haystack.indexOf(variant);
+		while (pos !== -1) {
+			const before = haystack[pos - 1];
+			const tail = haystack.slice(pos + variant.length);
+			if (
+				isBoundaryChar(before) &&
+				hasAllowedKoreanTail(tail, options.allowPlaceSuffixes ?? false)
+			) {
+				return true;
+			}
+			pos = haystack.indexOf(variant, pos + 1);
+		}
+	}
+
+	return false;
+}
+
+function escapeRegExpLiteral(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function hasFlexibleSpacingKoreanMatch(text: string, variant: string): boolean {
+	const compact = variant.replace(/\s+/g, "").toLowerCase();
+	if (compact.length < 2 || !/[가-힣]/.test(compact)) return false;
+
+	const pattern = [...compact].map(escapeRegExpLiteral).join("\\s*");
+	const regex = new RegExp(pattern, "gi");
+	const haystack = text.toLowerCase();
+	for (const match of haystack.matchAll(regex)) {
+		const idx = match.index ?? 0;
+		const before = haystack[idx - 1];
+		const tail = haystack.slice(idx + match[0].length);
+		if (isBoundaryChar(before) && hasAllowedKoreanTail(tail, false)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+function hasBusinessNameMatch(text: string, name: string): boolean {
+	const variants = normalizeBusinessName(name).variants;
+	if (hasBoundaryAwareMatch(text, name, { variants })) return true;
+	return variants.some((variant) => hasFlexibleSpacingKoreanMatch(text, variant));
+}
+
+function getIndustryVariants(industry: string): string[] {
+	const normalized = industry.trim().toLowerCase();
+	const compact = normalized.replace(/[\s_-]+/g, "");
+	const synonyms: Record<string, string[]> = {
+		cafe: ["카페", "커피", "커피숍", "coffee shop"],
+		coffeeshop: ["카페", "커피", "커피숍", "coffee shop"],
+		restaurant: ["식당", "음식점", "레스토랑"],
+		clinic: ["병원", "의원", "클리닉"],
+		medicalclinic: ["병원", "의원", "클리닉"],
+		dentist: ["치과", "치과의원"],
+		academy: ["학원", "아카데미"],
+		salon: ["미용실", "헤어샵", "살롱"],
+		hotel: ["호텔", "숙박", "숙소"],
+		lodgingbusiness: ["호텔", "숙박", "숙소", "펜션"],
+		bakery: ["베이커리", "빵집"],
+		healthclub: ["헬스장", "피트니스", "짐"],
+		gym: ["헬스장", "피트니스", "짐"],
+		autorepair: ["자동차정비", "정비소", "카센터"],
+	};
+	return Array.from(
+		new Set([industry, normalized, compact, ...(synonyms[compact] ?? [])]),
+	).filter((v) => v.trim().length > 0);
+}
+
+function hasContactLink(
+	page: { contactLinks?: { kind: "tel" | "mailto" }[] },
+	kind: "tel" | "mailto",
+): boolean {
+	return (page.contactLinks ?? []).some((link) => link.kind === kind);
+}
+
 // ---------------------------------------------------------------------------
 // GEO-BUSINESS-NAME-001: 업체명 명확 (businessName 이 title/H1/footer 에 등장)
 // ---------------------------------------------------------------------------
@@ -157,15 +292,12 @@ export const geoBusinessName001: Rule = (ctx): RuleResult => {
 			ruleWeight: 10,
 		};
 	}
-	const nameLower = name.toLowerCase();
 	const searchText = [
 		page.title ?? "",
 		page.h1 ?? "",
 		page.bodyText.slice(0, 3000),
-	]
-		.join(" ")
-		.toLowerCase();
-	const passed = searchText.includes(nameLower);
+	].join(" ");
+	const passed = hasBusinessNameMatch(searchText, name);
 	return {
 		ruleId: "GEO-BUSINESS-NAME-001",
 		category: "geo",
@@ -212,17 +344,16 @@ export const geoIndustry001: Rule = (ctx): RuleResult => {
 			ruleWeight: 10,
 		};
 	}
-	const industryLower = industry.toLowerCase();
 	const searchText = [
 		page.title ?? "",
 		page.description ?? "",
 		page.h1 ?? "",
 		...page.h2,
 		page.bodyText.slice(0, 3000),
-	]
-		.join(" ")
-		.toLowerCase();
-	const passed = searchText.includes(industryLower);
+	].join(" ");
+	const passed = hasBoundaryAwareMatch(searchText, industry, {
+		variants: getIndustryVariants(industry),
+	});
 	return {
 		ruleId: "GEO-INDUSTRY-001",
 		category: "geo",
@@ -269,16 +400,15 @@ export const geoRegion001: Rule = (ctx): RuleResult => {
 			ruleWeight: 10,
 		};
 	}
-	const regionLower = region.toLowerCase();
 	const searchText = [
 		page.title ?? "",
 		page.description ?? "",
 		page.h1 ?? "",
 		page.bodyText.slice(0, 3000),
-	]
-		.join(" ")
-		.toLowerCase();
-	const passed = searchText.includes(regionLower);
+	].join(" ");
+	const passed = hasBoundaryAwareMatch(searchText, region, {
+		allowPlaceSuffixes: true,
+	});
 	return {
 		ruleId: "GEO-REGION-001",
 		category: "geo",
@@ -397,51 +527,13 @@ export const geoTrust001: Rule = (ctx): RuleResult => {
 // ---------------------------------------------------------------------------
 export const geoLocalBusinessSchema001: Rule = (ctx): RuleResult => {
 	const page = ctx.mainPage;
-	// @type 이 LocalBusiness 계열인지 판정
-	const isLocalBusinessType = (type: unknown): boolean => {
-		if (typeof type === "string") {
-			return (
-				type === "LocalBusiness" ||
-				type.endsWith("Store") ||
-				type.endsWith("Shop") ||
-				type.endsWith("Salon") ||
-				type.endsWith("Restaurant") ||
-				type.endsWith("Cafe") ||
-				type.endsWith("School") ||
-				type.endsWith("Service")
-			);
-		}
-		if (Array.isArray(type)) {
-			return (type as unknown[]).some(
-				(t) =>
-					typeof t === "string" &&
-					(t === "LocalBusiness" ||
-						t.endsWith("Store") ||
-						t.endsWith("Shop") ||
-						t.endsWith("Service")),
-			);
-		}
-		return false;
-	};
-	// 값이 실제로 채워졌는지 판정: 비어있지 않은 문자열 또는 비어있지 않은 객체/배열
-	const isPresent = (v: unknown): boolean => {
-		if (typeof v === "string") return v.trim().length > 0;
-		if (Array.isArray(v)) return v.length > 0;
-		if (typeof v === "object" && v !== null)
-			return Object.keys(v as Record<string, unknown>).length > 0;
-		return false;
-	};
-	// @type 매칭 + 핵심 속성(name AND (address OR telephone)) 보유 시에만 유효한 LocalBusiness 로 인정.
-	// 빈/최소 스키마({"@type":"LocalBusiness"})는 실제 업체 정보가 없으므로 제외한다.
-	const hasLocalBusiness = page.schemaJsonLd.some((schema) => {
-		if (typeof schema === "object" && schema !== null) {
-			const s = schema as Record<string, unknown>;
-			if (!isLocalBusinessType(s["@type"])) return false;
-			const hasName = isPresent(s.name);
-			const hasContact = isPresent(s.address) || isPresent(s.telephone);
-			return hasName && hasContact;
-		}
-		return false;
+	const nodes = getSchemaNodes(page.schemaJsonLd);
+	const hasLocalBusiness = nodes.some((node) => {
+		if (!isLocalBusinessNode(node)) return false;
+		const hasName = isPresent(getName(node));
+		const hasContact =
+			isPresent(getPostalAddress(node)) || isPresent(getTelephone(node));
+		return hasName && hasContact;
 	});
 	return {
 		ruleId: "GEO-LOCAL-BUSINESS-SCHEMA-001",
@@ -471,23 +563,7 @@ export const geoLocalBusinessSchema001: Rule = (ctx): RuleResult => {
 // ---------------------------------------------------------------------------
 export const geoOrganizationSchema001: Rule = (ctx): RuleResult => {
 	const page = ctx.mainPage;
-	const hasOrg = page.schemaJsonLd.some((schema) => {
-		if (typeof schema === "object" && schema !== null) {
-			const s = schema as Record<string, unknown>;
-			const type = s["@type"];
-			if (typeof type === "string") {
-				return (
-					type === "Organization" || type === "Corporation" || type === "NGO"
-				);
-			}
-			if (Array.isArray(type)) {
-				return (type as string[]).some(
-					(t) => t === "Organization" || t === "Corporation",
-				);
-			}
-		}
-		return false;
-	});
+	const hasOrg = getSchemaNodes(page.schemaJsonLd).some(isOrganizationNode);
 	return {
 		ruleId: "GEO-ORGANIZATION-SCHEMA-001",
 		category: "geo",
@@ -562,10 +638,7 @@ export const geoLlmsTxt001: Rule = (ctx): RuleResult => {
 // ---------------------------------------------------------------------------
 export const geoAiSummary001: Rule = (ctx): RuleResult => {
 	const page = ctx.mainPage;
-	const paragraphs = page.bodyText
-		.split(/\n{2,}/)
-		.map((p) => p.trim())
-		.filter((p) => p.length >= 20);
+	const paragraphs = getBodyParagraphs(page).filter((p) => p.length >= 20);
 
 	if (paragraphs.length === 0) {
 		return {
@@ -709,10 +782,12 @@ export const geoContact001: Rule = (ctx): RuleResult => {
 		realPhones(page.bodyText, ent.phones).filter((p) =>
 			areaCodeMatchesRegion(p.areaCode, region),
 		).length > 0;
-	const hasPhone = Boolean(schemaTel) || realPhone || hasTelOrMailtoHint(page.bodyText);
+	const hasTelLink = hasContactLink(page, "tel");
+	const hasMailtoLink = hasContactLink(page, "mailto");
+	const hasPhone = Boolean(schemaTel) || realPhone || hasTelLink;
 
-	// 이메일: 예시/문서용(example@test.com 등) 은 제외.
-	const hasEmail = realEmails(page.bodyText).length > 0;
+	// 이메일: 예시/문서용(example@test.com 등) 은 제외. mailto: 는 parser contactLinks 에서만 인정한다.
+	const hasEmail = realEmails(page.bodyText).length > 0 || hasMailtoLink;
 
 	// "문의 채널" 은 실제로 연락 가능한 수단일 때만 인정한다.
 	// 단순 '문의'/'상담' 단어(특히 예시·안내문)는 신호로 치지 않고,
@@ -850,8 +925,10 @@ export const geoPhone001: Rule = (ctx): RuleResult => {
 		areaCodeMatchesRegion(p.areaCode, region),
 	);
 
-	const passed = Boolean(schemaTel) || trustedPhones.length > 0;
-	const found = schemaTel ?? trustedPhones[0]?.raw ?? phones[0]?.raw ?? null;
+	const telLink = (page.contactLinks ?? []).find((link) => link.kind === "tel");
+	const passed = Boolean(schemaTel) || trustedPhones.length > 0 || Boolean(telLink);
+	const found =
+		schemaTel ?? trustedPhones[0]?.raw ?? telLink?.value ?? phones[0]?.raw ?? null;
 	return {
 		ruleId: "GEO-PHONE-001",
 		category: "geo",
@@ -899,11 +976,15 @@ export const geoAddress001: Rule = (ctx): RuleResult => {
 
 	// (3) 본문 신호: 예시('형식입니다'/example) 문맥 제외한 실제 주소.
 	const addresses = realAddresses(page.bodyText, ent.addresses);
-	// region 부합 우선: region 이 normalized/raw 에 포함된 주소가 있으면 그것을 우선 채택.
+	// region 부합 우선: region 이 normalized/raw 에 경계 있는 지역 토큰으로 등장한 주소가 있으면 그것을 우선 채택.
 	const regionMatched =
 		region.length > 0
 			? addresses.find(
-					(a) => a.normalized.includes(region) || a.raw.includes(region),
+					(a) =>
+						hasBoundaryAwareMatch(a.normalized, region, {
+							allowPlaceSuffixes: true,
+						}) ||
+						hasBoundaryAwareMatch(a.raw, region, { allowPlaceSuffixes: true }),
 				)
 			: undefined;
 	const bestAddress = regionMatched ?? addresses[0];
@@ -1060,22 +1141,16 @@ export const geoNapConsistency001: Rule = (ctx): RuleResult => {
 
 	// --- Name: 프로필 업체명이 본문/스키마에 등장하는가 ---
 	const nameVariants = ent.businessNameVariants;
-	const bodyLower = page.bodyText.toLowerCase();
-	const nameInBody =
-		nameVariants.length > 0 &&
-		nameVariants.some((v) => bodyLower.includes(v.toLowerCase()));
 	const schemaNames = nodes
 		.map((n) => getName(n))
 		.filter((n): n is string => Boolean(n));
+	const schemaNameMatchesProfile = (schemaName: string): boolean =>
+		nameVariants.some((variant) => hasBoundaryAwareMatch(schemaName, variant));
+	const nameInBody =
+		ctx.businessProfile.businessName.length > 0 &&
+		hasBusinessNameMatch(page.bodyText, ctx.businessProfile.businessName);
 	const nameInSchema =
-		nameVariants.length > 0 &&
-		schemaNames.some((sn) =>
-			nameVariants.some(
-				(v) =>
-					sn.toLowerCase().includes(v.toLowerCase()) ||
-					v.toLowerCase().includes(sn.toLowerCase()),
-			),
-		);
+		nameVariants.length > 0 && schemaNames.some(schemaNameMatchesProfile);
 	const hasName = nameInBody || nameInSchema;
 
 	// --- Phone: 예시 제외 실제 전화 + 지역코드 부합 ---
@@ -1086,7 +1161,8 @@ export const geoNapConsistency001: Rule = (ctx): RuleResult => {
 	const trustedPhones = realPhoneList.filter((p) =>
 		areaCodeMatchesRegion(p.areaCode, region),
 	);
-	const hasPhone = Boolean(schemaTel) || trustedPhones.length > 0;
+	const hasPhone =
+		Boolean(schemaTel) || trustedPhones.length > 0 || hasContactLink(page, "tel");
 	// 지역코드가 region 과 어긋나는 전화만 있으면 일관성 위반.
 	const phoneRegionConflict =
 		!schemaTel &&
@@ -1106,13 +1182,7 @@ export const geoNapConsistency001: Rule = (ctx): RuleResult => {
 	const schemaNameConflict =
 		nameVariants.length > 0 &&
 		schemaNames.length > 0 &&
-		!schemaNames.some((sn) =>
-			nameVariants.some(
-				(v) =>
-					sn.toLowerCase().includes(v.toLowerCase()) ||
-					v.toLowerCase().includes(sn.toLowerCase()),
-			),
-		);
+		!schemaNames.some(schemaNameMatchesProfile);
 
 	const allPresent = hasName && hasPhone && hasAddress;
 	const consistent = !phoneRegionConflict && !schemaNameConflict;
@@ -1155,13 +1225,12 @@ export const geoNapConsistency001: Rule = (ctx): RuleResult => {
 // ---------------------------------------------------------------------------
 export const geoLocationSchema001: Rule = (ctx): RuleResult => {
 	const page = ctx.mainPage;
-	const hasGeoAddress = page.schemaJsonLd.some((schema) => {
-		if (typeof schema === "object" && schema !== null) {
-			const s = schema as Record<string, unknown>;
-			return "address" in s || "geo" in s || "hasMap" in s;
-		}
-		return false;
-	});
+	const hasGeoAddress = getSchemaNodes(page.schemaJsonLd).some(
+		(node) =>
+			isPresent(getPostalAddress(node)) ||
+			isPresent(node.geo) ||
+			isPresent(node.hasMap),
+	);
 	return {
 		ruleId: "GEO-LOCATION-SCHEMA-001",
 		category: "geo",
@@ -1283,8 +1352,7 @@ export const geoBrandInTitle001: Rule = (ctx): RuleResult => {
 			ruleWeight: 10,
 		};
 	}
-	const title = page.title?.toLowerCase() ?? "";
-	const passed = title.includes(name.toLowerCase());
+	const passed = hasBusinessNameMatch(page.title ?? "", name);
 	return {
 		ruleId: "GEO-BRAND-IN-TITLE-001",
 		category: "geo",
@@ -1325,8 +1393,7 @@ export const geoBrandInH1001: Rule = (ctx): RuleResult => {
 			ruleWeight: 10,
 		};
 	}
-	const h1Lower = page.h1?.toLowerCase() ?? "";
-	const passed = h1Lower.includes(name.toLowerCase());
+	const passed = hasBusinessNameMatch(page.h1 ?? "", name);
 	return {
 		ruleId: "GEO-BRAND-IN-H1-001",
 		category: "geo",
@@ -1367,11 +1434,10 @@ export const geoBrandConsistency001: Rule = (ctx): RuleResult => {
 			ruleWeight: 6,
 		};
 	}
-	const nameLower = name.toLowerCase();
-	const inTitle = (page.title ?? "").toLowerCase().includes(nameLower);
-	const inH1 = (page.h1 ?? "").toLowerCase().includes(nameLower);
-	const inDesc = (page.description ?? "").toLowerCase().includes(nameLower);
-	const inBody = page.bodyText.toLowerCase().includes(nameLower);
+	const inTitle = hasBusinessNameMatch(page.title ?? "", name);
+	const inH1 = hasBusinessNameMatch(page.h1 ?? "", name);
+	const inDesc = hasBusinessNameMatch(page.description ?? "", name);
+	const inBody = hasBusinessNameMatch(page.bodyText, name);
 	// 3개 이상에 일관되게 등장해야 통과
 	const count = [inTitle, inH1, inDesc, inBody].filter(Boolean).length;
 	const passed = count >= 3;
@@ -1529,9 +1595,12 @@ export const geoBusinessHoursDetail001: Rule = (ctx): RuleResult => {
 	const hasDetail = detailPattern.test(page.bodyText);
 	// 단순 시간 표기는 "유효한" 시간 범위만 인정한다 (09:00-25:00 같은 불가능한 시간은 hours 로 치지 않음).
 	const hasAnyHours = hasValidHoursRange(page.bodyText) || hasDetail;
-	// 시간 정보가 전혀 없으면 informational (별도 GEO-OPENING-HOURS-001이 있음) — passed=false
-	// 시간 정보는 있는데 detail 없으면 fail
-	const passed = !hasAnyHours || hasDetail;
+	// 시간 정보가 전혀 없으면 GEO-OPENING-HOURS-001의 책임이므로 점수 중립(unavailable).
+	// 시간 정보는 있는데 detail 없으면 fail.
+	const passed = hasAnyHours && hasDetail;
+	const scoreImpact: RuleResult["scoreImpact"] = hasAnyHours
+		? "scored"
+		: "unavailable";
 	return {
 		ruleId: "GEO-BUSINESS-HOURS-DETAIL-001",
 		category: "geo",
@@ -1539,14 +1608,15 @@ export const geoBusinessHoursDetail001: Rule = (ctx): RuleResult => {
 		severity: "medium",
 		title: "요일별 운영시간 상세 표기 여부",
 		description: passed
-			? hasDetail
-				? "요일별 또는 평일/주말 구분이 포함된 영업시간 표기가 있습니다."
-				: "영업시간 정보가 없습니다(GEO-OPENING-HOURS-001 참조)."
-			: "단순 '시간 범위' 표기만 있고 요일별 구분이 없습니다. 평일/주말 영업시간이 다를 수 있어 고객이 혼동합니다.",
+			? "요일별 또는 평일/주말 구분이 포함된 영업시간 표기가 있습니다."
+			: hasAnyHours
+				? "단순 '시간 범위' 표기만 있고 요일별 구분이 없습니다. 평일/주말 영업시간이 다를 수 있어 고객이 혼동합니다."
+				: "영업시간 정보가 없습니다(GEO-OPENING-HOURS-001 참조).",
 		evidence: [
 			`시간 표기: ${hasAnyHours ? "있음" : "없음"}`,
 			`요일별 구분: ${hasDetail ? "있음" : "없음"}`,
 		],
+		scoreImpact,
 		recommendation:
 			"'평일 10:00~21:00, 토요일 10:00~18:00, 일요일 휴무' 같이 요일별로 영업시간을 명시하세요.",
 		actionType: "self_fix",
@@ -1567,18 +1637,15 @@ export const geoPhoneFormat001: Rule = (ctx): RuleResult => {
 	// "예시) 010-0000-0000" 같은 placeholder 번호도 "전화번호 있음" 으로 보고 tel 단서가
 	// 없으면 실패시켰다(안내문 오탐). 이제 nap-extractor 의 extractPhones 로 후보를
 	// 추출하고 realPhones 로 예시(example) 문맥 번호를 제외한 "실측" 번호만 평가한다.
-	// tel: 링크는 파서가 href 를 filter 하므로 본문에 노출된 tel:/클릭 단서로 보조 판정한다.
+	// tel: 링크는 parser contactLinks 에서만 인정한다.
 	// ---------------------------------------------------------------------
 	const realPhoneList = realPhones(page.bodyText, extractPhones(page.bodyText));
-	const hasPhone = realPhoneList.length > 0;
-	const hasTelHint =
-		page.bodyText.toLowerCase().includes("tel:") ||
-		page.bodyText.includes("전화 걸기") ||
-		page.bodyText.includes("바로 전화") ||
-		page.bodyText.includes("📞") ||
-		page.bodyText.includes("☎");
-	// 실측 전화번호가 본문에 있어야 평가, 없으면 informational(통과)
-	const passed = !hasPhone || hasTelHint;
+	const hasTelLink = hasContactLink(page, "tel");
+	const hasPhone = realPhoneList.length > 0 || hasTelLink;
+	const passed = !hasPhone || hasTelLink;
+	const scoreImpact: RuleResult["scoreImpact"] = hasPhone
+		? "scored"
+		: "unavailable";
 	return {
 		ruleId: "GEO-PHONE-FORMAT-001",
 		category: "geo",
@@ -1587,13 +1654,14 @@ export const geoPhoneFormat001: Rule = (ctx): RuleResult => {
 		title: "전화번호 클릭 가능 링크(tel:) 여부",
 		description: passed
 			? hasPhone
-				? "전화번호와 함께 tel: 링크나 '전화 걸기' 단서가 확인됩니다."
+				? "전화번호와 함께 tel: 링크가 확인됩니다."
 				: "전화번호 정보가 없습니다(GEO-PHONE-001 참조)."
-			: "전화번호는 있지만 tel: 링크나 '전화 걸기' 같은 클릭 단서가 없습니다. 모바일에서 한 번에 전화하기 어렵습니다.",
+			: "전화번호는 있지만 tel: 링크가 없습니다. 모바일에서 한 번에 전화하기 어렵습니다.",
 		evidence: [
 			`전화번호: ${hasPhone ? "있음" : "없음"}`,
-			`tel: 또는 '전화 걸기' 단서: ${hasTelHint ? "있음" : "없음"}`,
+			`tel 링크: ${hasTelLink ? "있음" : "없음"}`,
 		],
+		scoreImpact,
 		recommendation:
 			"전화번호 텍스트를 a href=tel:01012345678 링크로 감싸세요. 스마트폰 사용자가 번호를 탭만 해도 바로 전화가 걸립니다.",
 		actionType: "vendor_action",

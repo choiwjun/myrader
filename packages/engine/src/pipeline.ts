@@ -66,7 +66,11 @@ import {
 	fetchPlatformPresence,
 	inferSurfaceKind,
 } from "./platform-presence/index.js";
-import { SCORING_VERSION, scoreDiagnosis } from "./scoring.js";
+import {
+	LEGACY_V2_SCORING_VERSION,
+	SCORING_VERSION,
+	scoreDiagnosis,
+} from "./scoring.js";
 import type { ScoringMode } from "./scoring.js";
 import { createBacklinkAdapter } from "./v2/backlink/adapter.js";
 import type { BacklinkResult, BacklinkSignals } from "./v2/backlink/types.js";
@@ -144,7 +148,7 @@ export interface DiagnosisPipelineInput {
 	 * 비활성화 시 nlpResult=undefined → NLP 룰은 passed=true(정보 부족)로 처리된다.
 	 *
 	 * SCORE-NEUTRAL 보장:
-	 *   NLP- 룰은 scoreDiagnosis 입력 전 반드시 필터링한다 (excludeNlpFromScoring).
+	 *   NLP- 룰은 scoring.ts 의 isScoredRule() helper 에서 점수 산식 밖으로 제외된다.
 	 *   NLP 활성화 여부에 관계없이 seoScore/aeoScore/geoScore/overallScore 는 동일하다.
 	 *   NLP 실패 항목은 output.items 에만 surfacing 된다 (informational).
 	 *
@@ -160,7 +164,7 @@ export interface DiagnosisPipelineInput {
 	 */
 	enableLlmValidation?: boolean;
 	/**
-	 * WS6: 채점 모드. 기본 "v2"(프로덕션 무변경). "graded"는 비포화 검증/승격 후보.
+	 * WS6: 채점 모드. 기본 "graded"(2.1.0). "v2"는 명시 opt-in 레거시 차감모델.
 	 * 점수 산출에만 영향 — 룰/크롤/항목은 동일.
 	 */
 	scoringMode?: ScoringMode;
@@ -255,7 +259,7 @@ export async function runDiagnosisPipeline(
 		enablePerfAnalysis = false,
 		enableNlpAnalysis = false,
 		enableLlmValidation = false,
-		scoringMode = "v2",
+		scoringMode,
 		stageTimeouts,
 	} = input;
 	const platformLimitations = [...buildPlatformLimitations(sourceType)];
@@ -313,14 +317,7 @@ export async function runDiagnosisPipeline(
 	if (pages.length === 0) {
 		return {
 			crawlResult,
-			scores: {
-				seoScore: 0,
-				aeoScore: 0,
-				geoScore: 0,
-				perfScore: null,
-				overallScore: 0,
-				scoringVersion: SCORING_VERSION,
-			},
+			scores: buildEmptyScores(scoringMode),
 			items: [],
 			recommendations: [],
 			partialResult: true,
@@ -332,19 +329,12 @@ export async function runDiagnosisPipeline(
 	// ---------------------------------------------------------------------------
 	// Step 2: Analyze
 	// ---------------------------------------------------------------------------
-	const mainPage = pages.find((p) => p.url === startUrl) ?? pages[0];
+	const mainPage = pages.find((p) => p?.url === startUrl) ?? pages[0];
 	if (!mainPage) {
 		// No pages crawled — return empty pipeline output
 		return {
 			crawlResult,
-			scores: {
-				seoScore: 0,
-				aeoScore: 0,
-				geoScore: 0,
-				perfScore: null,
-				overallScore: 0,
-				scoringVersion: SCORING_VERSION,
-			},
+			scores: buildEmptyScores(scoringMode),
 			items: [],
 			recommendations: [],
 			partialResult: true,
@@ -437,7 +427,7 @@ export async function runDiagnosisPipeline(
 	}
 
 	// ---------------------------------------------------------------------------
-	// Step 2d: NLP analysis (optional, SCORE-NEUTRAL — see excludeNlpFromScoring).
+	// Step 2d: NLP analysis (optional, SCORE-NEUTRAL via scoring.ts isScoredRule).
 	// RuleBasedNlpProvider is always available (no env key required).
 	// Fail-soft: NLP failure does NOT block the pipeline; rules fall back to passed=true.
 	// XSAG_ENABLE_NLP_ANALYSIS gates this in the worker.
@@ -471,6 +461,7 @@ export async function runDiagnosisPipeline(
 		...(a11yResult !== undefined && { a11yResult }),
 		...(lighthouseResult !== undefined && { lighthouseResult }),
 		...(nlpResult !== undefined && { nlpResult }),
+		...(crawlResult.sitemapUsed !== undefined && { sitemapUsed: crawlResult.sitemapUsed }),
 	};
 
 	// Run only requested modules
@@ -513,17 +504,13 @@ export async function runDiagnosisPipeline(
 	// ---------------------------------------------------------------------------
 	// Step 3: Score
 	// ---------------------------------------------------------------------------
-	// NLP- rules are excluded from scoring input to keep scores identical whether
-	// NLP analysis is enabled or not (SCORE-NEUTRAL by construction).
-	// Because NLP rules pass-by-default when nlpResult is absent (passed=true →
-	// 0 deduction), filtering them out does not change scores in the current state.
-	// When enableNlpAnalysis=true some NLP rules may fail, but the filter still
-	// prevents any score impact — NLP findings surface only via output.items.
+	// NLP- rules are excluded inside scoring.ts via isScoredRule(), keeping
+	// score participation policy in one place for graded and legacy v2 modes.
 	// GAP 3: score 예산으로 격리 (scoreDiagnosis 는 동기 — 일관성 위해 동일 헬퍼 사용).
 	const scoreInput = {
-		seo: excludeNlpFromScoring(seoResult),
-		aeo: excludeNlpFromScoring(aeoResult),
-		geo: geoResult, // GEO has no NLP rules; filter is a no-op but applied for safety
+		seo: seoResult,
+		aeo: aeoResult,
+		geo: geoResult,
 	};
 	const scores = await withStageTimeout(
 		"score",
@@ -715,21 +702,15 @@ function emptyCrawlResult(): CrawlResult {
 	return { pages: [], partialResult: true, startedAt: now, completedAt: now };
 }
 
-/**
- * Returns a copy of AnalyzerResult with all NLP- ruleIds removed from results.
- *
- * This ensures NLP rules never contribute deductions to scoreDiagnosis.
- * SCORE-NEUTRAL: NLP rules pass-by-default (passed=true) when nlpResult is absent,
- * so removing them does not change scores today. When enableNlpAnalysis=true and an
- * NLP rule fails, this filter prevents the failure from deducting score points —
- * the failed rule still appears in allRuleResults and becomes a DiagnosisItem.
- */
-function excludeNlpFromScoring(
-	result: import("./analyzers/types.js").AnalyzerResult,
-): import("./analyzers/types.js").AnalyzerResult {
+function buildEmptyScores(mode?: ScoringMode): ScoringOutput {
 	return {
-		...result,
-		results: result.results.filter((r) => !r.ruleId.startsWith("NLP-")),
+		seoScore: 0,
+		aeoScore: 0,
+		geoScore: 0,
+		perfScore: null,
+		overallScore: 0,
+		scoringVersion:
+			mode === "v2" ? LEGACY_V2_SCORING_VERSION : SCORING_VERSION,
 	};
 }
 

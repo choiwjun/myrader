@@ -9,6 +9,18 @@
  */
 
 import type { Rule, RuleResult } from "../types.js";
+import { getSchemaNodes } from "../shared/schema-validator.js";
+
+const SITEMAP_LINK_PATTERN = /\/sitemap[\w-]*\.xml(?:$|[?#])/i;
+
+function hasSitemapSignal(ctx: Parameters<Rule>[0]): boolean {
+	if (ctx.sitemapUsed === true) return true;
+	return ctx.pages.some(
+		(p) =>
+			p.internalLinks.some((l) => SITEMAP_LINK_PATTERN.test(l)) ||
+			p.externalLinks.some((l) => SITEMAP_LINK_PATTERN.test(l)),
+	);
+}
 
 // ---------------------------------------------------------------------------
 // SEO-KEYWORD-001 보조 — word-aware 키워드 매칭 (case/spacing 정규화)
@@ -284,6 +296,7 @@ export const seoH1002: Rule = (ctx): RuleResult => {
 			actionType: "vendor_action",
 			difficulty: "easy",
 			expectedImpact: "medium",
+			scoreImpact: "unavailable",
 			ruleWeight: 6,
 		};
 	}
@@ -357,6 +370,7 @@ export const seoImgAlt001: Rule = (ctx): RuleResult => {
 			actionType: "vendor_action",
 			difficulty: "easy",
 			expectedImpact: "medium",
+			scoreImpact: "not_applicable",
 			ruleWeight: 6,
 		};
 	}
@@ -456,17 +470,10 @@ export const seoSitemap001: Rule = (ctx): RuleResult => {
 		origin = page.url;
 	}
 	const sitemapUrl = `${origin}/sitemap.xml`;
-	// Phase 2 시맨틱 검증: 본문(bodyText)에서 'sitemap' 문자열을 찾던 기존 로직은
-	// "사이트맵" 푸터/내비 라벨이나 본문에 우연히 노출된 단어에도 통과하는 FP 였다.
-	// (bodyText 는 보이는 텍스트라 실제 sitemap.xml 링크 여부와 무관하다.)
-	// → internalLinks/externalLinks 에 sitemap(.xml) 경로가 있는지만 확인한다.
-	const SITEMAP_LINK_PATTERN = /\/sitemap[\w-]*\.xml(?:$|[?#])/i;
-	const hasSitemapLink = ctx.pages.some(
-		(p) =>
-			p.internalLinks.some((l) => SITEMAP_LINK_PATTERN.test(l)) ||
-			p.externalLinks.some((l) => SITEMAP_LINK_PATTERN.test(l)),
-	);
-	const passed = hasSitemapLink;
+	// Phase 4 계약 수정: crawler 가 sitemap.xml 을 실제 URL 선정에 사용한 경우
+	// ctx.sitemapUsed 로 전달된다. 페이지 본문/푸터 링크는 보조 신호로만 유지한다.
+	const hasSitemap = hasSitemapSignal(ctx);
+	const passed = hasSitemap;
 	return {
 		ruleId: "SEO-SITEMAP-001",
 		category: "seo",
@@ -478,7 +485,8 @@ export const seoSitemap001: Rule = (ctx): RuleResult => {
 			: `${sitemapUrl} 경로에 sitemap.xml 이 없거나 확인되지 않습니다.`,
 		evidence: [
 			`확인 URL: ${sitemapUrl}`,
-			`sitemap 링크 발견 여부: ${hasSitemapLink}`,
+			`crawler sitemap 사용 여부: ${ctx.sitemapUsed === true ? "있음" : "없음"}`,
+			`sitemap 링크 발견 여부: ${hasSitemap ? "있음" : "없음"}`,
 		],
 		recommendation:
 			"홈페이지 업체에 /sitemap.xml 파일 생성을 요청하고, Google Search Console에 등록하세요.",
@@ -572,6 +580,7 @@ export const seoKeyword001: Rule = (ctx): RuleResult => {
 			actionType: "self_fix",
 			difficulty: "easy",
 			expectedImpact: "high",
+			scoreImpact: "not_applicable",
 			ruleWeight: 10,
 		};
 	}
@@ -700,10 +709,15 @@ export const seoCta001: Rule = (ctx): RuleResult => {
 		break;
 	}
 
-	// 연락/예약 채널 외부 링크도 actionable CTA 로 인정.
+	// 연락/예약 채널 외부 링크도 actionable CTA 로 인정. tel:/mailto: 는
+	// parser contactLinks 에서만 온다(HTTP link arrays 는 HTTP(S)-only).
 	const ctaLinkPattern =
-		/(tel:|mailto:|pf\.kakao\.com|open\.kakao\.com|kakao\.com\/(?:ch|talk)|booking\.naver|talk\.naver|smartstore\.naver|\/order|\/reservation|\/booking)/i;
-	const hasCtaLink = page.externalLinks.some((l) => ctaLinkPattern.test(l));
+		/(pf\.kakao\.com|open\.kakao\.com|kakao\.com\/(?:ch|talk)|booking\.naver|talk\.naver|smartstore\.naver|\/order|\/reservation|\/booking)/i;
+	const hasContactCta = (page.contactLinks ?? []).some(
+		(link) => link.kind === "tel" || link.kind === "mailto",
+	);
+	const hasCtaLink =
+		hasContactCta || page.externalLinks.some((l) => ctaLinkPattern.test(l));
 
 	const passed = ctaLabel !== null || hasCtaLink;
 	return {
@@ -803,9 +817,10 @@ export const seoHttps001: Rule = (ctx): RuleResult => {
 // ---------------------------------------------------------------------------
 export const seoLang001: Rule = (ctx): RuleResult => {
 	const page = ctx.mainPage;
-	const hasLang =
-		Object.keys(page.meta).some((k) => k.toLowerCase() === "lang") ||
-		(page.htmlLang?.toLowerCase().startsWith("ko") ?? false);
+	const htmlLang = page.htmlLang?.trim() ?? "";
+	const metaLang =
+		Object.entries(page.meta).find(([k]) => k.toLowerCase() === "lang")?.[1] ?? "";
+	const hasLang = htmlLang.length > 0 || metaLang.trim().length > 0;
 	return {
 		ruleId: "SEO-LANG-001",
 		category: "seo",
@@ -814,10 +829,10 @@ export const seoLang001: Rule = (ctx): RuleResult => {
 		title: "HTML lang 속성 설정 여부",
 		description: hasLang
 			? "HTML lang 속성이 설정되어 있습니다."
-			: "html lang=ko 속성이 감지되지 않습니다. 언어 설정이 없으면 검색 엔진이 타깃 언어를 혼동할 수 있습니다.",
-		evidence: [`URL: ${page.url}`],
+			: "HTML lang 속성이 감지되지 않습니다. 언어 설정이 없으면 검색 엔진이 타깃 언어를 혼동할 수 있습니다.",
+		evidence: [`URL: ${page.url}`, `html lang: ${htmlLang || "없음"}`],
 		recommendation:
-			"홈페이지 업체에 HTML 태그를 html lang=ko 로 변경해달라고 요청하세요.",
+			"홈페이지 업체에 HTML 태그의 lang 속성을 실제 페이지 언어(예: ko, en)에 맞게 설정해달라고 요청하세요.",
 		actionType: "vendor_action",
 		difficulty: "easy",
 		expectedImpact: "medium",
@@ -1009,6 +1024,7 @@ export const seoFavicon001: Rule = (ctx): RuleResult => {
 		actionType: "vendor_action",
 		difficulty: "easy",
 		expectedImpact: "low",
+		scoreImpact: hasMetaFavicon ? "scored" : "unavailable",
 		ruleWeight: 3,
 	};
 };
@@ -1032,6 +1048,7 @@ export const seoImgLazy001: Rule = (ctx): RuleResult => {
 			actionType: "vendor_action",
 			difficulty: "easy",
 			expectedImpact: "low",
+			scoreImpact: "not_applicable",
 			ruleWeight: 3,
 		};
 	}
@@ -1094,6 +1111,7 @@ export const seoImgDimensions001: Rule = (ctx): RuleResult => {
 			actionType: "vendor_action",
 			difficulty: "easy",
 			expectedImpact: "low",
+			scoreImpact: "not_applicable",
 			ruleWeight: 3,
 		};
 	}
@@ -1152,6 +1170,7 @@ export const seoImgFormat001: Rule = (ctx): RuleResult => {
 			actionType: "vendor_action",
 			difficulty: "medium",
 			expectedImpact: "low",
+			scoreImpact: "not_applicable",
 			ruleWeight: 3,
 		};
 	}
@@ -1217,6 +1236,7 @@ export const seoLinkNewtab001: Rule = (ctx): RuleResult => {
 		actionType: "vendor_action",
 		difficulty: "easy",
 		expectedImpact: "medium",
+		scoreImpact: "unavailable",
 		ruleWeight: 6,
 	};
 };
@@ -1226,7 +1246,7 @@ export const seoLinkNewtab001: Rule = (ctx): RuleResult => {
 // ---------------------------------------------------------------------------
 export const seoStructuredData001: Rule = (ctx): RuleResult => {
 	const page = ctx.mainPage;
-	const count = page.schemaJsonLd.length;
+	const count = getSchemaNodes(page.schemaJsonLd).length;
 	const passed = count >= 1;
 	return {
 		ruleId: "SEO-STRUCTURED-DATA-001",
@@ -1252,16 +1272,12 @@ export const seoStructuredData001: Rule = (ctx): RuleResult => {
 // ---------------------------------------------------------------------------
 export const seoBreadcrumb001: Rule = (ctx): RuleResult => {
 	const page = ctx.mainPage;
-	const hasBreadcrumb = page.schemaJsonLd.some((schema) => {
-		if (typeof schema === "object" && schema !== null) {
-			const s = schema as Record<string, unknown>;
-			return (
-				s["@type"] === "BreadcrumbList" ||
-				(Array.isArray(s["@type"]) &&
-					(s["@type"] as string[]).includes("BreadcrumbList"))
-			);
-		}
-		return false;
+	const hasBreadcrumb = getSchemaNodes(page.schemaJsonLd).some((schema) => {
+		const type = schema["@type"];
+		return (
+			type === "BreadcrumbList" ||
+			(Array.isArray(type) && type.includes("BreadcrumbList"))
+		);
 	});
 	return {
 		ruleId: "SEO-BREADCRUMB-001",
@@ -1412,6 +1428,7 @@ export const seoHreflang001: Rule = (ctx): RuleResult => {
 		actionType: "vendor_action",
 		difficulty: "hard",
 		expectedImpact: "low",
+		scoreImpact: !hasHreflang ? "not_applicable" : "scored",
 		ruleWeight: 3,
 	};
 };
@@ -1569,6 +1586,7 @@ export const seoHttp2001: Rule = (ctx): RuleResult => {
 			actionType: "vendor_action",
 			difficulty: "medium",
 			expectedImpact: "low",
+			scoreImpact: "unavailable",
 			ruleWeight: 3,
 		};
 	}
@@ -1616,6 +1634,7 @@ export const seoPageLangConsistency001: Rule = (ctx): RuleResult => {
 			actionType: "vendor_action",
 			difficulty: "medium",
 			expectedImpact: "medium",
+			scoreImpact: "unavailable",
 			ruleWeight: 6,
 		};
 	}
@@ -1641,6 +1660,7 @@ export const seoPageLangConsistency001: Rule = (ctx): RuleResult => {
 			actionType: "vendor_action",
 			difficulty: "medium",
 			expectedImpact: "medium",
+			scoreImpact: isNonKorean ? "scored" : "unavailable",
 			ruleWeight: 6,
 		};
 	}
@@ -1669,6 +1689,7 @@ export const seoPageLangConsistency001: Rule = (ctx): RuleResult => {
 		actionType: "vendor_action",
 		difficulty: "medium",
 		expectedImpact: "medium",
+		scoreImpact: "scored",
 		ruleWeight: 6,
 	};
 };
@@ -1707,6 +1728,7 @@ export const seoAmpValid001: Rule = (ctx): RuleResult => {
 		actionType: "vendor_action",
 		difficulty: "medium",
 		expectedImpact: "low",
+		scoreImpact: "unavailable",
 		ruleWeight: 3,
 	};
 };
@@ -1715,19 +1737,10 @@ export const seoAmpValid001: Rule = (ctx): RuleResult => {
 // SEO-XML-SITEMAP-VALID-001: sitemap.xml URL이 robots.txt에 명시되어 있는가
 // ---------------------------------------------------------------------------
 export const seoXmlSitemapValid001: Rule = (ctx): RuleResult => {
-	// Phase 3 시맨틱 검증: crawler 가 robots.txt 를 별도 fetch 하지 않으므로 sitemap.xml
-	// 의 존재는 사이트 내 링크로만 실측한다. 기존의 bodyText.includes('sitemap.xml')
-	// fallback 은 "robots.txt 에 Sitemap: 라인 추가" 같은 안내/블로그 본문에도 통과하는
-	// FP 였다(가시 텍스트는 실제 sitemap 링크 여부와 무관). → seoSitemap001 과 동일하게
-	// internalLinks/externalLinks 의 /sitemap*.xml 경로만 신뢰 신호로 사용한다.
-	const pages = ctx.pages;
-	const SITEMAP_LINK_PATTERN = /\/sitemap[\w-]*\.xml(?:$|[?#])/i;
-	const hasSitemapInLinks = pages.some(
-		(p) =>
-			p.internalLinks.some((l) => SITEMAP_LINK_PATTERN.test(l)) ||
-			p.externalLinks.some((l) => SITEMAP_LINK_PATTERN.test(l)),
-	);
-	const passed = hasSitemapInLinks;
+	// Phase 4 계약 수정: crawler 가 sitemap.xml 을 실제 fetch/URL 선정에 사용한
+	// 실측 신호(ctx.sitemapUsed)를 우선한다. 사이트 내 sitemap 링크는 보조 신호다.
+	const hasSitemap = hasSitemapSignal(ctx);
+	const passed = hasSitemap;
 	return {
 		ruleId: "SEO-XML-SITEMAP-VALID-001",
 		category: "seo",
@@ -1735,10 +1748,11 @@ export const seoXmlSitemapValid001: Rule = (ctx): RuleResult => {
 		severity: "medium",
 		title: "sitemap.xml의 robots.txt 등록 여부",
 		description: passed
-			? "sitemap.xml 경로가 사이트 링크에서 확인됩니다. robots.txt에도 Sitemap: 라인을 추가하세요."
-			: "sitemap.xml 경로가 사이트 링크에서 확인되지 않습니다. 검색 엔진이 모든 페이지를 발견하기 어렵습니다.",
+			? "크롤러가 sitemap.xml 사용 또는 sitemap 링크를 확인했습니다. robots.txt에도 Sitemap: 라인을 추가하세요."
+			: "sitemap.xml 사용 신호가 확인되지 않습니다. 검색 엔진이 모든 페이지를 발견하기 어렵습니다.",
 		evidence: [
-			`sitemap.xml 링크 발견(internal/external): ${hasSitemapInLinks ? "있음" : "없음"}`,
+			`crawler sitemap 사용 여부: ${ctx.sitemapUsed === true ? "있음" : "없음"}`,
+			`sitemap 신호: ${hasSitemap ? "있음" : "없음"}`,
 		],
 		recommendation:
 			"/sitemap.xml 파일을 생성하고 robots.txt 파일에 'Sitemap: https://도메인/sitemap.xml' 라인을 추가하도록 업체에 요청하세요.",
@@ -1818,6 +1832,7 @@ export const seoPagination001: Rule = (ctx): RuleResult => {
 		actionType: "vendor_action",
 		difficulty: "medium",
 		expectedImpact: "low",
+		scoreImpact: !hasRelPagination ? "not_applicable" : "scored",
 		ruleWeight: 3,
 	};
 };
@@ -1887,6 +1902,7 @@ export const seoDuplicateMetaDesc001: Rule = (ctx): RuleResult => {
 			actionType: "self_fix",
 			difficulty: "easy",
 			expectedImpact: "medium",
+			scoreImpact: "not_applicable",
 			ruleWeight: 6,
 		};
 	}
@@ -1944,6 +1960,7 @@ export const seoHeadingHierarchy001: Rule = (ctx): RuleResult => {
 			actionType: "vendor_action",
 			difficulty: "medium",
 			expectedImpact: "medium",
+			scoreImpact: "unavailable",
 			ruleWeight: 6,
 		};
 	}
@@ -2014,6 +2031,7 @@ export const seoTrailingSlash001: Rule = (ctx): RuleResult => {
 			actionType: "vendor_action",
 			difficulty: "medium",
 			expectedImpact: "low",
+			scoreImpact: "not_applicable",
 			ruleWeight: 3,
 		};
 	}
@@ -2158,6 +2176,7 @@ export const seoRedirectChain001: Rule = (ctx): RuleResult => {
 			actionType: "vendor_action",
 			difficulty: "medium",
 			expectedImpact: "medium",
+			scoreImpact: "unavailable",
 			ruleWeight: 6,
 		};
 	}
