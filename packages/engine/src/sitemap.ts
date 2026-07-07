@@ -21,7 +21,7 @@
 
 import * as cheerio from "cheerio";
 
-import { validatePublicUrl } from "./utils/url.js";
+import { fetchPublicUrl, validatePublicUrl } from "./utils/url.js";
 
 // ---------------------------------------------------------------------------
 // 타입
@@ -359,10 +359,9 @@ async function safeFetchText(
 	const timer = setTimeout(() => controller.abort(), opts.timeoutMs);
 
 	try {
-		const res = await fetch(url, {
+		const res = await fetchPublicUrl(url, {
 			headers: { "User-Agent": opts.userAgent },
 			signal: controller.signal,
-			redirect: "follow",
 		});
 
 		if (res.status >= 400) return null;

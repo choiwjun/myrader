@@ -8,13 +8,21 @@
  *  - 혼합 인코딩 문자열도 graceful
  */
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { crawlSite } from "../../crawler.js";
+import { __setHostnameResolverForTests } from "../../utils/url.js";
 import { expectNoCrash, mockParsedPage } from "./helpers.js";
+
+beforeEach(() => {
+	__setHostnameResolverForTests(async () => [
+		{ address: "93.184.216.34", family: 4 },
+	]);
+});
 
 afterEach(() => {
 	vi.unstubAllGlobals();
 	vi.restoreAllMocks();
+	__setHostnameResolverForTests(null);
 });
 
 function htmlBytesWithKoreanTitle(charsetDeclaration: string): Uint8Array {

@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RuleResult } from "../analyzers/types.js";
 import {
 	adaptPlatformHtml,
@@ -13,6 +13,7 @@ import {
 	inferSurfaceKind,
 } from "../platform-presence/index.js";
 import type { PlatformSourceType } from "../platform-presence/index.js";
+import { __setHostnameResolverForTests } from "../utils/url.js";
 
 const baseHtml = `
 <!doctype html>
@@ -122,8 +123,15 @@ function readPlatformFixture(fixture: string): string {
 	);
 }
 
+beforeEach(() => {
+	__setHostnameResolverForTests(async () => [
+		{ address: "93.184.216.34", family: 4 },
+	]);
+});
+
 afterEach(() => {
 	vi.unstubAllGlobals();
+	__setHostnameResolverForTests(null);
 });
 
 describe("platform BusinessPresence adapters", () => {
@@ -263,6 +271,25 @@ describe("platform BusinessPresence adapters", () => {
 		expect(result.presence?.name).toBe("Fixture Cafe");
 		expect(result.presence?.signals.contact.phone).toBe("010-1234-5678");
 		expect(headersSeen[0]).toContain("X-SAG-Bot");
+	});
+
+	it("does not fetch platform URLs resolving to private addresses", async () => {
+		__setHostnameResolverForTests(async () => [
+			{ address: "127.0.0.1", family: 4 },
+		]);
+		const fetchSpy = vi.fn();
+		vi.stubGlobal("fetch", fetchSpy);
+
+		const result = await fetchPlatformPresence({
+			sourceType: "other_platform",
+			sourceUrl: "https://private.example.test/internal",
+		});
+
+		expect(result.presence).toBeNull();
+		expect(result.limitations.map((item) => item.code)).toEqual([
+			"PLATFORM_FETCH_UNAVAILABLE",
+		]);
+		expect(fetchSpy).not.toHaveBeenCalled();
 	});
 
 	it.each(platformFixtures)(

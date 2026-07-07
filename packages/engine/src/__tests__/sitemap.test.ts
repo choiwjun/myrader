@@ -15,9 +15,10 @@
  *  - 5MB 응답 제한 / SSRF 검증
  */
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fetchSitemap, parseSitemapXml } from "../sitemap.js";
+import { __setHostnameResolverForTests } from "../utils/url.js";
 
 // ---------------------------------------------------------------------------
 // 헬퍼 — fetch mock
@@ -41,9 +42,16 @@ function stubFetchByUrl(
 	return fetchMock;
 }
 
+beforeEach(() => {
+	__setHostnameResolverForTests(async () => [
+		{ address: "93.184.216.34", family: 4 },
+	]);
+});
+
 afterEach(() => {
 	vi.unstubAllGlobals();
 	vi.restoreAllMocks();
+	__setHostnameResolverForTests(null);
 });
 
 // ---------------------------------------------------------------------------
@@ -306,5 +314,25 @@ describe("fetchSitemap — 네트워크", () => {
 		});
 		const result = await fetchSitemap("https://example.com/");
 		expect(result).toBeNull();
+	});
+	it("sitemap redirect가 private destination이면 따라가지 않는다", async () => {
+		const fetchMock = vi.fn(async (url: string | URL | Request) => {
+			if (String(url) === "https://example.com/sitemap.xml") {
+				return new Response("", {
+					status: 302,
+					headers: { location: "http://127.0.0.1/sitemap.xml" },
+				});
+			}
+			return new Response("<urlset></urlset>", { status: 200 });
+		});
+		vi.stubGlobal("fetch", fetchMock);
+
+		const result = await fetchSitemap("https://example.com/");
+
+		expect(result).toBeNull();
+		expect(fetchMock).not.toHaveBeenCalledWith(
+			"http://127.0.0.1/sitemap.xml",
+			expect.anything(),
+		);
 	});
 });

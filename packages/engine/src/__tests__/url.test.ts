@@ -5,13 +5,21 @@
  * public.com 통과.
  */
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+	__setHostnameResolverForTests,
+	fetchPublicUrl,
 	isPrivateIp,
 	isSameDomain,
 	normalizeUrl,
 	validatePublicUrl,
+	validatePublicUrlForFetch,
 } from "../utils/url.js";
+
+afterEach(() => {
+	__setHostnameResolverForTests(null);
+	vi.restoreAllMocks();
+});
 
 // ---------------------------------------------------------------------------
 // normalizeUrl
@@ -134,6 +142,22 @@ describe("isPrivateIp", () => {
 		expect(isPrivateIp("fd12:3456:789a::1")).toBe(true);
 	});
 
+	it("fe80:: (IPv6 link-local) 를 차단한다", () => {
+		expect(isPrivateIp("fe80::1")).toBe(true);
+	});
+
+	it("IPv4-mapped IPv6 private 주소를 차단한다", () => {
+		expect(isPrivateIp("::ffff:127.0.0.1")).toBe(true);
+		expect(isPrivateIp("::ffff:7f00:1")).toBe(true);
+	});
+
+	it("0.0.0.0/8, CGNAT, benchmarking, multicast 대역을 차단한다", () => {
+		expect(isPrivateIp("0.0.0.0")).toBe(true);
+		expect(isPrivateIp("100.64.0.1")).toBe(true);
+		expect(isPrivateIp("198.18.0.1")).toBe(true);
+		expect(isPrivateIp("224.0.0.1")).toBe(true);
+	});
+
 	// ---- 허용 대상 ----
 
 	it("1.1.1.1 (Cloudflare public DNS) 을 허용한다", () => {
@@ -142,6 +166,10 @@ describe("isPrivateIp", () => {
 
 	it("8.8.8.8 (Google public DNS) 을 허용한다", () => {
 		expect(isPrivateIp("8.8.8.8")).toBe(false);
+	});
+
+	it("IPv4-mapped IPv6 public 주소를 허용한다", () => {
+		expect(isPrivateIp("::ffff:0808:0808")).toBe(false);
 	});
 
 	it("172.15.0.1 (RFC1918 범위 밖) 을 허용한다", () => {
@@ -201,6 +229,11 @@ describe("validatePublicUrl", () => {
 		expect(result.ok).toBe(false);
 	});
 
+	it("http://[::ffff:127.0.0.1] → 거부", () => {
+		const result = validatePublicUrl("http://[::ffff:127.0.0.1]");
+		expect(result.ok).toBe(false);
+	});
+
 	// ---- 차단 — 허용되지 않는 scheme ----
 
 	it("file:///etc/passwd → 거부", () => {
@@ -233,5 +266,59 @@ describe("validatePublicUrl", () => {
 	it("not-a-url → 거부", () => {
 		const result = validatePublicUrl("not-a-url");
 		expect(result.ok).toBe(false);
+	});
+});
+
+describe("validatePublicUrlForFetch", () => {
+	it("blocks public-looking hostnames that resolve to private IPs", async () => {
+		const result = await validatePublicUrlForFetch(
+			"https://rebind.example.com/",
+			async () => [{ address: "127.0.0.1", family: 4 }],
+		);
+
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.reason).toContain("127.0.0.1");
+		}
+	});
+
+	it("allows hostnames only when all resolved addresses are public", async () => {
+		await expect(
+			validatePublicUrlForFetch("https://public.example.com/", async () => [
+				{ address: "93.184.216.34", family: 4 },
+			]),
+		).resolves.toEqual({ ok: true });
+	});
+});
+
+describe("fetchPublicUrl", () => {
+	it("revalidates redirects before following them", async () => {
+		const fetchImpl = vi.fn(async (url: string | URL | Request) => {
+			const current = String(url);
+			if (current === "https://public.example.com/start") {
+				return new Response("", {
+					status: 302,
+					headers: { location: "http://127.0.0.1/admin" },
+				});
+			}
+			return new Response("private data", { status: 200 });
+		}) as typeof fetch;
+
+		await expect(
+			fetchPublicUrl(
+				"https://public.example.com/start",
+				{},
+				{
+					fetchImpl,
+					resolver: async () => [{ address: "93.184.216.34", family: 4 }],
+				},
+			),
+		).rejects.toThrow(/127\.0\.0\.1/);
+
+		expect(fetchImpl).toHaveBeenCalledTimes(1);
+		expect(fetchImpl).not.toHaveBeenCalledWith(
+			"http://127.0.0.1/admin",
+			expect.anything(),
+		);
 	});
 });

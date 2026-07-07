@@ -25,7 +25,12 @@ import type { SitemapUrl } from "./sitemap.js";
 import { DEFAULT_CRAWL_OPTIONS } from "./types.js";
 import type { CrawlOptions, CrawlResult, ParsedPage } from "./types.js";
 import { fetchRobots } from "./utils/robots.js";
-import { isSameDomain, normalizeUrl, validatePublicUrl } from "./utils/url.js";
+import {
+	isSameDomain,
+	normalizeUrl,
+	validatePublicUrl,
+	validatePublicUrlForFetch,
+} from "./utils/url.js";
 import { createJsRenderAdapter } from "./v2/js-render/adapter.js";
 import type { JsRenderAdapter } from "./v2/js-render/types.js";
 
@@ -444,6 +449,14 @@ async function fetchPage(
 	try {
 		let res: Response;
 		try {
+			const validation = await validatePublicUrlForFetch(url);
+			if (!validation.ok) {
+				return {
+					type: "error",
+					reason: "CONNECTION_REFUSED",
+					message: validation.reason,
+				};
+			}
 			res = await fetch(url, {
 				headers: { "User-Agent": options.userAgent },
 				signal: controller.signal,
@@ -475,7 +488,7 @@ async function fetchPage(
 				break;
 			}
 
-			const ssrf = validatePublicUrl(nextUrl);
+			const ssrf = await validatePublicUrlForFetch(nextUrl);
 			if (!ssrf.ok) {
 				return {
 					type: "error",

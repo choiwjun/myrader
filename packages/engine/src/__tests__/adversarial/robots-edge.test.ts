@@ -13,6 +13,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchRobots } from "../../utils/robots.js";
+import { __setHostnameResolverForTests } from "../../utils/url.js";
 import { expectNoCrash } from "./helpers.js";
 
 // robots-parser 직접 사용 — adversarial 페이로드를 parser 에 직접 던져본다
@@ -186,9 +187,14 @@ describe("robots-edge — robots-parser 다양한 페이로드", () => {
 
 describe("robots-edge — fetchRobots() 동작 (mock fetch)", () => {
 	const originalFetch = globalThis.fetch;
+	beforeEach(() => {
+		__setHostnameResolverForTests(async () => [{ address: "93.184.216.34", family: 4 }]);
+	});
+
 
 	afterEach(() => {
 		globalThis.fetch = originalFetch;
+		__setHostnameResolverForTests(null);
 	});
 
 	it("404 응답 → notFound=true, 모든 URL 허용", async () => {
@@ -301,6 +307,27 @@ describe("robots-edge — fetchRobots() 동작 (mock fetch)", () => {
 		expect(rules.fetchFailed).toBe(false);
 	});
 
+	it("robots.txt redirect가 private destination이면 따라가지 않는다", async () => {
+		const fetchMock = vi.fn(async (url: string | URL | Request) => {
+			if (String(url) === "https://public-test.example.com/robots.txt") {
+				return new Response("", {
+					status: 302,
+					headers: { location: "http://127.0.0.1/robots.txt" },
+				});
+			}
+			return new Response("User-agent: *\nDisallow: /", { status: 200 });
+		});
+		globalThis.fetch = fetchMock as typeof fetch;
+
+		const rules = await fetchRobots(
+			"https://public-test.example.com",
+			"ua",
+			5000,
+		);
+
+		expect(rules.fetchFailed).toBe(true);
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
 	it("timeout (AbortError) 도 fetchFailed=true 로 처리", async () => {
 		globalThis.fetch = vi
 			.fn()

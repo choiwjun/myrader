@@ -9,6 +9,7 @@
  */
 
 import { createRequire } from "node:module";
+import { validatePublicUrlForFetch } from "../../../utils/url.js";
 import type { JsRenderAdapter, RenderOptions, RenderResult } from "../types.js";
 
 const resolveOptionalPeer = createRequire(import.meta.url);
@@ -48,6 +49,10 @@ export class PlaywrightProvider implements JsRenderAdapter {
 		opts: RenderOptions = {},
 	): Promise<RenderResult> {
 		const startedAt = Date.now();
+		const validation = await validatePublicUrlForFetch(url);
+		if (!validation.ok) {
+			throw new Error(`Blocked unsafe render URL: ${validation.reason}`);
+		}
 		const browser = await this.getBrowser();
 
 		const context: BrowserContext = await browser.newContext({
@@ -55,20 +60,24 @@ export class PlaywrightProvider implements JsRenderAdapter {
 			viewport: opts.viewport ?? { width: 1280, height: 720 },
 		});
 
-		// 리소스 차단 (성능 최적화)
-		if (opts.blockResources && opts.blockResources.length > 0) {
-			const blocked = opts.blockResources;
-			await context.route("**/*", (route) => {
-				const type = route.request().resourceType();
-				if (
-					blocked.includes(type as "image" | "font" | "stylesheet" | "media")
-				) {
-					route.abort();
-				} else {
-					route.continue();
-				}
-			});
-		}
+		// 리소스 차단 + 서브리소스 SSRF 방지
+		const blocked = opts.blockResources ?? [];
+		await context.route("**/*", async (route) => {
+			const request = route.request();
+			const type = request.resourceType();
+			if (blocked.includes(type as "image" | "font" | "stylesheet" | "media")) {
+				await route.abort();
+				return;
+			}
+
+			const requestValidation = await validatePublicUrlForFetch(request.url());
+			if (!requestValidation.ok) {
+				await route.abort();
+				return;
+			}
+
+			await route.continue();
+		});
 
 		const page = await context.newPage();
 

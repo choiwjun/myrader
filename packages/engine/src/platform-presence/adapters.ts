@@ -4,6 +4,7 @@ import type {
 } from "@boina/contracts/diagnosis";
 import type { SourceType } from "@boina/contracts/enums";
 import { parseHtml } from "../parser.js";
+import { fetchPublicUrl } from "../utils/url.js";
 import type { CrawlResult, ParsedPage } from "../types.js";
 import type {
 	AdaptPlatformHtmlInput,
@@ -158,7 +159,7 @@ export function adaptPlatformHtml(
 export async function fetchPlatformPresence(
 	input: FetchPlatformPresenceInput,
 ): Promise<FetchPlatformPresenceResult> {
-	const fetchImpl = input.fetchImpl ?? globalThis.fetch;
+	const fetchImpl = input.fetchImpl ?? fetchPublicUrl;
 	try {
 		const response = await fetchImpl(input.sourceUrl, {
 			headers: {

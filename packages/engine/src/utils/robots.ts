@@ -16,7 +16,7 @@ const robotsParser = ((robotsParserModule as unknown as { default?: unknown })
 	isAllowed: (url: string, ua?: string) => boolean | undefined;
 };
 
-import { validatePublicUrl } from "./url.js";
+import { fetchPublicUrl, validatePublicUrl } from "./url.js";
 
 // ---------------------------------------------------------------------------
 // RobotsRules
@@ -68,10 +68,9 @@ export async function fetchRobots(
 	let status: number;
 
 	try {
-		const res = await fetch(robotsUrl, {
+		const res = await fetchPublicUrl(robotsUrl, {
 			headers: { "User-Agent": userAgent },
 			signal: controller.signal,
-			redirect: "follow",
 		});
 		status = res.status;
 

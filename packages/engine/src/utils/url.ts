@@ -1,3 +1,6 @@
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
+
 /**
  * X-SAG Core Engine — URL utilities
  *
@@ -79,6 +82,31 @@ export function isSameDomain(a: string, b: string): boolean {
  *  - "localhost" 호스트명
  *  - "metadata.google.internal"
  */
+function ipv4FromMappedIpv6(ipv6Raw: string): string | null {
+	const mapped = /^::ffff:(.+)$/i.exec(ipv6Raw);
+	if (!mapped?.[1]) return null;
+
+	const tail = mapped[1];
+	if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(tail)) return tail;
+
+	const hexParts = tail.split(":");
+	if (
+		hexParts.length === 2 &&
+		hexParts.every((part) => /^[0-9a-f]{1,4}$/i.test(part))
+	) {
+		const high = Number.parseInt(hexParts[0] ?? "", 16);
+		const low = Number.parseInt(hexParts[1] ?? "", 16);
+		return [
+			(high >> 8) & 0xff,
+			high & 0xff,
+			(low >> 8) & 0xff,
+			low & 0xff,
+		].join(".");
+	}
+
+	return null;
+}
+
 export function isPrivateIp(host: string): boolean {
 	const h = host.toLowerCase().trim();
 
@@ -92,6 +120,9 @@ export function isPrivateIp(host: string): boolean {
 	// 브래킷 제거 후 체크
 	const ipv6Raw = h.startsWith("[") && h.endsWith("]") ? h.slice(1, -1) : h;
 	if (/^(fc|fd)/i.test(ipv6Raw)) return true;
+	if (/^fe80:/i.test(ipv6Raw)) return true;
+	const mappedIpv4 = ipv4FromMappedIpv6(ipv6Raw);
+	if (mappedIpv4 && isPrivateIp(mappedIpv4)) return true;
 
 	// IPv4 체크
 	const ipv4Match = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
@@ -104,6 +135,10 @@ export function isPrivateIp(host: string): boolean {
 		if (a === 172 && b >= 16 && b <= 31) return true; // 172.16-31.x.x RFC1918
 		if (a === 192 && b === 168) return true; // 192.168.x.x RFC1918
 		if (a === 169 && b === 254) return true; // 169.254.x.x Link-local
+		if (a === 0) return true;
+		if (a === 100 && b >= 64 && b <= 127) return true;
+		if (a === 198 && (b === 18 || b === 19)) return true;
+		if (a >= 224) return true;
 	}
 
 	return false;
@@ -114,6 +149,25 @@ export function isPrivateIp(host: string): boolean {
 // ---------------------------------------------------------------------------
 
 export type UrlValidationResult = { ok: true } | { ok: false; reason: string };
+export type HostnameResolution = { address: string; family?: number };
+export type HostnameResolver = (hostname: string) => Promise<HostnameResolution[]>;
+
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
+let hostnameResolver: HostnameResolver = defaultHostnameResolver;
+
+async function defaultHostnameResolver(hostname: string): Promise<HostnameResolution[]> {
+	const records = await lookup(hostname, { all: true, verbatim: true });
+	return records.map((record) => ({
+		address: record.address,
+		family: record.family,
+	}));
+}
+
+export function __setHostnameResolverForTests(resolver: HostnameResolver | null): void {
+	hostnameResolver = resolver ?? defaultHostnameResolver;
+}
+
 
 /**
  * URL 이 안전하고 공개 HTTP/HTTPS URL 인지 검증한다.
@@ -155,4 +209,94 @@ export function validatePublicUrl(url: string): UrlValidationResult {
 	}
 
 	return { ok: true };
+}
+
+export async function validatePublicUrlForFetch(
+	url: string,
+	resolver: HostnameResolver = hostnameResolver,
+): Promise<UrlValidationResult> {
+	const syntax = validatePublicUrl(url);
+	if (!syntax.ok) return syntax;
+
+	const parsed = new URL(url);
+	const hostname = parsed.hostname;
+
+	if (isIP(hostname)) {
+		return isPrivateIp(hostname)
+			? {
+					ok: false,
+					reason: `resolved private IP is not allowed: ${hostname}`,
+				}
+			: { ok: true };
+	}
+
+	let addresses: HostnameResolution[];
+	try {
+		addresses = await resolver(hostname);
+	} catch {
+		return { ok: false, reason: `DNS lookup failed: ${hostname}` };
+	}
+
+	if (addresses.length === 0) {
+		return { ok: false, reason: `DNS lookup returned no records: ${hostname}` };
+	}
+
+	const blocked = addresses.find((record) => isPrivateIp(record.address));
+	if (blocked) {
+		return {
+			ok: false,
+			reason: `resolved private IP is not allowed: ${hostname} -> ${blocked.address}`,
+		};
+	}
+
+	return { ok: true };
+}
+
+export async function fetchPublicUrl(
+	url: string,
+	init: RequestInit = {},
+	options?: {
+		fetchImpl?: typeof fetch;
+		maxRedirects?: number;
+		resolver?: HostnameResolver;
+	},
+): Promise<Response> {
+	const fetchImpl = options?.fetchImpl ?? globalThis.fetch;
+	const maxRedirects = options?.maxRedirects ?? 3;
+	const resolver = options?.resolver ?? hostnameResolver;
+	let currentUrl = url;
+	let method = init.method;
+	let body = init.body;
+
+	for (let redirects = 0; redirects <= maxRedirects; redirects++) {
+		const validation = await validatePublicUrlForFetch(currentUrl, resolver);
+		if (!validation.ok) {
+			throw new Error(validation.reason);
+		}
+
+		const response = await fetchImpl(currentUrl, {
+			...init,
+			method,
+			body,
+			redirect: "manual",
+		});
+
+		if (!REDIRECT_STATUSES.has(response.status)) {
+			return response;
+		}
+
+		const location = response.headers.get("location");
+		if (!location) return response;
+		if (redirects === maxRedirects) {
+			throw new Error("maximum redirect count exceeded");
+		}
+
+		currentUrl = new URL(location, currentUrl).toString();
+		if (response.status === 303) {
+			method = "GET";
+			body = undefined;
+		}
+	}
+
+	throw new Error("maximum redirect count exceeded");
 }

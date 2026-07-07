@@ -38,6 +38,15 @@ vi.mock("../v2/a11y/analyzer.js", () => ({
 import { crawlSite } from "../crawler.js";
 import { createA11yAnalyzer } from "../v2/a11y/analyzer.js";
 import { runDiagnosisPipeline } from "../pipeline.js";
+import { __setHostnameResolverForTests } from "../utils/url.js";
+
+beforeEach(() => {
+	__setHostnameResolverForTests(async () => [{ address: "93.184.216.34", family: 4 }]);
+});
+
+afterEach(() => {
+	__setHostnameResolverForTests(null);
+});
 
 // ---------------------------------------------------------------------------
 // Mock ParsedPage factory

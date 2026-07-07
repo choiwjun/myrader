@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { __setJsRenderAdapterFactory, crawlSite } from "../crawler.js";
 import { DEFAULT_CRAWL_OPTIONS } from "../types.js";
+import { __setHostnameResolverForTests } from "../utils/url.js";
 import type { JsRenderAdapter, RenderResult } from "../v2/js-render/types.js";
 
 // ---------------------------------------------------------------------------
@@ -80,11 +81,16 @@ const RENDERED_HTML = `
   </html>
 `;
 
+beforeEach(() => {
+	__setHostnameResolverForTests(async () => [{ address: "93.184.216.34", family: 4 }]);
+});
+
 afterEach(() => {
 	vi.unstubAllGlobals();
 	vi.restoreAllMocks();
 	// 다른 테스트로 어댑터 팩토리가 새지 않도록 복원
 	__setJsRenderAdapterFactory(null);
+	__setHostnameResolverForTests(null);
 });
 
 describe("crawlSite HTTP signal preservation", () => {

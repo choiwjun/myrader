@@ -10,7 +10,7 @@
  *  6. sitemap fetcher 가 throw 해도 BFS 로 graceful 폴백.
  */
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
 	__setJsRenderAdapterFactory,
@@ -18,6 +18,7 @@ import {
 	crawlSite,
 } from "../crawler.js";
 import type { SitemapResult } from "../sitemap.js";
+import { __setHostnameResolverForTests } from "../utils/url.js";
 
 // ---------------------------------------------------------------------------
 // 헬퍼
@@ -66,11 +67,18 @@ const STATIC_HTML = `
   </html>
 `;
 
+beforeEach(() => {
+	__setHostnameResolverForTests(async () => [
+		{ address: "93.184.216.34", family: 4 },
+	]);
+});
+
 afterEach(() => {
 	vi.unstubAllGlobals();
 	vi.restoreAllMocks();
 	__setSitemapFetcher(null);
 	__setJsRenderAdapterFactory(null);
+	__setHostnameResolverForTests(null);
 });
 
 // ---------------------------------------------------------------------------
