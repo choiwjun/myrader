@@ -13,6 +13,8 @@
 - P-4. 카카오 비즈메시지 발신프로필/SMS 폴백 — 미래 유료 알림 채널, 현재 SME v1 제외 ← P-1 **(사용자)**
 
 ## Phase A — boina 레이더 모듈 + UX 재구성 (소상공인) · 예상 4~5주 (07 재설계 반영 상향)
+> 2026-07-07 우선순위 변경: 소상공인 SME v1의 남은 production smoke/파일럿 검증은 **보류**한다. 현재 실행 우선순위는 같은 엔진 기반의 Creator 제품이며, 공통 버그 수정은 엔진/공유 패키지에서 처리한다.
+
 
 ### A0. 거버넌스 (boina 규칙 준수)
 - A0-1. **04+07 문서** 기반 boina `docs/planning/` Gap Review 패치 생성 (07 §5 패치 항목 6개: 홈 피드 전환·S3+S4 통합·라우트 재편 포함) → 게이트 판정 ← 없음
@@ -40,10 +42,10 @@
 - A4-1. E2E: 진단→홈 카드 ④ 미활성→스캔 예약 활성화(`trialing/active`)→월요 잡→홈 카드 ④ 활성→글감 복붙 전체 경로 ← A3.*
 - A4-2. 실가게 5곳 파일럿 2주 (열람률·"썼어요" 응답 수집) ← A4-1
 
-## Phase B — 크리에이터판 새 레포 · 예상 5~6주
+## Phase B — 크리에이터판 새 레포 · 예상 5~6주 — **현재 우선순위**
 
 ### B0. 기반
-- B0-1. **유예된 Creator 선행조건**: 엔진·파이프라인 패키지를 GitHub Packages로 발행할 수 있도록 dist build, package exports, 버전 태그, boina release workflow를 별도 설계한다. 현재 SME v1 블로커 아님 ← A1-1 이후 별도 결정
+- B0-1. **완료(2026-07-07)** Creator 선행조건: `@boina/contracts`, `@boina/engine`, `@radar/keyword-pipeline` dist build/package exports/버전 태그 기반 GitHub Packages release workflow를 추가했다. 릴리스는 `packages-vX.Y.Z` 태그 또는 workflow_dispatch version으로 실행한다.
 - B0-2. 레포 부트스트랩 (Next+Tailwind+Drizzle+Supabase+CI) ← 없음
 - B0-3. 03 디자인 토큰 → Tailwind 설정 + 기본 컴포넌트 셸 (C-01~C-07 스토리북) ← B0-2
 
@@ -81,12 +83,19 @@
 ## 크리티컬 패스
 
 ```
-A1-2(키 발급·사용자) → A1-1(파이프라인 TS/워크스페이스 패키지) → A2-2(주간 잡) → A3-2(홈 카드④ active) → A4-2(파일럿)
-        A0-1(Gap Review) → A0-3(UX 재구성·08 시스템) ─────────────────────┘
+현재 우선순위(2026-07-07):
+B0-1(완료: packages dist/export/release workflow)
+  → B0-2(creator 레포 부트스트랩: Next+Tailwind+Drizzle+Supabase+CI)
+  → B0-3(디자인 토큰 + C-01~C-07 컴포넌트 셸)
+  → B1-1(DB 스키마) → B1-2(이중 점수 산식)
+  → B1-3(일일 스캔 잡: 네이버 선노출·AI 후행 + SSE)
+  → B1-4(S1 온보딩) → B1-5(S2 대시보드)
+  → B2-1(S4 글 진단: runDiagnosisPipeline 연동)
+  → B4-4(베타)
 
-유예된 Creator 선행조건(현재 SME v1 블로커 아님):
-A1-1 이후 별도 결정 → dist build/package exports → release workflow → GitHub Packages 발행(B0-1) → B1-3(스캔 잡) → B1-5(S2) → B4-4(베타)
-P-2/P-3/P-4(토스·정책·카카오/SMS)는 미래 유료 구독/Creator 착수 전 선행이며 현재 SME v1 크리티컬 패스에서 제외
+보류:
+SME A4 production smoke/AC-7/파일럿은 현재 Creator 우선순위에서 제외한다.
+P-2/P-3/P-4(토스·정책·카카오/SMS)는 미래 유료 구독/Creator 수익화 착수 전 선행이며 B0~B2 엔진/제품 검증의 블로커가 아니다.
 ```
 
-**지금 당장 (개발 세션 첫 30분)**: ① A1-2 네이버 키 발급(사용자) ② A0-1 boina Gap Review 패치 ③ A0-2 `radar_subscriptions` 무료 스캔 예약 범위 기록 ④ A1-1 워크스페이스 `packages/keyword-pipeline` TS 이식 착수
+**지금 당장 (개발 세션 첫 30분)**: ① B0-1 변경 커밋/푸시 ② B0-2 Creator 레포 부트스트랩 ③ B0-3 디자인 토큰/컴포넌트 셸 착수 ④ B1-1 Creator DB 스키마 설계

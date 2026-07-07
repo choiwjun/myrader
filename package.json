@@ -15,6 +15,9 @@
     "lint": "biome check apps packages tests",
     "lint:fix": "biome check --write apps packages tests",
     "typecheck": "tsc --noEmit && bun run --filter '*' typecheck",
+    "packages:build": "bun run --filter '@boina/contracts' build && bun run --filter '@boina/engine' build && bun run --filter '@radar/keyword-pipeline' build",
+    "packages:prepare-publish": "node scripts/prepare-package-publish.mjs packages/contracts packages/engine packages/keyword-pipeline",
+    "packages:pack:dry-run": "bun run packages:build && bun run packages:prepare-publish && npm pack packages/contracts/dist --dry-run && npm pack packages/engine/dist --dry-run && npm pack packages/keyword-pipeline/dist --dry-run",
     "db:generate": "bun run --filter '@boina/db' db:generate",
     "db:migrate": "bun run --filter '@boina/db' db:migrate"
   },

@@ -136,21 +136,24 @@
 2. generated asset type은 구현 enum(`snippet`, `place_intro`, `review_request`, `vendor_prescription`)을 정본으로 삼는다.
 3. Radar adapter는 credential absence를 honest unavailable로 처리하고, subscription waiting/first-scan 상태를 Home Radar card와 연결한다.
 
-## 명시적 비범위 — 구현하지 말 것
+## 명시적 비범위 — SME 쪽에서 구현하지 말 것
 
 - Toss 결제는 사용하지 않는다.
 - SMS/Kakao 알림도 사용하지 않는다.
 - checkout/payment/settings billing UI를 만들지 않는다.
 - Settings 재진단은 v1.5 placeholder다.
 - Google real SERP / AI Overview rank / REQ-007 재진단·추이는 v1.5다.
-- 크리에이터판은 현재 소상공인용 v1 완료 범위가 아니다.
+- Creator 제품은 별도 우선순위로 전환한다. SME 화면에 Creator 기능을 섞지 않는다.
 
-## 남은 검증/운영 과제
+## 보류된 SME 검증/운영 과제
 
-1. 비IT 사장님 2~3명 기준 AC-7 이해도 검증(5분 내 "내 상태/경쟁/할 일" 자기 설명).
+2026-07-07 사용자 우선순위 변경으로 아래 SME 운영 검증은 현재 실행 범위에서 제외한다. 같은 엔진 기반의 Creator 제품을 먼저 진행하고, 공통 버그는 엔진/공유 패키지에서 수정한다.
+
+1. 비IT 사장님 2~3명 기준 AC-7 이해도 검증.
 2. production credential 환경에서 mock fallback이 꺼진 상태의 smoke 검증.
-3. Google real SERP / AI Overview rank / REQ-007 재진단·추이는 v1.5에서 별도 결정.
-4. 결제·구독·Kakao/SMS·Creator Radar는 현재 SME v1 범위 밖으로 유지.
+3. 실가게 파일럿.
+4. Google real SERP / AI Overview rank / REQ-007 재진단·추이는 v1.5에서 별도 결정.
+5. 결제·구독·Kakao/SMS는 현재 B0~B2 엔진/Creator 제품 검증의 블로커가 아니다.
 
 ## 필수 회귀 검증 세트
 
@@ -164,4 +167,4 @@
 
 ## 현재 한 줄 상태
 
-**소상공인용 v1의 주요 저장/배선 갭은 닫혔다. 남은 판단은 코드 배선보다 production credential smoke와 사장님 이해도 검증이다.**
+**SME v1의 주요 저장/배선 갭은 닫혔고 운영 검증은 보류한다. 현재 우선순위는 Creator 레포 부트스트랩과 공통 엔진/패키지 기반 확장이다.**

@@ -136,3 +136,10 @@
 
 ## 해소됨 (RESOLVED)
 - ✅ **AC-7 사장님 이해도 검증** (2026-06-14) — 2026-06-13 제작 목업(`design/mockup/sajangnim-validation.html`) 검증으로 사장님 이해/만족 확인(사용자 보고). G-사장님이해 게이트 충족 → **Development Gate 조건부 Green → 풀 Green 승격.** ※ 목업 리뷰 기반 만족 확인이며 정량 stopwatch 측정은 아님 — 정식 오픈 후 실사용 행동 데이터로 재확인 권장.
+
+**Creator 우선순위 전환 + 공통 엔진 기반 (확정: 2026-07-07)**
+- 사용자 지시: 소상공인 SME v1 운영 검증은 우선 제외하고 Creator 제품을 먼저 진행한다.
+- 결정: Creator는 별도 제품/레포로 진행하되, 버그와 공통 개선은 `@boina/engine`, `@boina/contracts`, `@radar/keyword-pipeline`에서 처리한다.
+- 완료: Creator B0-1 선행조건으로 dist build, publish package exports, GitHub Packages workflow를 추가했다.
+- 다음: B0-2 Creator 레포 부트스트랩 → B0-3 디자인 토큰/컴포넌트 셸 → B1 DB/점수/스캔 잡.
+- 보류: SME production credential smoke, SME AC-7 운영 검증, 실가게 파일럿.

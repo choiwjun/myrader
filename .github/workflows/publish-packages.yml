@@ -1,0 +1,82 @@
+name: Publish reusable packages
+
+on:
+  push:
+    tags:
+      - "packages-v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Semver version to publish, for example 0.1.0"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Build and publish packages
+    runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node for GitHub Packages
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+
+      - name: Resolve package version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            PACKAGE_VERSION="${{ inputs.version }}"
+          else
+            PACKAGE_VERSION="${GITHUB_REF_NAME#packages-v}"
+          fi
+
+          if [[ ! "$PACKAGE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid package version: $PACKAGE_VERSION" >&2
+            exit 1
+          fi
+
+          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build publish artifacts
+        run: PACKAGE_VERSION="$PACKAGE_VERSION" bun run packages:pack:dry-run
+
+      - name: Publish to GitHub Packages
+        shell: bash
+        run: |
+          npm config set @boina:registry https://npm.pkg.github.com
+          npm config set @radar:registry https://npm.pkg.github.com
+
+          publish_package() {
+            local dir="$1"
+            local package_name
+            package_name="$(node -p "require('./${dir}/package.json').name")"
+
+            if npm view "${package_name}@${PACKAGE_VERSION}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
+              echo "${package_name}@${PACKAGE_VERSION} already exists; skipping."
+              return 0
+            fi
+
+            npm publish "$dir" --registry=https://npm.pkg.github.com
+          }
+
+          publish_package packages/contracts/dist
+          publish_package packages/engine/dist
+          publish_package packages/keyword-pipeline/dist

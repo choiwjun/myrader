@@ -8,15 +8,28 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./snippets": "./src/snippets/index.ts",
     "./snippets/index": "./src/snippets/index.ts",
+    "./v2": "./src/v2/index.ts",
+    "./v2/a11y": "./src/v2/a11y/index.ts",
+    "./v2/aeo-validator": "./src/v2/aeo-validator/index.ts",
+    "./v2/backlink": "./src/v2/backlink/index.ts",
     "./v2/serp": "./src/v2/serp/index.ts",
     "./v2/geo-validator": "./src/v2/geo-validator/index.ts",
     "./v2/competitor": "./src/v2/competitor/index.ts",
     "./v2/gap": "./src/v2/gap/index.ts",
-    "./v2/perf": "./src/v2/perf/index.ts"
+    "./v2/js-render": "./src/v2/js-render/index.ts",
+    "./v2/llm-provider": "./src/v2/llm-provider/index.ts",
+    "./v2/nlp": "./src/v2/nlp/index.ts",
+    "./v2/perf": "./src/v2/perf/index.ts",
+    "./v2/rule-validator": "./src/v2/rule-validator/index.ts"
   },
   "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
     "@boina/contracts": "workspace:*",
