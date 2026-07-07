@@ -19,7 +19,6 @@
 //   websiteUrl              ↔  homepage_url
 
 import { z } from "zod";
-import type { PlaceCandidate } from "./place-search.js";
 
 /**
  * businesses 행의 앱層 레코드(저장소 반환). DB 컬럼과 1:1.
@@ -143,11 +142,19 @@ const WebsiteUrlSchema = z
   .optional()
   .transform((v) => (v && v.length > 0 ? v : null));
 
-/** confirmBusiness 입력 — placeCandidate + 선택 websiteUrl + region. */
+/** confirmBusiness 입력 — placeCandidate 또는 직접 입력 후보 + 선택 websiteUrl + region. */
+export interface ConfirmBusinessCandidate {
+  /** 네이버 검색 후보면 place URL, 직접 입력이면 비워 naverPlaceId=null 로 저장한다. */
+  placeUrl?: string | null;
+  name: string;
+  address?: string;
+  category?: string;
+}
+
 export interface ConfirmBusinessInput {
   /** 소유 account — 익명 진단이면 null/생략(인증 세션 있으면 전달). */
   accountId?: string | null;
-  candidate: PlaceCandidate;
+  candidate: ConfirmBusinessCandidate;
   websiteUrl?: string | null;
   region?: string | null;
 }
@@ -161,7 +168,7 @@ const ConfirmBusinessSchema = z.object({
     .optional()
     .transform((v) => v ?? null),
   candidate: z.object({
-    placeUrl: NaverPlaceUrlSchema,
+    placeUrl: NaverPlaceUrlSchema.nullable().optional(),
     name: z.string().trim().min(1).max(100),
     address: z.string().trim().max(200).optional().default(""),
     category: z.string().trim().max(50).optional().default(""),
@@ -183,11 +190,12 @@ export function toBusinessView(rec: BusinessRecord): BusinessView {
 }
 
 /**
- * 후보(placeCandidate)를 확정해 businesses 행을 만들고 화면 뷰로 돌려준다.
+ * 후보(placeCandidate) 또는 직접 입력 가게를 확정해 businesses 행을 만들고 화면 뷰로 돌려준다.
  *
- * - placeUrl → naverPlaceId 파싱 후 저장(스키마 컬럼). 조회 시 URL 복원.
+ * - placeUrl 있음 → naverPlaceId 파싱 후 저장(스키마 컬럼). 조회 시 URL 복원.
+ * - placeUrl 없음(직접 입력) → naverPlaceId=null 로 저장하고 진단 enqueue 는 이름 기반 fallback target 을 쓴다.
  * - websiteUrl(선택) → homepageUrl. 없으면 null(홈페이지 없이도 확정 — store-finder.yaml).
- * - category(네이버 후보 업종, 있으면) → businesses.category 저장(#4). 없으면 null.
+ * - category(네이버 후보/직접 입력 업종, 있으면) → businesses.category 저장(#4). 없으면 null.
  * - id 는 DB defaultRandom(UUID v4) — 앱이 만들지 않는다(uuid 헌법).
  */
 export async function confirmBusiness(
@@ -195,7 +203,9 @@ export async function confirmBusiness(
   input: ConfirmBusinessInput,
 ): Promise<BusinessView> {
   const parsed = ConfirmBusinessSchema.parse(input);
-  const naverPlaceId = extractNaverPlaceId(parsed.candidate.placeUrl);
+  const naverPlaceId = parsed.candidate.placeUrl
+    ? extractNaverPlaceId(parsed.candidate.placeUrl)
+    : null;
   // 네이버 후보 업종 — 있으면 저장(자유 텍스트), 비면 null(발명 0).
   const category = parsed.candidate.category.length > 0 ? parsed.candidate.category : null;
 

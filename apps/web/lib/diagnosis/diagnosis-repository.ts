@@ -25,6 +25,7 @@ function toRecord(row: {
   overallScore: string | null;
   summaryText: string | null;
   crawlFailureReason: string | null;
+  jobPayload: Record<string, unknown> | null;
   createdAt: Date;
   updatedAt: Date;
   completedAt: Date | null;
@@ -36,6 +37,7 @@ function toRecord(row: {
     overallScore: row.overallScore,
     summaryText: row.summaryText,
     crawlFailureReason: row.crawlFailureReason as DiagnosisCrawlFailureReason | null,
+    jobPayload: row.jobPayload,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     completedAt: row.completedAt,

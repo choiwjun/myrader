@@ -119,14 +119,22 @@ describe("P2-S1: 가게 찾기 — 데이터 흐름 계약", () => {
     expect(findSource).toContain("{c.address}");
   });
 
-  it("홈페이지 URL 없이 시작할 때 place URL target으로 enqueue할 수 있다", () => {
+  it("홈페이지 URL 없이 시작할 때 place URL 또는 이름 기반 fallback target으로 enqueue할 수 있다", () => {
     expect(findSource).toContain(
-      "const target = business.websiteUrl?.trim() || business.placeUrl || candidate.placeUrl",
+      'const fallbackRegion = business.region || region.trim() || "전국";',
     );
+    expect(findSource).toContain("buildManualSearchTarget(candidate.name, fallbackRegion)");
     expect(findSource).toContain(
       'const sourceType = business.websiteUrl?.trim() ? "website" : "naver_place"',
     );
     expect(findSource).toContain("websiteUrl: websiteUrl.trim() || undefined");
+  });
+
+  it("검색 후보가 없거나 후보 목록에 내 가게가 없으면 직접 입력으로 계속할 수 있다", () => {
+    expect(findSource).toContain("직접 입력해서 계속할게요");
+    expect(findSource).toContain("목록에 없어요. 직접 입력할게요");
+    expect(findSource).toContain("placeUrl: null");
+    expect(findSource).toContain('id="manual-category"');
   });
 
   it("진단 완료 시 diagnosisId를 보존한 home 이동 신호를 만든다", () => {

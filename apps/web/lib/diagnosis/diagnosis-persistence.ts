@@ -57,9 +57,11 @@ import {
 
 // ---------------------------------------------------------------------------
 // 채널 매핑 (04 §3: engine_result.channel — naver / google / ai_citation)
+// UI/API display channel은 channel-status-service에서 naver / google / ai 로 변환한다.
+// SNS는 현재 SME v1 channel taxonomy에 포함하지 않는다.
 // ---------------------------------------------------------------------------
 
-/** engine_result.channel — 04 §3 의 채널 코드값(naver/google/ai_citation). */
+/** engine_result.channel — 04 §3 의 저장 채널 코드값(naver/google/ai_citation). */
 export type EngineResultChannel = "naver" | "google" | "ai_citation";
 
 /**
@@ -259,16 +261,21 @@ export function mapCompetitors(
     });
   }
 
-  // gpt_grounded — grounded=true 일 때만(게이팅). URL 이 있으면 보존, 없으면 안정 placeholder.
+  // gpt_grounded — grounded=true 일 때만(게이팅). URL 이 있는 measured-capable 항목을 먼저 저장한다.
   const grounded = input.llm?.grounded === true;
   const llmComps = grounded ? (input.llm?.competitors ?? []) : [];
+  const llmNameOnlyComps: typeof llmComps = [];
   for (const c of llmComps) {
     const name = (c.name ?? "").trim();
     if (!name) continue;
     const targetUrl = "url" in c && typeof c.url === "string" ? c.url.trim() : "";
+    if (!targetUrl) {
+      llmNameOnlyComps.push(c);
+      continue;
+    }
     add({
       diagnosisId,
-      url: targetUrl || competitorUrlPlaceholder("gpt_grounded", name),
+      url: targetUrl,
       name,
       serpRank: null,
       source: "gpt_grounded",
@@ -292,6 +299,18 @@ export function mapCompetitors(
     });
   }
 
+  // grounded name-only competitors are evidence, not measured targets; keep them after diagnosable rows.
+  for (const c of llmNameOnlyComps) {
+    const name = (c.name ?? "").trim();
+    if (!name) continue;
+    add({
+      diagnosisId,
+      url: competitorUrlPlaceholder("gpt_grounded", name),
+      name,
+      serpRank: null,
+      source: "gpt_grounded",
+    });
+  }
   return [...out.values()];
 }
 
@@ -362,7 +381,7 @@ function competitorCoverageFromOutput(output: DiagnosisPipelineOutput): Competit
 
 function hasCompetitorReportCoverage(report: CompetitorReportLike): boolean {
   const coverage = (report as CompetitorReportWithCoverage).coverage;
-  if (!coverage) return true;
+  if (!coverage) return false;
   if (coverage.partialResult) return false;
   return coverage.measuredPageCount > 0 || coverage.measuredSurfaceCount > 0;
 }

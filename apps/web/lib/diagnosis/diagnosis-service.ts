@@ -51,6 +51,8 @@ export interface DiagnosisRecord {
   overallScore: string | null;
   summaryText: string | null;
   crawlFailureReason: DiagnosisCrawlFailureReason | null;
+  /** Operator-visible job metadata (validated payload + non-sensitive gate evidence). */
+  jobPayload?: Record<string, unknown> | null;
   createdAt: Date;
   updatedAt: Date;
   completedAt: Date | null;
@@ -81,6 +83,7 @@ export interface DiagnosisPatch {
   summaryText?: string | null;
   crawlFailureReason?: DiagnosisCrawlFailureReason | null;
   completedAt?: Date | null;
+  jobPayload?: Record<string, unknown> | null;
 }
 
 /**

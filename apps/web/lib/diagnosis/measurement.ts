@@ -84,6 +84,8 @@ export function normalizeEvidenceItems(raw: unknown, fallbackLabel = "확인 근
   addKnownRow(rows, "수집일", record.collectedAt);
   addKnownRow(rows, "경쟁사", record.competitorName ?? record.name);
   addKnownRow(rows, "순위", record.serpRank ?? record.rank);
+  addKnownRow(rows, "질문", record.sampleQuery);
+  addKnownRow(rows, "언급 횟수", record.mentionedInQueries);
   addKnownRow(rows, "확인 결과", record.found ?? record.competitorHas);
   addKnownRow(rows, "측정 상태", record.measurementLabel);
 

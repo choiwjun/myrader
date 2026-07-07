@@ -1595,9 +1595,9 @@ export const geoBusinessHoursDetail001: Rule = (ctx): RuleResult => {
 	const hasDetail = detailPattern.test(page.bodyText);
 	// 단순 시간 표기는 "유효한" 시간 범위만 인정한다 (09:00-25:00 같은 불가능한 시간은 hours 로 치지 않음).
 	const hasAnyHours = hasValidHoursRange(page.bodyText) || hasDetail;
-	// 시간 정보가 전혀 없으면 GEO-OPENING-HOURS-001의 책임이므로 점수 중립(unavailable).
+	// 시간 정보가 전혀 없으면 GEO-OPENING-HOURS-001의 책임이므로 점수 중립(unavailable + passed=true).
 	// 시간 정보는 있는데 detail 없으면 fail.
-	const passed = hasAnyHours && hasDetail;
+	const passed = !hasAnyHours || hasDetail;
 	const scoreImpact: RuleResult["scoreImpact"] = hasAnyHours
 		? "scored"
 		: "unavailable";

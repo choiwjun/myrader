@@ -95,6 +95,14 @@ describe("dev-mock 진단 파이프라인 (실키 없이 completed 완주)", () 
     // 적어도 항목이 샘플임을 식별할 수 있어야 한다(R2-A 패턴).
     expect(out.items.every((i) => isMockSampleItem(i))).toBe(true);
   });
+  it("'(샘플)' 정직성: 샘플 표면도 명시해 경쟁사 갭 근거를 가짜 실측으로 오인시키지 않는다", () => {
+    const out = buildMockDiagnosisOutput(INPUT);
+    const surface = out.businessPresence.surfaces[0];
+
+    expect(surface?.status).toBe("fetched");
+    expect(surface?.sourceLabel).toContain("(샘플)");
+    expect(surface?.description).toContain("(샘플)");
+  });
 
   it("점수 비노출 규율: engine_results 매퍼가 impactScore 를 내부 저장만 한다(매퍼 통과)", () => {
     const out = buildMockDiagnosisOutput(INPUT);

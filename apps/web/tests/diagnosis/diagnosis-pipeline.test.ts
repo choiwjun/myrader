@@ -31,6 +31,7 @@ function makeFakeRepo(): DiagnosisRepository & { rows: Map<string, DiagnosisReco
     overallScore: null,
     summaryText: null,
     crawlFailureReason: null,
+    jobPayload: null,
     createdAt: now,
     updatedAt: now,
     completedAt: null,
@@ -45,6 +46,7 @@ function makeFakeRepo(): DiagnosisRepository & { rows: Map<string, DiagnosisReco
         overallScore: null,
         summaryText: null,
         crawlFailureReason: null,
+        jobPayload: null,
         createdAt: now,
         updatedAt: now,
         completedAt: null,
@@ -262,6 +264,15 @@ describe("진단 파이프라인 배선 (P1-R2, mock 엔진)", () => {
     };
     expect(passedInput.enableLlmValidation).toBe(false);
     expect(passedInput.scoringMode).toBe("graded");
+    const row = await repo.findById("diag-1");
+    const storedGate = row?.jobPayload?.costGate as
+      | { llmValidation?: { allowed?: boolean; reason?: string; fallback?: string } }
+      | undefined;
+    expect(storedGate?.llmValidation).toMatchObject({
+      allowed: false,
+      reason: "budget",
+      fallback: "skip",
+    });
   });
 
   it("비용 게이팅 허용 + LLM 미요청: 기본은 llmValidation 비활성(무분별 호출 금지)", async () => {
@@ -274,6 +285,15 @@ describe("진단 파이프라인 배선 (P1-R2, mock 엔진)", () => {
 
     const passedInput = runPipeline.mock.calls[0]?.[0] as { enableLlmValidation?: boolean };
     expect(passedInput.enableLlmValidation).toBe(false);
+    const row = await repo.findById("diag-1");
+    const storedGate = row?.jobPayload?.costGate as
+      | { llmValidation?: { requested?: boolean; allowed?: boolean; reason?: string } }
+      | undefined;
+    expect(storedGate?.llmValidation).toMatchObject({
+      requested: false,
+      allowed: false,
+      reason: "not_requested:llm_validation",
+    });
   });
   it("경쟁사 재진단은 LLM 검증을 끄고 실패한 경쟁사는 건너뛰며 성공한 리포트로 gap/action 을 저장한다", async () => {
     const repo = makeFakeRepo();
@@ -287,6 +307,16 @@ describe("진단 파이프라인 배선 (P1-R2, mock 엔진)", () => {
       ...mockPipelineOutput(91),
       items: SAMPLE_ITEMS.slice(0, 1),
     };
+    competitorOutput.businessPresence.surfaces = [
+      {
+        sourceType: "website",
+        url: "https://good.example",
+        status: "fetched",
+        sourceLabel: "경쟁사 사이트",
+        services: ["커피"],
+        limitations: [],
+      },
+    ];
     const runPipeline = vi
       .fn()
       .mockResolvedValueOnce(selfOutput)

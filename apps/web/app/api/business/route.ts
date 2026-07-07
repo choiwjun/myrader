@@ -51,10 +51,10 @@ const SearchQuerySchema = z.object({
     .transform((value) => (value && value.length > 0 ? value : "전국")),
 });
 
-// POST 확정 본문 검증 — placeCandidate(확정 후보) + 선택 websiteUrl.
+// POST 확정 본문 검증 — placeCandidate(확정 후보) 또는 직접 입력 후보 + 선택 websiteUrl.
 const ConfirmBodySchema = z.object({
   candidate: z.object({
-    placeUrl: z.string().url().max(2048),
+    placeUrl: z.string().url().max(2048).nullable().optional(),
     name: z.string().trim().min(1).max(100),
     address: z.string().trim().max(200).optional().default(""),
     category: z.string().trim().max(50).optional().default(""),

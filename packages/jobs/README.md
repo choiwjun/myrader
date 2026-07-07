@@ -73,14 +73,18 @@ completed / failed = 종료(재처리 없음)
 ## 비용 게이팅 함수 자리 (`src/gating`)
 
 grounded llmValidation·SERP 무분별 호출로 인한 비용 폭증(02-trd §5 리스크)을
-막기 위한 **게이트 함수 인터페이스**. 골격 단계에서는 **자리만** 둔다:
+막기 위한 **게이트 함수 인터페이스와 기본 정책**이다:
 
 - `CostGate` 시그니처 + `CostGateContext`/`CostGateDecision` 타입 고정.
-- `allowAllCostGate` / `defaultCostGate` 더미 구현(항상 허용, `[placeholder]` 사유).
-- 실제 정책(예산·쿼터·캐시 히트·플랜 티어)은 P1+에서 이 시그니처 뒤에 채운다
-  (호출부 불변 — 07 §6 어댑터/레지스트리 확장점).
+- `defaultCostGate`는 production 에서 subject key(`businessId` 우선, 없으면 `diagnosisId`)
+  단위 daily/monthly quota, plan-tier multiplier, cache TTL, fallback 정책을 적용한다.
+- dev/test 는 기본 허용(`BOINA_COST_GATE_ALLOW_NON_PRODUCTION=true`)하여 실 키 없는 로컬·테스트가
+  불필요하게 깨지지 않는다.
+- `apps/web` 진단 핸들러는 LLM 게이트 판정(`allowed`, `reason`, `fallback`,
+  실제 engine enable 여부)을 `diagnoses.job_payload.costGate.llmValidation`에 저장해
+  운영자가 deny/defer 사유를 DB 행에서 확인할 수 있게 한다.
 
-> **[OPEN]** 예산 한도·플랜별 쿼터·캐시 TTL 수치는 미결정(REQ-007 / OQ-2 연동).
+> 한도·TTL·fallback 은 `BOINA_COST_GATE_*` 환경 변수로 조정한다.
 
 ---
 

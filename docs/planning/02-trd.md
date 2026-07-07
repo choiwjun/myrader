@@ -26,7 +26,7 @@
       ▼
 [백그라운드 잡 워커]  ── 느린 분석 실행
    ├─ llm-provider: AI 실인용(grounded llmValidation)  ── ① HERO 신호
-   ├─ core-engine: 크롤·파서·analyzers·scoring·v2(gap/competitor/serp/geo-validator/nlp) + SNS 멀티플랫폼 source detection  ── ② 비교 / ③ SNS 연료
+   ├─ core-engine: 크롤·파서·analyzers·scoring·v2(gap/competitor/serp/geo-validator/nlp)  ── ② 비교 / ③ 검색 재료
    ├─ naver-presence: 네이버 노출 실측  ── ③ 레버(연료) 1순위
    └─ snippet: 생성물(FAQ/스키마/소개글/리뷰문구/처방전)
       │
@@ -36,7 +36,7 @@
 
 ## 2. 데이터 소스 (우선순위 — 확정)
 
-> 정보 계층(05-design-system 1-A) 확정에 맞춰 데이터 소스 우선순위를 재정렬한다. **AI 실인용이 HERO 신호**(GEO=AI 검색이 본질), 경쟁사/갭이 2순위, 채널 노출(네이버>구글>SNS)은 AI 노출을 끌어올리는 **레버(연료)**로 3순위다.
+> 정보 계층(05-design-system 1-A) 확정에 맞춰 데이터 소스 우선순위를 재정렬한다. **AI 실인용이 HERO 신호**(GEO=AI 검색이 본질), 경쟁사/갭이 2순위, 채널 노출(네이버>구글)은 AI 노출을 끌어올리는 **레버(연료)**로 3순위다. SNS/인스타/유튜브/블로그 자동 연동은 현재 SME v1 채널이 아니라 future lever scope다.
 
 | 우선순위 | 소스 | 용도 | 비용·게이팅 | 비고 |
 |----------|------|------|------------|------|
@@ -44,7 +44,7 @@
 | **2순위 — 비교** | 경쟁사 진단 / GapAnalyzer (on-page SEO/AEO/GEO 룰) | 경쟁사가 AI에 잡히나 vs 나, 보유 vs 갭 (REQ-003·004) | 엔진 내장 (즉시·무료) | core-engine v2 gap/competitor 재사용. 구글 페이지에도 동일 룰 적용 가능 |
 | **3순위 — 레버(채널/연료)** | **네이버 노출 (Naver Search API)** | 네이버 노출 실측 (REQ-002·003) — AI 노출을 끌어올리는 1차 연료 | API 호출 | naver-presence 재사용 |
 | 3순위 (하위) | **구글 SERP·AI Overview** | 구글 노출 (조건부) | **[OPEN] 키 채택·비용 = OQ-4** (SerpAPI / SearchAPI, v1.5) | v1 포함 여부 = OQ-2 |
-| 3순위 (하위) | **SNS (인스타·블로그·유튜브)** | SNS 노출 — 멀티플랫폼 source detection | 엔진 멀티플랫폼 분석 | core-engine 멀티플랫폼/source detection 재사용 |
+| 3순위 (미래) | **SNS/블로그/유튜브 자동 연동** | 현재 v1 UI 채널 아님 — future lever | 별도 adapter 결정 후 | SME v1 display channel taxonomy는 `naver/google/ai`로 고정 |
 
 > AI 측정이 작은 가게엔 "모름"이 흔하다는 점은 리스크가 아니라 전제다(5절 참조): 정직하게 "아직 안 나와요"로 노출하되 미래지향 가치 + 현재 증거 측정으로 처리한다.
 
@@ -53,8 +53,8 @@
 | 항목 | 내용 |
 |------|------|
 | 필요성 | 진단(크롤·SERP·AI 인용)은 수초~수십초 소요 → 동기 응답 불가 |
-| 후보 | **[OPEN] 인프라 선택 = OQ-5** — BullMQ(규모 과하면 부담) vs 경량 큐 / 서버리스 잡 |
-| 결정 원칙 | 초기 트래픽·단위경제에 맞춰 가장 가벼운 선택. 규모 커지면 교체 |
+| 현재 결정 | SME v1은 `diagnoses` DB-backed queue(상태/attempt/error/payload 저장) + 경량 in-memory API rate limit으로 시작한다. BullMQ/Redis 등 분산 인프라는 트래픽 증가 시 같은 인터페이스 뒤에서 교체한다. |
+| 결정 원칙 | 현재 구현을 정본으로 하되, 규모 커지면 추상화 레이어 뒤에서 교체 |
 | 상태 모델 | 잡 상태(pending/running/done/failed)를 diagnosis에 반영 → 화면은 "한 번에 하나"로 진행 표시 |
 
 ## 4. 재사용 vs 신규 경계
@@ -73,7 +73,7 @@
 |--------|------|------|
 | AI 인용·SERP 비용 폭증 | 단위경제 악화 | grounded llmValidation·SERP 호출 게이팅, 캐싱/재진단 정책(REQ-007 OQ-2) |
 | 구글 SERP 키 미결정(OQ-4) | 구글 노출 기능 불확실 | v1에서 구글을 조건부로 두고 OQ-2와 함께 컷 결정 |
-| 잡 인프라 과/소설계(OQ-5) | 운영 부담 or 확장 한계 | 경량으로 시작, 추상화 레이어로 교체 가능하게 |
+| 분산 rate limit·별도 queue 전환 | 다중 인스턴스 확장 시 운영 복잡도 | 현 SME v1은 diagnoses DB-backed queue + 경량 in-memory rate limit로 시작, 추상화 레이어 뒤에서 교체 |
 | 엔진 결합 강도(OQ-6) | workspace-only 패키지 경계가 새어 앱이 엔진 내부에 끌려다님 | contracts 타입 경계 고정, 현재는 내부 workspace import만 허용. 외부 패키지 발행은 dist build/release workflow 준비 전까지 금지 |
 | on-page 점수 ≠ AI 실인용 | 잘못된 약속 → 신뢰 붕괴 | 정직성 규율(05·07): 점수 과신 금지, 진짜 레버는 리뷰·평판·브랜드임을 명시 |
 
@@ -85,7 +85,7 @@
 
 | 변할 축 | 흡수 패턴 | x-sag 재사용 |
 |---------|-----------|--------------|
-| 채널 추가 (네이버·구글·SNS → 카카오·당근·유튜브) | `ChannelAdapter` 인터페이스 — 채널 추가 = 어댑터 1개 구현 | x-sag `SerpAdapter` 차용 |
+| 채널 추가 (현재 `naver/google/ai` → 미래 SNS·카카오·당근·유튜브) | `ChannelAdapter` 인터페이스 — 채널 추가 = 어댑터 1개 구현 | x-sag `SerpAdapter` 차용 |
 | AI 엔진 추가 (GPT·퍼플렉시티·제미나이 → 클로드·네이버AI) | `AiEngineAdapter` + provider chain | x-sag `llm-provider` 재사용 |
 | 진단 룰 추가 | 룰 레지스트리(데이터 주도) — 하드코딩 금지 | x-sag 105룰 방식 |
 | 리포트/데이터 모양 변경 | `contracts` 단일 진실 + additive optional 필드(스키마 1.x MINOR 무중단, 옛 데이터 안 깨짐) | x-sag `packages/contracts` |
@@ -120,7 +120,7 @@
 
 - **Upstream docs**: 01-prd.md (REQ-001~007, OQ-2/4/5/6)
 - **Downstream docs**: 04-database-design.md(엔진 스키마 차용), 07-coding-convention.md(엔진 통합 규칙 + 확장성 코딩 규칙 6절), 03-user-flow.md(잡 진행 표시)
-- **Open questions**: OQ-2(MVP 컷·구글/역공학/재진단), OQ-4(구글 SERP 키·비용), OQ-5(잡 인프라). OQ-6은 현재 SME v1 기준 **workspace-only 패키지 사용**으로 해소됨(외부 발행 유예).
-- **Assumptions**: Naver Search API 접근 가능 / x-sag contracts 타입을 현재 모노레포 workspace 패키지로 사용할 수 있음 / Postgres+Drizzle 재사용 가능 / **데이터 소스 우선순위 = AI 실인용(HERO) > 경쟁사·GapAnalyzer > 네이버>구글(v1.5)>SNS(연료)**(2절, 확정) / 작은 가게의 AI "모름"을 미래지향 가치+증거 측정으로 처리 / **확장성 = 구속 조건: 변할 축에만 확장점(어댑터·레지스트리·config·버저닝), x-sag 패턴 재사용, 엔진 계약 불변·additive only**(6절, 확정)
+- **Open questions**: OQ-2(MVP 컷·구글/역공학/재진단), OQ-4(구글 SERP 키·비용). OQ-5는 현재 SME v1 기준 diagnoses 기반 DB-backed queue + 경량 in-memory rate limit으로 해소했고, 분산 rate limit/별도 queue 인프라는 future ops로 유예한다. OQ-6은 workspace-only 패키지 사용으로 해소됨(외부 발행 유예).
+- **Assumptions**: Naver Search API 접근 가능 / x-sag contracts 타입을 현재 모노레포 workspace 패키지로 사용할 수 있음 / Postgres+Drizzle 재사용 가능 / **데이터 소스 우선순위 = AI 실인용(HERO) > 경쟁사·GapAnalyzer > 네이버>구글(v1.5), SNS는 future lever**(2절, 확정) / 작은 가게의 AI "모름"을 미래지향 가치+증거 측정으로 처리 / **확장성 = 구속 조건: 변할 축에만 확장점(어댑터·레지스트리·config·버저닝), x-sag 패턴 재사용, 엔진 계약 불변·additive only**(6절, 확정)
 - **Validation criteria**: 진단 잡이 비동기로 완주하고 신호등 결과를 반환한다 / 비용 게이팅이 동작한다 / 엔진 패키지가 신규 앱에서 workspace import되어 동작한다 / 문서가 release workflow나 GitHub Packages 발행을 현재 범위로 요구하지 않는다
-- **Risks**: 데이터 소스 비용 / 키 미결정 / 잡 인프라 선택 / 엔진 결합 강도 / 점수≠실인용 신뢰 리스크 (위 5절)
+- **Risks**: 데이터 소스 비용 / 키 미결정 / 분산 rate limit·별도 queue 전환 시 운영 복잡도 / 엔진 결합 강도 / 점수≠실인용 신뢰 리스크 (위 5절)

@@ -108,7 +108,7 @@ describe("hasRealCompetitorSignal", () => {
 });
 
 describe("deriveCompetitorInput", () => {
-  it("실 grounded 신호가 있으면 naver_serp 샘플 없이 그 이름으로 GapAnalyzer 트리거", async () => {
+  it("grounded 신호가 이름뿐이면 diagnosable target 을 만들지 않고 미측정 상태로 둔다", async () => {
     const o = baseOutput();
     o.llmValidation = {
       provider: "x",
@@ -121,7 +121,7 @@ describe("deriveCompetitorInput", () => {
     const derived = await deriveCompetitorInput(o, PROFILE);
     expect(derived.hasNoCompetitorData).toBe(false);
     expect(derived.naverCompetitorTop).toHaveLength(0);
-    expect(derived.competitorUrls).toContain("gpt_grounded:옆집카페");
+    expect(derived.competitorUrls).toEqual([]);
   });
 
   it("dev + 실 신호 없음 → 샘플 naver_serp 경쟁사 + competitorUrls(S3~S6 실데이터)", async () => {
@@ -161,7 +161,7 @@ describe("deriveCompetitorInput", () => {
     expect(derived.competitorUrls).toContain("naver_serp:그라운드커피");
   });
 
-  it("production + 실 grounded 신호 있음 → 정상(SERP 발견자 호출 없이 fail-fast 아님)", async () => {
+  it("production + grounded 경쟁사 이름만 있으면 SERP 호출 없이 미측정 경쟁사 상태로 남긴다", async () => {
     vi.stubEnv("NODE_ENV", "production");
     const o = baseOutput();
     o.llmValidation = {
@@ -180,8 +180,8 @@ describe("deriveCompetitorInput", () => {
       },
     });
     expect(derived.hasNoCompetitorData).toBe(false);
-    expect(derived.competitorUrls).toContain("gpt_grounded:진짜경쟁사");
-    // grounded 신호가 있으면 SERP 발견을 시도하지 않는다(불필요한 외부 호출 0).
+    expect(derived.competitorUrls).toEqual([]);
+    // grounded name-only 신호는 이미 원자료이므로 SERP 로 이름을 보강하지 않는다.
     expect(serpCalled).toBe(false);
   });
   it("production + grounded 경쟁사 URL 근거가 있으면 diagnosable URL 을 보존한다", async () => {

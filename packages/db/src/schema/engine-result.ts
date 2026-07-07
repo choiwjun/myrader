@@ -42,7 +42,7 @@ export const engineResults = pgTable(
       .notNull()
       .references(() => diagnoses.id, { onDelete: "cascade" }),
 
-    /** Channel: naver, google, ai_citation 등 */
+    /** Storage channel: naver, google, ai_citation. UI maps ai_citation → ai; SNS is not a v1 channel. */
     channel: text("channel").notNull(),
 
     /** Category: seo, aeo, geo, a11y, backlink, perf */

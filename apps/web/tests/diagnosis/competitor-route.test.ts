@@ -154,7 +154,7 @@ describe("GET /api/competitor (P2-R3)", () => {
           source: string;
           collectedAt?: string;
           measurementLabel?: string;
-          evidence?: { sampleQuery?: string };
+          evidence?: Array<{ label: string; detail: string }>;
         }>;
         headline: string;
       };
@@ -167,7 +167,9 @@ describe("GET /api/competitor (P2-R3)", () => {
       collectedAt: "2026-07-06T07:00:00.000Z",
       measurementLabel: "measured",
     });
-    expect(body.data.competitors[0]?.evidence).toMatchObject({ sampleQuery: "강남 카페" });
+    expect(body.data.competitors[0]?.evidence).toEqual(
+      expect.arrayContaining([{ label: "질문", detail: "강남 카페" }]),
+    );
     expect(typeof body.data.headline).toBe("string");
   });
 
@@ -184,9 +186,16 @@ describe("GET /api/competitor (P2-R3)", () => {
     ];
     const res = await GET(req(`diagnosisId=${VALID_UUID}`));
     const body = (await res.json()) as {
-      data: { competitors: Array<{ evidence?: { serpRank?: number }; measurementLabel?: string }> };
+      data: {
+        competitors: Array<{
+          evidence?: Array<{ label: string; detail: string }>;
+          measurementLabel?: string;
+        }>;
+      };
     };
-    expect(body.data.competitors[0]?.evidence).toMatchObject({ serpRank: 2 });
+    expect(body.data.competitors[0]?.evidence).toEqual(
+      expect.arrayContaining([{ label: "순위", detail: "2" }]),
+    );
     expect(body.data.competitors[0]?.measurementLabel).toBe("measured");
   });
 

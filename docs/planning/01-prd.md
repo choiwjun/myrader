@@ -79,16 +79,16 @@
 | x-sag식 external-API·화이트라벨·PDF·구독티어 복잡성 | 집중형 제품 방향에 역행 |
 | 매출/스마트플레이스 성과연결 | GEO 코어 이탈 + API 부재로 종결 |
 
-## 9. Open Questions (발명 금지 — 명시적 미결정)
+## 9. Open Questions / 결정 상태
 
-| OQ ID | 미결정 항목 | 영향 문서 |
+| ID | 현재 상태 | 영향 문서 |
 |-------|-------------|-----------|
-| OQ-1 | 제품명 (가칭 미정) | 전체 |
-| OQ-2 | MVP 컷 — 구글 노출 v1 포함?/역공학(REQ-004) v1 범위?/재진단·추이(REQ-007) v1 포함? | 01·02·03·06 |
-| OQ-3 | 무료/유료 경계·가격 (새 제품 BM 미정) | 01·05 |
-| OQ-4 | 구글 SERP API 키 채택·비용 (SerpAPI/SearchAPI) | 02 |
-| OQ-5 | 백그라운드 잡 인프라 선택 (BullMQ vs 경량/서버리스) | 02 |
-| OQ-6 | 엔진 재사용 방식 (x-sag 패키지 그대로 import vs 추출/복사) | 02·07 |
+| OQ-1 | 해소: 제품명은 보이나/사장님 레이더 | 전체 |
+| OQ-2 | 부분 해소: SME v1 컷은 현재 구현 기준. 구글 실 SERP/AI Overview rank, 재진단·추이는 v1.5 | 01·02·03·06 |
+| OQ-3 | SME v1 범위 밖: 결제/가격은 비활성, checkout/payment은 사용하지 않음 | 01·05 |
+| OQ-4 | 미결정: 구글 SERP API 키 채택·비용 (SerpAPI/SearchAPI) | 02 |
+| OQ-5 | 해소: diagnoses DB-backed queue + 경량 rate limit, 분산 인프라는 future ops | 02 |
+| OQ-6 | 해소: workspace-only 패키지 import. 외부 발행은 future Creator/별도 레포 단계 | 02·07 |
 
 ## 10. 수용기준 (Acceptance Criteria)
 
@@ -111,7 +111,7 @@
 
 - **Upstream docs**: (없음 — 본 PRD가 기획 베이스라인의 최상류). 참고: x-sag 자사 유료데이터 n=51 인사이트
 - **Downstream docs**: 02-trd.md, 03-user-flow.md, 04-database-design.md, 05-design-system.md, 06-screens.md, 07-coding-convention.md
-- **Open questions**: OQ-1(제품명), OQ-2(MVP 컷), OQ-3(BM·가격), OQ-4(구글 SERP 키), OQ-5(잡 인프라), OQ-6(엔진 재사용 방식)
+- **Open questions**: OQ-4(구글 SERP 키), OQ-2(v1.5 재진단/추이 컷). OQ-1(제품명=보이나/사장님 레이더), OQ-5(현 SME v1 잡 인프라=diagnoses DB-backed queue + 경량 rate limit), OQ-6(workspace-only 패키지 사용)는 해소됨. OQ-3 가격/BM은 현재 결제 비활성 SME v1 범위 밖으로 유예.
 - **Assumptions**: 비IT 사장님이 모바일로 단독 사용한다 / x-sag 엔진이 부품으로 재사용 가능하다 / 네이버 Search API 접근이 가능하다
 - **Validation criteria**: AC-1~8, 특히 AC-7(사장님 이해도 테스트, ✅ 충족 2026-06-14) 통과
 - **Risks**: 비IT 사장님이 제품을 이해 못 함(최대 베팅 리스크) / 노출→매출 인과를 사용자가 기대했다 실망 / 구글·AI 데이터 비용으로 단위경제 악화 / MVP 컷 미결정으로 범위 팽창

@@ -21,10 +21,11 @@ import { useEffect, useRef, useState } from "react";
 // ── 타입 ─────────────────────────────────────────────────────────────────────
 
 interface PlaceCandidate {
-  placeUrl: string;
+  placeUrl?: string | null;
   name: string;
   address: string;
   category: string;
+  isManual?: boolean;
 }
 
 interface ConfirmedBusiness {
@@ -32,6 +33,7 @@ interface ConfirmedBusiness {
   name: string;
   placeUrl: string | null;
   websiteUrl?: string | null;
+  region: string | null;
 }
 
 type ScreenPhase = "search" | "candidates" | "confirm" | "progress";
@@ -39,6 +41,10 @@ type ScreenPhase = "search" | "candidates" | "confirm" | "progress";
 const POLL_INTERVAL_MS = 2000;
 const POLL_MAX_ATTEMPTS = 30;
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+function buildManualSearchTarget(candidateName: string, candidateRegion: string): string {
+  const query = [candidateRegion.trim(), candidateName.trim()].filter(Boolean).join(" ");
+  return `https://search.naver.com/search.naver?query=${encodeURIComponent(query)}`;
+}
 
 export function diagnosisIdFromEnqueueSuccess(json: unknown): string | null {
   if (typeof json !== "object" || json === null) return null;
@@ -93,6 +99,7 @@ export default function FindPage() {
 
   const [selected, setSelected] = useState<PlaceCandidate | null>(null);
   const [websiteUrl, setWebsiteUrl] = useState("");
+  const [manualCategory, setManualCategory] = useState("");
 
   const [diagnosisId, setDiagnosisId] = useState<string | null>(null);
   const [diagnosisStatus, setDiagnosisStatus] = useState<DiagnosisStatus>("queued");
@@ -129,7 +136,7 @@ export default function FindPage() {
 
       const list: PlaceCandidate[] = json.data?.candidates ?? [];
       if (list.length === 0) {
-        setSearchError("가게를 찾지 못했어요. 이름을 조금 다르게 입력해 볼까요?");
+        setSearchError("가게를 찾지 못했어요. 직접 입력해서 계속할 수 있어요.");
         return;
       }
 
@@ -144,11 +151,45 @@ export default function FindPage() {
 
   function handleSelectCandidate(candidate: PlaceCandidate) {
     setSelected(candidate);
+    setManualCategory("");
     setPhase("confirm");
+  }
+
+  function handleManualEntry() {
+    const manualName = name.trim();
+    if (!manualName) return;
+    const category = manualCategory.trim() || "음식점";
+    const safeRegion = region.trim() || "전국";
+    setSelected({
+      placeUrl: null,
+      name: manualName,
+      address: `${safeRegion} 직접 입력`,
+      category,
+      isManual: true,
+    });
+    setManualCategory(category);
+    setWebsiteUrl("");
+    setSearchError(null);
+    setStartError(null);
+    setPhase("confirm");
+  }
+
+  function handleConfirmBack() {
+    if (selected?.isManual) {
+      setPhase(candidates.length > 0 ? "candidates" : "search");
+      return;
+    }
+    setPhase("candidates");
   }
 
   async function handleStartDiagnosis() {
     if (!selected) return;
+    const candidateForStart: PlaceCandidate = {
+      ...selected,
+      category: selected.isManual
+        ? manualCategory.trim() || selected.category || "음식점"
+        : selected.category,
+    };
 
     setStartError(null);
     setIsStarting(true);
@@ -159,10 +200,10 @@ export default function FindPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           candidate: {
-            placeUrl: selected.placeUrl,
-            name: selected.name,
-            address: selected.address,
-            category: selected.category,
+            ...(candidateForStart.placeUrl ? { placeUrl: candidateForStart.placeUrl } : {}),
+            name: candidateForStart.name,
+            address: candidateForStart.address,
+            category: candidateForStart.category,
           },
           websiteUrl: websiteUrl.trim() || undefined,
           region: region.trim() || undefined,
@@ -177,7 +218,7 @@ export default function FindPage() {
       }
 
       const business: ConfirmedBusiness = confirmJson.data?.business;
-      await enqueueWithBusiness(business, selected);
+      await enqueueWithBusiness(business, candidateForStart);
     } catch {
       setStartError("잠깐 멈췄어요. 다시 해볼까요?");
     } finally {
@@ -186,7 +227,11 @@ export default function FindPage() {
   }
 
   async function enqueueWithBusiness(business: ConfirmedBusiness, candidate: PlaceCandidate) {
-    const target = business.websiteUrl?.trim() || business.placeUrl || candidate.placeUrl;
+    const fallbackRegion = business.region || region.trim() || "전국";
+    const target =
+      business.websiteUrl?.trim() ||
+      business.placeUrl ||
+      buildManualSearchTarget(candidate.name, fallbackRegion);
     const sourceType = business.websiteUrl?.trim() ? "website" : "naver_place";
 
     const res = await fetch("/api/diagnosis", {
@@ -198,7 +243,7 @@ export default function FindPage() {
         businessProfile: {
           businessName: candidate.name,
           industry: candidate.category || "음식점",
-          region: region.trim() || "전국",
+          region: fallbackRegion,
           mainServices: [candidate.category || "일반"],
           targetKeywords: [candidate.name],
         },
@@ -281,6 +326,7 @@ export default function FindPage() {
           onSubmit={handleSearch}
           isLoading={isSearching}
           error={searchError}
+          onManualEntry={handleManualEntry}
         />
       )}
 
@@ -288,6 +334,7 @@ export default function FindPage() {
         <CandidateList
           candidates={candidates}
           onSelect={handleSelectCandidate}
+          onManualEntry={handleManualEntry}
           onBack={() => setPhase("search")}
         />
       )}
@@ -296,9 +343,11 @@ export default function FindPage() {
         <ConfirmStep
           selected={selected}
           websiteUrl={websiteUrl}
+          manualCategory={manualCategory}
           onWebsiteUrlChange={setWebsiteUrl}
+          onManualCategoryChange={setManualCategory}
           onStart={handleStartDiagnosis}
-          onBack={() => setPhase("candidates")}
+          onBack={handleConfirmBack}
           isStarting={isStarting}
           error={startError}
         />
@@ -329,6 +378,7 @@ function StoreSearchForm({
   onSubmit,
   isLoading,
   error,
+  onManualEntry,
 }: {
   name: string;
   region: string;
@@ -337,6 +387,7 @@ function StoreSearchForm({
   onSubmit: (e: React.FormEvent) => void;
   isLoading: boolean;
   error: string | null;
+  onManualEntry: () => void;
 }) {
   return (
     <section aria-label="가게 찾기" className="flex flex-col items-center">
@@ -405,9 +456,17 @@ function StoreSearchForm({
         </div>
 
         {error && (
-          <p role="alert" className="rounded-xl bg-[#FEF2F2] px-4 py-3 text-sm text-[#DC2626]">
-            {error}
-          </p>
+          <div role="alert" className="rounded-xl bg-[#FEF2F2] px-4 py-3 text-sm text-[#DC2626]">
+            <p>{error}</p>
+            <button
+              type="button"
+              onClick={onManualEntry}
+              disabled={!name.trim() || isLoading}
+              className="mt-3 min-h-[44px] w-full rounded-xl bg-white px-4 py-2 font-bold text-[var(--boina-brand)] transition-colors hover:bg-[#F8FAFC] disabled:opacity-40"
+            >
+              직접 입력해서 계속할게요
+            </button>
+          </div>
         )}
 
         <button
@@ -449,10 +508,12 @@ function StoreSearchForm({
 function CandidateList({
   candidates,
   onSelect,
+  onManualEntry,
   onBack,
 }: {
   candidates: PlaceCandidate[];
   onSelect: (c: PlaceCandidate) => void;
+  onManualEntry: () => void;
   onBack: () => void;
 }) {
   return (
@@ -467,7 +528,7 @@ function CandidateList({
 
       <ul className="mb-6 space-y-3">
         {candidates.map((c) => (
-          <li key={c.placeUrl}>
+          <li key={c.placeUrl ?? `${c.name}:${c.address}`}>
             <button
               type="button"
               onClick={() => onSelect(c)}
@@ -491,6 +552,13 @@ function CandidateList({
 
       <button
         type="button"
+        onClick={onManualEntry}
+        className="mb-3 min-h-[52px] w-full rounded-2xl border border-[#CFEADD] bg-white text-base font-bold text-[var(--boina-brand)] transition-colors hover:bg-[var(--boina-brand-soft)]"
+      >
+        목록에 없어요. 직접 입력할게요
+      </button>
+      <button
+        type="button"
         onClick={onBack}
         className="min-h-[52px] w-full rounded-2xl bg-[#F1F5F9] text-base font-bold text-[#434654] transition-colors hover:bg-[#E2E8F0]"
       >
@@ -504,7 +572,9 @@ function CandidateList({
 function ConfirmStep({
   selected,
   websiteUrl,
+  manualCategory,
   onWebsiteUrlChange,
+  onManualCategoryChange,
   onStart,
   onBack,
   isStarting,
@@ -512,7 +582,9 @@ function ConfirmStep({
 }: {
   selected: PlaceCandidate;
   websiteUrl: string;
+  manualCategory: string;
   onWebsiteUrlChange: (v: string) => void;
+  onManualCategoryChange: (v: string) => void;
   onStart: () => void;
   onBack: () => void;
   isStarting: boolean;
@@ -533,6 +605,28 @@ function ConfirmStep({
         {selected.category && <p className="mt-1 text-xs text-[#94A3B8]">{selected.category}</p>}
       </div>
 
+      {selected.isManual && (
+        <div className="mb-6">
+          <label
+            htmlFor="manual-category"
+            className="mb-1.5 block text-sm font-semibold text-[#434654]"
+          >
+            업종 <span className="font-normal text-[#94A3B8]">(선택)</span>
+          </label>
+          <input
+            id="manual-category"
+            type="text"
+            value={manualCategory}
+            onChange={(e) => onManualCategoryChange(e.target.value)}
+            placeholder="예: 카페, 분식, 미용실"
+            autoComplete="organization-title"
+            className={inputCls}
+          />
+          <p className="mt-1.5 text-xs leading-relaxed text-[#94A3B8]">
+            몰라도 괜찮아요. 비워두면 일반 음식점으로 살펴볼게요.
+          </p>
+        </div>
+      )}
       <div className="mb-6">
         <label htmlFor="website-url" className="mb-1.5 block text-sm font-semibold text-[#434654]">
           홈페이지 주소 <span className="font-normal text-[#94A3B8]">(없어도 돼요)</span>

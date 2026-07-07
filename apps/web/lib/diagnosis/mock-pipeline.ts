@@ -64,6 +64,15 @@ export function buildMockAssetFaqs(businessName: string): { question: string; an
 export function isMockSampleItem(item: Pick<DiagnosisItem, "title" | "description">): boolean {
   return item.title.includes(MOCK_SAMPLE_MARKER) || item.description.includes(MOCK_SAMPLE_MARKER);
 }
+function normalizeMockSurfaceUrl(rawUrl: string, businessName: string): string {
+  try {
+    const url = new URL(rawUrl);
+    if (url.protocol === "http:" || url.protocol === "https:") return rawUrl;
+  } catch {
+    // Fall through to a deterministic fixture URL below.
+  }
+  return `https://mock.boina.local/${encodeURIComponent(businessName)}`;
+}
 
 /**
  * "작은 가게" 샘플 미통과 항목 6종(엔진 DiagnosisItem 형태).
@@ -230,7 +239,25 @@ export function buildMockDiagnosisOutput(input: DiagnosisPipelineInput): Diagnos
       primaryUrl: input.startUrl,
       canonicalName: input.businessProfile.businessName,
       services: input.businessProfile.mainServices ?? [],
-      surfaces: [],
+      surfaces: [
+        {
+          sourceType: input.sourceType ?? "website",
+          surfaceKind:
+            input.sourceType === "naver_place"
+              ? "place"
+              : input.sourceType === "website" || input.sourceType === undefined
+                ? "website"
+                : undefined,
+          url: normalizeMockSurfaceUrl(input.startUrl, input.businessProfile.businessName),
+          status: "fetched",
+          sourceLabel: `${MOCK_SAMPLE_MARKER} 개발 샘플 표면`,
+          name: input.businessProfile.businessName,
+          description: `${MOCK_SAMPLE_MARKER} 실 키 없이 진단 흐름을 검증하기 위한 샘플 표면입니다.`,
+          confidence: "medium",
+          services: input.businessProfile.mainServices ?? [],
+          limitations: [],
+        },
+      ],
       limitations: [],
     },
     // AI 아직 미인용(게이팅 유지): grounded=false → 채널 신호등이 green 으로 못 올린다(정직).

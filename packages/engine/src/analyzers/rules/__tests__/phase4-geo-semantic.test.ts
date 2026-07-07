@@ -420,13 +420,13 @@ describe("GEO high-weight matching: boundary, spacing, synonyms", () => {
 		expect(h1Rule.passed).toBe(true);
 	});
 
-	it("TRUE-POSITIVE: 세부 운영시간이 없으면 점수 중립 unavailable로 반환한다", () => {
+	it("TRUE-POSITIVE: 세부 운영시간이 없으면 점수 중립 unavailable + passed로 반환한다", () => {
 		const r = geoBusinessHoursDetail001(
 			makeCtx({
 				bodyText: "영업시간은 별도 공지로 안내합니다.",
 			}),
 		);
-		expect(r.passed).toBe(false);
+		expect(r.passed).toBe(true);
 		expect(r.scoreImpact).toBe("unavailable");
 	});
 });

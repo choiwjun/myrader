@@ -20,7 +20,12 @@ import type { DbClient } from "@boina/db/client";
 // 실행 시점에 lazy import 한다(07 §2 경계는 배럴 export 유지, 읽기 경로 비번들).
 import type { DiagnosisPipelineInput, DiagnosisPipelineOutput } from "@boina/engine";
 import type { Job, JobHandler } from "@boina/jobs";
-import { type CostGate, type CostGateContext, defaultCostGate } from "@boina/jobs/gating";
+import {
+  type CostGate,
+  type CostGateContext,
+  type CostGateDecision,
+  defaultCostGate,
+} from "@boina/jobs/gating";
 import { isMockFallbackAllowed } from "../shared/runtime-env.js";
 import {
   type CompetitorBusinessProfile,
@@ -158,18 +163,79 @@ export interface DiagnosisHandlerDeps {
  * (실 LLM provider 키 유무는 엔진 isLlmEnabled() 가 추가로 가드 — 키 없으면
  *  enableLlmValidation=true 라도 mock 으로 동작하여 실 호출 0.)
  */
+interface LlmValidationGateOutcome {
+  enableLlmValidation: boolean;
+  requested: boolean;
+  decidedAt: string;
+  decision: CostGateDecision;
+}
+
 async function decideLlmValidation(
   costGate: CostGate,
   payload: DiagnosisJobPayload,
-): Promise<boolean> {
-  if (!payload.requestLlmValidation) return false;
+): Promise<LlmValidationGateOutcome> {
+  const decidedAt = new Date().toISOString();
+  if (!payload.requestLlmValidation) {
+    return {
+      enableLlmValidation: false,
+      requested: false,
+      decidedAt,
+      decision: {
+        allowed: false,
+        reason: "not_requested:llm_validation",
+        fallback: "skip",
+      },
+    };
+  }
   const ctx: CostGateContext = {
     operation: "llm_validation",
     diagnosisId: payload.diagnosisId,
     businessId: payload.businessId,
   };
   const decision = await costGate(ctx);
-  return decision.allowed;
+  return {
+    enableLlmValidation: decision.allowed,
+    requested: true,
+    decidedAt,
+    decision,
+  };
+}
+
+async function persistCostGateEvidence(
+  repo: DiagnosisRepository,
+  diagnosisId: string,
+  payload: DiagnosisJobPayload,
+  outcome: LlmValidationGateOutcome,
+): Promise<void> {
+  const currentPayload = payload as Record<string, unknown>;
+  const existingCostGate = isPlainRecord(currentPayload.costGate) ? currentPayload.costGate : {};
+  await repo.update(diagnosisId, {
+    jobPayload: {
+      ...currentPayload,
+      costGate: {
+        ...existingCostGate,
+        llmValidation: {
+          schemaVersion: 1,
+          operation: "llm_validation",
+          requested: outcome.requested,
+          allowed: outcome.decision.allowed,
+          reason: sanitizeOperatorReason(outcome.decision.reason),
+          ...(outcome.decision.fallback ? { fallback: outcome.decision.fallback } : {}),
+          engineLlmValidationEnabled: outcome.enableLlmValidation,
+          decidedAt: outcome.decidedAt,
+        },
+      },
+    },
+  });
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function sanitizeOperatorReason(value: string): string {
+  const compact = value.replace(/\s+/g, " ").trim();
+  return compact.length > 0 ? compact.slice(0, 160) : "unspecified";
 }
 
 /** payload → 엔진 DiagnosisPipelineInput 매핑 (contracts 타입 경계). */
@@ -301,7 +367,8 @@ async function persistArtifacts(
   const bp = payload.businessProfile;
 
   // ★ 경쟁사 산출(수정R2-A-2): /find 가 competitorUrls 를 안 보내도 S3~S5 가 실데이터로 채워지게.
-  //   - 실 grounded 경쟁사 신호가 있으면 그 이름으로 GapAnalyzer 를 트리거한다.
+  //   - grounded 경쟁사 URL 이 있으면 그 URL 로 GapAnalyzer 를 트리거한다.
+  //   - grounded 이름만 있으면 competitors 원자료만 저장하고 gap/action 은 미측정 상태로 둔다.
   //   - dev/test 는 샘플 naver_serp 경쟁사를 산출(S3~S6 렌더). production+실신호 0 → fail-fast.
   const profile: CompetitorBusinessProfile = {
     businessName: bp.businessName,
@@ -387,10 +454,11 @@ export function buildDiagnosisHandler(deps: DiagnosisHandlerDeps): JobHandler<Di
       //   고착시키지 못하게 한다(고착 방지). 엔진 자체 스테이지 타임아웃과 중첩되는 상위 가드.
       await withTimeout(async () => {
         // [비용 게이팅] grounded llmValidation 은 게이트 통과 시에만 활성.
-        const enableLlmValidation = await decideLlmValidation(costGate, payload);
+        const llmGate = await decideLlmValidation(costGate, payload);
+        await persistCostGateEvidence(repo, diagnosisId, payload, llmGate);
 
         // 엔진 파이프라인 실행 (07 §2 경계: 배럴 export + contracts 타입).
-        const output = await runPipeline(toPipelineInput(payload, enableLlmValidation));
+        const output = await runPipeline(toPipelineInput(payload, llmGate.enableLlmValidation));
 
         // [04 §4 영속화] DB 주입 시 진단 산출을 5종 테이블에 일관 기록한다(engine_result→…→action).
         // 경쟁사 산출(FR-012/수정R2-A-2): grounded/샘플 경쟁사 → GapResult → gap_rows → actions.

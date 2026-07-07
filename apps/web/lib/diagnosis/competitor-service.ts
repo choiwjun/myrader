@@ -285,9 +285,15 @@ export function deriveCompetitorViewFromPersisted(
     competitors.push(c);
     naverIdx += 1;
   }
+  const llmEvidenceByName = new Map(
+    (options.llmMeasurement?.competitors ?? [])
+      .map((c) => [cleanName(c.name), c] as const)
+      .filter(([name]) => name),
+  );
   for (const r of ai) {
     const name = cleanName(r.name);
     if (!name) continue;
+    const llmEvidence = llmEvidenceByName.get(name);
     competitors.push({
       id: makeUuidV4(),
       name: anonymize ? anonName("ai", aiIdx) : name,
@@ -295,7 +301,13 @@ export function deriveCompetitorViewFromPersisted(
       beatsMe: true,
       source: "gpt_grounded",
       collectedAt: r.collectedAt,
-      evidence: normalizeEvidenceItems({ name, source: r.source, collectedAt: r.collectedAt }),
+      evidence: normalizeEvidenceItems({
+        name,
+        sampleQuery: llmEvidence?.sampleQuery,
+        mentionedInQueries: llmEvidence?.mentionedInQueries,
+        source: r.source,
+        collectedAt: r.collectedAt,
+      }),
       measurementLabel: "measured",
     });
     aiIdx += 1;

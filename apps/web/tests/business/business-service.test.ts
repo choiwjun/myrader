@@ -140,6 +140,24 @@ describe("business 서비스 (P2-R1)", () => {
     expect(view.websiteUrl).toBeNull();
     expect(repo.rows.get(view.id)?.homepageUrl).toBeNull();
   });
+  it("직접 입력 후보는 placeUrl 없이도 business 를 생성한다", async () => {
+    const repo = makeFakeRepo();
+    const view = await confirmBusiness(repo, {
+      accountId: ACCOUNT_ID,
+      candidate: {
+        name: "직접입력가게",
+        address: "서울 마포구 직접 입력",
+        category: "카페",
+      },
+      region: "서울 마포구",
+    });
+
+    expect(view.id).toBeTruthy();
+    expect(view.name).toBe("직접입력가게");
+    expect(view.placeUrl).toBeNull();
+    expect(view.category).toBe("카페");
+    expect(repo.rows.get(view.id)?.naverPlaceId).toBeNull();
+  });
 
   it("confirmBusiness: 기존 네이버 가게 재확정 시 새 홈페이지를 저장한다", async () => {
     const repo = makeFakeRepo();

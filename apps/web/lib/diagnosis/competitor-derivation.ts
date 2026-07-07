@@ -128,8 +128,9 @@ export const defaultSerpCompetitorDiscoverer: SerpCompetitorDiscoverer = async (
  * 진단 잡의 경쟁사 입력을 산출한다(엔진 소스 무수정 — 호출 결과만 활용).
  *
  * 우선순위:
- *  1) 실 신호(grounded GPT 경쟁사)가 있으면 → naver_serp 샘플 없이 그 이름을 competitorUrls 로 승계.
- *  2) mock fallback 허용(dev/test) → 샘플 naver_serp 경쟁사 산출(S3~S6 실데이터, 엔진 SERP import 0).
+ *  1) grounded GPT 경쟁사 중 diagnosable URL 이 있으면 그 URL 만 GapAnalyzer 트리거로 보존한다.
+ *     이름만 있는 grounded 경쟁사는 competitors 원자료로만 저장되고 gap/action 은 미측정 상태로 남긴다.
+ *  2) mock fallback 허용(dev/test) + 실 신호 없음 → 샘플 naver_serp 경쟁사 산출(S3~S6 실데이터).
  *  3) production + 실 신호 없음 → ★ SERP 자동발견(OQ-4) 시도. 발견되면 경쟁사 채움.
  *  4) production + SERP 미구성/발견 0 → hasNoCompetitorData=true 로 호출부(핸들러)가 fail-fast.
  *
@@ -142,15 +143,16 @@ export async function deriveCompetitorInput(
   profile: CompetitorBusinessProfile,
   opts: { selfUrl?: string; discoverSerp?: SerpCompetitorDiscoverer } = {},
 ): Promise<DerivedCompetitorInput & { hasNoCompetitorData: boolean }> {
-  // (1) 실 grounded 경쟁사 신호: URL 근거가 있으면 보존하고, 없으면 이름 기반 식별자를 쓴다.
+  // (1) 실 grounded 경쟁사 신호: URL 근거가 있는 대상만 diagnosable target 으로 넘긴다.
+  // 이름만 있는 grounded 경쟁사는 output.llmValidation 을 통해 competitors 테이블에 저장하되,
+  // competitorUrls 는 비워 gap/action 을 정직하게 measured-unavailable 상태로 둔다.
   if (hasRealCompetitorSignal(output)) {
-    const competitorUrls = (output.llmValidation?.competitors ?? [])
-      .map((c) => {
-        const name = c.name.trim();
-        if (!name) return null;
-        return optionalCompetitorUrl(c) ?? `gpt_grounded:${name}`;
-      })
-      .filter((target): target is string => target !== null);
+    const competitorUrls = (output.llmValidation?.competitors ?? []).flatMap((c) => {
+      const name = c.name.trim();
+      if (!name) return [];
+      const url = optionalCompetitorUrl(c);
+      return url ? [url] : [];
+    });
     return {
       naverCompetitorTop: [],
       competitorUrls,
