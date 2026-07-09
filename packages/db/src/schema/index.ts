@@ -20,3 +20,4 @@ export * from "./radar-subscription.js";
 export * from "./radar-scan.js";
 export * from "./radar-keyword.js";
 export * from "./radar-feedback.js";
+export * from "./creator.js";

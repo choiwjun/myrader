@@ -57,3 +57,11 @@ Owner-facing feed cards are static. Buttons use color and focus states only; no 
 ## 7. Depth & Surface
 
 Strategy: mixed, but restrained. Cards use white surface, subtle border, and one small shadow: `0 1px 3px rgba(25,31,40,.06)`. Avoid floating glass effects in the owner app.
+
+## 8. Creator Surface
+
+Creator pages under `/creator/*` intentionally do not use the owner-feed palette. They follow
+`docs/03-creator-design-system.md`: a dark observatory surface with `--creator-bg-space`,
+`--creator-bg-panel`, `--creator-signal-naver`, `--creator-signal-ai`, and tabular score chips.
+The signature component is a CSS StarChart fallback until Pixi adoption is proven. Billing copy must
+stay honest: Toss billing is a future paid-subscription scope, not an active checkout surface here.

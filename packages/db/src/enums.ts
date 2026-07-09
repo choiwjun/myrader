@@ -192,3 +192,29 @@ export const radarFeedbackTypeEnum = pgEnum("radar_feedback_type", [
   "dismissed",
   "irrelevant",
 ]);
+
+export const creatorPlanEnum = pgEnum("creator_plan", ["free", "starter", "pro"]);
+
+export const creatorScanTriggerEnum = pgEnum("creator_scan_trigger", [
+  "auto",
+  "manual",
+  "onboarding",
+]);
+
+export const creatorScanStatusEnum = pgEnum("creator_scan_status", [
+  "queued",
+  "expanding",
+  "scoring",
+  "probing",
+  "done",
+  "failed",
+]);
+
+export const creatorKeywordVerdictEnum = pgEnum("creator_keyword_verdict", [
+  "now",
+  "good",
+  "normal",
+  "watch",
+]);
+
+export const creatorCitationKindEnum = pgEnum("creator_citation_kind", ["url", "brand", "phrase"]);
